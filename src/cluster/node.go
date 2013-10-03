@@ -42,9 +42,9 @@ type baseNode struct {
 
 func (n *baseNode) Name() string { return n.name }
 
-func (n *baseNode) GetToken() { return n.token }
+func (n *baseNode) GetToken() Token { return n.token }
 
-func (n *baseNode) GetId() { return n.id }
+func (n *baseNode) GetId() NodeId { return n.id }
 
 // LocalNode provides access to the local store
 type LocalNode struct {
