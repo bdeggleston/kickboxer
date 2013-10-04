@@ -100,7 +100,9 @@ func (cp *ConnectionPool) Put(conn *Connection) {
 	cp.Lock()
 	defer cp.Unlock()
 
-	if cp.size < cp.maxConn {
+	if conn.isClosed {
+		return
+	} else if cp.size < cp.maxConn {
 		holder := &connHolder{conn:conn}
 		if cp.pool == nil {
 			cp.pool = holder
@@ -118,12 +120,11 @@ func (cp *ConnectionPool) Put(conn *Connection) {
 // gets a connection from the pool, creating one if the
 // pool is empty
 func (cp *ConnectionPool) Get() (conn *Connection, err error) {
-	cp.Lock()
-	defer cp.Unlock()
-
 	if cp.pool == nil {
 		return Connect(cp.addr, 1)
 	} else {
+		cp.Lock()
+		defer cp.Unlock()
 		// remove a connection from the pool
 		conn = cp.pool.conn
 		cp.pool = cp.pool.next
