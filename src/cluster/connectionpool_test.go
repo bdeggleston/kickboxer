@@ -153,10 +153,53 @@ func TestGetOpensConnection(t *testing.T) {
 // tests that pool counter is incremented and
 // decremented properly
 func TestPoolSize(t *testing.T) {
+	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
+
+	conn := &Connection{socket:&dumbConn{}}
+	pool.Put(conn)
+	if pool.size != 1 {
+		t.Errorf("pool size 1 expected, %v found", pool.size)
+	}
+
+	conn = &Connection{socket:&dumbConn{}}
+	pool.Put(conn)
+	if pool.size != 2 {
+		t.Errorf("pool size 2 expected, %v found", pool.size)
+	}
+
+	pool.Get()
+	if pool.size != 1 {
+		t.Errorf("pool size 1 expected, %v found", pool.size)
+	}
+
 
 }
 
 // tests that the tail member is tracked properly
 func TestTailLogic(t *testing.T) {
 
+	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
+
+	conn := &Connection{socket:&dumbConn{}}
+	pool.Put(conn)
+	if pool.tail.conn != conn {
+		t.Errorf("unexpected connection found on tail")
+	}
+
+	conn = &Connection{socket:&dumbConn{}}
+	pool.Put(conn)
+	if pool.tail.conn != conn {
+		t.Errorf("unexpected connection found on tail")
+	}
+
+	// empty the pool
+	pool.Get()
+	pool.Get()
+
+	if pool.size != 0 {
+		t.Errorf("pool size 0 expected, %v found", pool.size)
+	}
+	if pool.tail != nil {
+		t.Errorf("nil tail expected, %v found", pool.tail)
+	}
 }
