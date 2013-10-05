@@ -29,10 +29,6 @@ func TestConnectionRequest(t *testing.T) {
 	}
 	writer.Flush()
 
-	if buf.Len() == 0 {
-		t.Fatalf("byte length too low: %v", buf.Len())
-	}
-
 	dst := &ConnectionRequest{}
 	err = dst.Deserialize(bufio.NewReader(buf))
 	if err != nil {
@@ -40,6 +36,9 @@ func TestConnectionRequest(t *testing.T) {
 	}
 
 	// check values
+	if !bytes.Equal(src.NodeId, dst.NodeId) {
+		t.Errorf("NodeId mismatch. Expecting %v, got %v", src.NodeId, dst.NodeId)
+	}
 	if src.Addr != dst.Addr {
 		t.Errorf("Addr mismatch. Expecting %v, got %v", src.Addr, dst.Addr)
 	}

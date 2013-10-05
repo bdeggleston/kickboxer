@@ -89,11 +89,13 @@ func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 
 // sent when connecting to another node
 type ConnectionRequest struct {
-	// the address of the sending node
+	// the id of the requesting node
+	NodeId NodeId
+	// the address of the requesting node
 	Addr string
-	// the name of the sending node
+	// the name of the requesting node
 	Name string
-	// the token of the sending node
+	// the token of the requesting node
 	Token Token
 }
 
@@ -104,6 +106,7 @@ func (m *ConnectionRequest) Serialize(buf *bufio.Writer) error {
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 
 	// then the fields
+	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
 	if err := writeFieldBytes(buf, []byte(m.Addr)); err != nil { return err }
 	if err := writeFieldBytes(buf, []byte(m.Name)); err != nil { return err }
 	if err := writeFieldBytes(buf, []byte(m.Token[:])); err != nil { return err }
@@ -123,6 +126,11 @@ func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
 	// get the fields
 	var b []byte
 	var err error
+
+	b, err = readFieldBytes(buf)
+	if err != nil { return nil }
+	for i:=0; i<16; i++ { m.NodeId[i] = b[i] }
+
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
 	m.Addr = string(b)
