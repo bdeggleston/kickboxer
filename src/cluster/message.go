@@ -102,19 +102,90 @@ type ConnectionRequest struct {
 func (m *ConnectionRequest) Serialize(buf *bufio.Writer) error {
 
 	// write the number of fields
-	numArgs := uint32(3)
+	numArgs := uint32(4)
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 
 	// then the fields
+	// NodeId
 	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	// Addr
 	if err := writeFieldBytes(buf, []byte(m.Addr)); err != nil { return err }
+	// Name
 	if err := writeFieldBytes(buf, []byte(m.Name)); err != nil { return err }
-	if err := writeFieldBytes(buf, []byte(m.Token[:])); err != nil { return err }
+	// Token
+	if err := writeFieldBytes(buf, []byte(m.Token)); err != nil { return err }
 
 	return nil
 }
 
 func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
+
+	// check the number of fields
+	var numFields uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numFields); err != nil { return err }
+	if numFields != 4 {
+		return NewMessageEncodingError(fmt.Sprintf("unexpected num fields received. Expected %v, got %v", 3, numFields))
+	}
+
+	// get the fields
+	var b []byte
+	var err error
+
+	// NodeId
+	b, err = readFieldBytes(buf)
+	if err != nil { return err }
+	if len(b) != 16 {
+		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
+	}
+	m.NodeId = NodeId(b)
+
+	// Addr
+	b, err = readFieldBytes(buf)
+	if err != nil { return err }
+	m.Addr = string(b)
+
+	// Name
+	b, err = readFieldBytes(buf)
+	if err != nil { return err }
+	m.Name = string(b)
+
+	// Token
+	b, err = readFieldBytes(buf)
+	if err != nil { return err }
+	if len(b) != 16 {
+		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for Token, got %v (%v)", b, len(b)))
+	}
+	m.Token = Token(b)
+
+	return nil
+}
+
+
+type ConnectionAcceptedResponse struct {
+	// the id of the requesting node
+	NodeId NodeId
+	// the name of the requesting node
+	Name string
+	// the token of the requesting node
+	Token Token
+}
+
+
+func (m *ConnectionAcceptedResponse) Serialize(buf *bufio.Writer) error {
+
+	// write the number of fields
+	numArgs := uint32(3)
+	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
+
+	// then the fields
+	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	if err := writeFieldBytes(buf, []byte(m.Name)); err != nil { return err }
+	if err := writeFieldBytes(buf, []byte(m.Token)); err != nil { return err }
+
+	return nil
+}
+
+func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 
 	// check the number of fields
 	var numFields uint32
@@ -129,11 +200,10 @@ func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	for i:=0; i<16; i++ { m.NodeId[i] = b[i] }
-
-	b, err = readFieldBytes(buf)
-	if err != nil { return nil }
-	m.Addr = string(b)
+	if len(b) != 16 {
+		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
+	}
+	m.NodeId = NodeId(b)
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
@@ -141,8 +211,10 @@ func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	for i:=0; i<16; i++ { m.Token[i] = b[i] }
+	if len(b) != 16 {
+		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for Token, got %v (%v)", b, len(b)))
+	}
+	m.Token = Token(b)
 
 	return nil
 }
-
