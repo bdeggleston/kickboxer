@@ -88,7 +88,7 @@ func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 // ----------- startup and connection -----------
 
 // sent when connecting to another node
-type ConnectionRequest struct {
+type PeerData struct {
 	// the id of the requesting node
 	NodeId NodeId
 	// the address of the requesting node
@@ -99,7 +99,7 @@ type ConnectionRequest struct {
 	Token Token
 }
 
-func (m *ConnectionRequest) Serialize(buf *bufio.Writer) error {
+func (m *PeerData) Serialize(buf *bufio.Writer) error {
 
 	// write the number of fields
 	numArgs := uint32(4)
@@ -118,7 +118,7 @@ func (m *ConnectionRequest) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
+func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 
 	// check the number of fields
 	var numFields uint32
@@ -160,6 +160,9 @@ func (m *ConnectionRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+type ConnectionRequest struct {
+	PeerData
+}
 
 type ConnectionAcceptedResponse struct {
 	// the id of the requesting node
@@ -216,5 +219,75 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 	}
 	m.Token = Token(b)
 
+	return nil
+}
+
+
+// asks other nodes for peer info
+type DiscoverPeersRequest struct {
+	// the id of the requesting node
+	NodeId NodeId
+}
+
+func (m *DiscoverPeersRequest) Serialize(buf *bufio.Writer) error {
+	// write the number of fields
+	numArgs := uint32(1)
+	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
+
+	// then the fields
+	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	return nil
+}
+
+func (m *DiscoverPeersRequest) Deserialize(buf *bufio.Reader) error {
+
+	// check the number of fields
+	var numFields uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numFields); err != nil { return err }
+	if numFields != uint32(1) {
+		return NewMessageEncodingError(fmt.Sprintf("unexpected num fields received. Expected %v, got %v", 1, numFields))
+	}
+
+	// get the fields
+	var b []byte
+	var err error
+
+	b, err = readFieldBytes(buf)
+	if err != nil { return nil }
+	if len(b) != 16 {
+		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
+	}
+	m.NodeId = NodeId(b)
+	return nil
+}
+
+
+type DiscoverPeerResponse struct {
+	//
+	Peers []*PeerData
+}
+
+func (m *DiscoverPeerResponse) Serialize(buf *bufio.Writer) error {
+	numArgs := uint32(len(m.Peers))
+	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
+	for i:=0; i<int(numArgs); i++ {
+		pd := m.Peers[i]
+		if err := pd.Serialize(buf); err != nil { return err }
+	}
+
+	return nil
+}
+
+func (m *DiscoverPeerResponse) Deserialize(buf *bufio.Reader) error {
+	// check the number of fields
+	var numFields uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numFields); err != nil { return err }
+
+	m.Peers = make([]*PeerData, numFields)
+	for i:=0; i<int(numFields); i++ {
+		pd := &PeerData{}
+		if err := pd.Deserialize(buf); err != nil { return err }
+		m.Peers[i] = pd
+	}
 	return nil
 }
