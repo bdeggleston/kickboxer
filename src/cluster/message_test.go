@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 	"code.google.com/p/go-uuid/uuid"
 )
 
@@ -162,3 +163,89 @@ func TestDiscoverPeersResponse(t *testing.T) {
 
 }
 
+func TestReadRequest(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &ReadRequest{
+		Cmd:"GET",
+		Key:"A",
+		Args:[]string{"B", "C"},
+	}
+	writer := bufio.NewWriter(buf)
+	err := src.Serialize(writer)
+	if err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	writer.Flush()
+
+	dst := &ReadRequest{}
+	err = dst.Deserialize(bufio.NewReader(buf))
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+
+	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
+	equalityCheck(t, "Key", src.Key, dst.Key)
+	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
+	equalityCheck(t, "Arg[0]", src.Args[0], dst.Args[0])
+	equalityCheck(t, "Arg[1]", src.Args[1], dst.Args[1])
+}
+
+func TestWriteRequest(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &WriteRequest{
+		ReadRequest:ReadRequest{
+			Cmd:"GET",
+			Key:"A",
+			Args:[]string{"B", "C"},
+		},
+		Timestamp:time.Now(),
+	}
+
+	writer := bufio.NewWriter(buf)
+	err := src.Serialize(writer)
+	if err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	writer.Flush()
+
+	dst := &WriteRequest{}
+	err = dst.Deserialize(bufio.NewReader(buf))
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+
+	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
+	equalityCheck(t, "Key", src.Key, dst.Key)
+	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
+	equalityCheck(t, "Arg[0]", src.Args[0], dst.Args[0])
+	equalityCheck(t, "Arg[1]", src.Args[1], dst.Args[1])
+	equalityCheck(t, "Timestamp", src.Timestamp, dst.Timestamp)
+}
+
+func TestQueryResponse(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := QueryResponse{
+		Data:[][]byte{
+			[]byte(uuid.NewRandom()),
+			[]byte(uuid.NewRandom()),
+			[]byte(uuid.NewRandom()),
+		},
+	}
+
+	writer := bufio.NewWriter(buf)
+	err := src.Serialize(writer)
+	if err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	writer.Flush()
+
+	dst := &QueryResponse{}
+	err = dst.Deserialize(bufio.NewReader(buf))
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	equalityCheck(t, "Data len", len(src.Data), len(dst.Data))
+	sliceEqualityCheck(t, "Data[0]", src.Data[0], dst.Data[0])
+	sliceEqualityCheck(t, "Data[1]", src.Data[1], dst.Data[1])
+	sliceEqualityCheck(t, "Data[2]", src.Data[2], dst.Data[2])
+}
