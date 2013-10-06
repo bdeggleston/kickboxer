@@ -57,7 +57,7 @@ func TestConnectionRequest(t *testing.T) {
 	}
 
 	// check values
-	sliceEqualityCheck(t, "NodeId", src.NodeId, dst.NodeId)
+	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 	equalityCheck(t, "Addr", src.Addr, dst.Addr)
 	equalityCheck(t, "Name", src.Name, dst.Name)
 	sliceEqualityCheck(t, "Token", src.Token, dst.Token)
@@ -87,7 +87,7 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	}
 
 	// check value
-	sliceEqualityCheck(t, "NodeId", src.NodeId, dst.NodeId)
+	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 	equalityCheck(t, "Name", src.Name, dst.Name)
 	sliceEqualityCheck(t, "Token", src.Token, dst.Token)
 }
@@ -112,7 +112,7 @@ func TestDiscoverPeersRequest(t *testing.T) {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
 
-	sliceEqualityCheck(t, "NodeId", src.NodeId, dst.NodeId)
+	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 }
 
 
@@ -155,7 +155,7 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		s := src.Peers[i]
 		d := dst.Peers[i]
 
-		sliceEqualityCheck(t, fmt.Sprintf("NodeId:%v", i), s.NodeId, d.NodeId)
+		equalityCheck(t, fmt.Sprintf("NodeId:%v", i), s.NodeId, d.NodeId)
 		equalityCheck(t, fmt.Sprintf("Addr:%v", i), s.Addr, d.Addr)
 		equalityCheck(t, fmt.Sprintf("Name:%v", i), s.Name, d.Name)
 		sliceEqualityCheck(t, fmt.Sprintf("Token:%v", i), s.Token, d.Token)

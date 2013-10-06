@@ -14,15 +14,16 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
-type NodeId uuid.UUID
+type NodeId string
+
+func NewNodeId() NodeId {
+	return NodeId(uuid.New())
+}
 
 type node interface {
 	Name() string
 	GetToken() Token
 	GetId() NodeId
-
-	// starts up the node
-	start()
 
 	// executes a read instruction against the node's store
 	ExecuteRead(cmd string, key string, args []string)
@@ -38,7 +39,6 @@ type baseNode struct {
 	token Token
 	id NodeId
 }
-
 
 func (n *baseNode) Name() string { return n.name }
 
