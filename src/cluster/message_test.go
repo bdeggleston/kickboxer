@@ -33,6 +33,8 @@ func sliceEqualityCheck(t *testing.T, name string, v1 []byte, v2 []byte) {
 	}
 }
 
+func messageInterfaceCheck(_ Message) {}
+
 
 func TestConnectionRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
@@ -42,6 +44,9 @@ func TestConnectionRequest(t *testing.T) {
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
+
+	// interface check
+	messageInterfaceCheck(src)
 
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
@@ -57,6 +62,7 @@ func TestConnectionRequest(t *testing.T) {
 	}
 
 	// check values
+	equalityCheck(t, "Type", CONNECTION_REQUEST, dst.GetType())
 	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 	equalityCheck(t, "Addr", src.Addr, dst.Addr)
 	equalityCheck(t, "Name", src.Name, dst.Name)
@@ -73,6 +79,9 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}
 
+	// interface check
+	messageInterfaceCheck(src)
+
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
 	if err != nil {
@@ -87,17 +96,45 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	}
 
 	// check value
+	equalityCheck(t, "Type", CONNECTION_ACCEPTED_RESPONSE, dst.GetType())
 	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 	equalityCheck(t, "Name", src.Name, dst.Name)
 	sliceEqualityCheck(t, "Token", src.Token, dst.Token)
 }
 
+func TestConnectionRefusedResponse(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &ConnectionRefusedResponse{Reason:"you suck"}
+
+	// interface check
+	messageInterfaceCheck(src)
+
+	writer := bufio.NewWriter(buf)
+	err := src.Serialize(writer)
+	if err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	writer.Flush()
+
+	dst := &ConnectionRefusedResponse{}
+	err = dst.Deserialize(bufio.NewReader(buf))
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+
+	// check value
+	equalityCheck(t, "Type", CONNECTION_REFUSED_RESPONSE, dst.GetType())
+	equalityCheck(t, "Reason", src.Reason, dst.Reason)
+}
 
 func TestDiscoverPeersRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &DiscoverPeersRequest{
 		NodeId:NewNodeId(),
 	}
+
+	// interface check
+	messageInterfaceCheck(src)
 
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
@@ -112,6 +149,7 @@ func TestDiscoverPeersRequest(t *testing.T) {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
 
+	equalityCheck(t, "Type", DISCOVER_PEERS_REQUEST, dst.GetType())
 	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
 }
 
@@ -134,6 +172,10 @@ func TestDiscoverPeersResponse(t *testing.T) {
 			},
 		},
 	}
+
+	// interface check
+	messageInterfaceCheck(src)
+
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
 	if err != nil {
@@ -151,6 +193,7 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		t.Fatalf("expected Peers length of 2, got %v", len(dst.Peers))
 	}
 
+	equalityCheck(t, "Type", DISCOVER_PEERS_RESPONSE, dst.GetType())
 	for i:=0; i<2; i++ {
 		s := src.Peers[i]
 		d := dst.Peers[i]
@@ -170,6 +213,10 @@ func TestReadRequest(t *testing.T) {
 		Key:"A",
 		Args:[]string{"B", "C"},
 	}
+
+	// interface check
+	messageInterfaceCheck(src)
+
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
 	if err != nil {
@@ -183,6 +230,7 @@ func TestReadRequest(t *testing.T) {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
 
+	equalityCheck(t, "Type", READ_REQUEST, dst.GetType())
 	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
 	equalityCheck(t, "Key", src.Key, dst.Key)
 	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
@@ -201,6 +249,11 @@ func TestWriteRequest(t *testing.T) {
 		Timestamp:time.Now(),
 	}
 
+	// interface check
+	messageInterfaceCheck(src)
+
+	// interface check
+	messageInterfaceCheck(src)
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
 	if err != nil {
@@ -214,6 +267,7 @@ func TestWriteRequest(t *testing.T) {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
 
+	equalityCheck(t, "Type", WRITE_REQUEST, dst.GetType())
 	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
 	equalityCheck(t, "Key", src.Key, dst.Key)
 	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
@@ -224,13 +278,16 @@ func TestWriteRequest(t *testing.T) {
 
 func TestQueryResponse(t *testing.T) {
 	buf := &bytes.Buffer{}
-	src := QueryResponse{
+	src := &QueryResponse{
 		Data:[][]byte{
 			[]byte(uuid.NewRandom()),
 			[]byte(uuid.NewRandom()),
 			[]byte(uuid.NewRandom()),
 		},
 	}
+
+	// interface check
+	messageInterfaceCheck(src)
 
 	writer := bufio.NewWriter(buf)
 	err := src.Serialize(writer)
@@ -244,6 +301,8 @@ func TestQueryResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
+
+	equalityCheck(t, "Type", QUERY_RESPONSE, dst.GetType())
 	equalityCheck(t, "Data len", len(src.Data), len(dst.Data))
 	sliceEqualityCheck(t, "Data[0]", src.Data[0], dst.Data[0])
 	sliceEqualityCheck(t, "Data[1]", src.Data[1], dst.Data[1])

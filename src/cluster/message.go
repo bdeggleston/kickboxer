@@ -14,6 +14,19 @@ import (
 	"time"
 )
 
+const (
+	CONNECTION_REQUEST = uint32(101)
+	CONNECTION_ACCEPTED_RESPONSE = uint32(102)
+	CONNECTION_REFUSED_RESPONSE = uint32(103)
+
+	DISCOVER_PEERS_REQUEST = uint32(201)
+	DISCOVER_PEERS_RESPONSE = uint32(202)
+
+	READ_REQUEST = uint32(301)
+	WRITE_REQUEST = uint32(302)
+	QUERY_RESPONSE = uint32(303)
+)
+
 type MessageError struct {
 	reason string
 }
@@ -43,6 +56,9 @@ type Message interface {
 	// deserializes everything after the size data
 	// pass in a wrapped exception to receive
 	Deserialize(*bufio.Reader) error
+
+	// returns the message type enum
+	GetType() uint32
 }
 
 func GetMessageType(buf *bufio.Reader) (mtype uint32, err error) {
@@ -162,6 +178,8 @@ type ConnectionRequest struct {
 	PeerData
 }
 
+func (m *ConnectionRequest) GetType() uint32 { return CONNECTION_REQUEST }
+
 type ConnectionAcceptedResponse struct {
 	// the id of the requesting node
 	NodeId NodeId
@@ -217,6 +235,25 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *ConnectionAcceptedResponse) GetType() uint32 { return CONNECTION_ACCEPTED_RESPONSE }
+
+
+type ConnectionRefusedResponse struct {
+	Reason string
+}
+
+func (m *ConnectionRefusedResponse) Serialize(buf *bufio.Writer) error {
+	return writeFieldBytes(buf, []byte(m.Reason))
+}
+
+func (m *ConnectionRefusedResponse) Deserialize(buf *bufio.Reader) error {
+	if b, err := readFieldBytes(buf); err != nil { return err } else {
+		m.Reason = string(b)
+	}
+	return nil
+}
+
+func (m *ConnectionRefusedResponse) GetType() uint32 { return CONNECTION_REFUSED_RESPONSE }
 
 // asks other nodes for peer info
 type DiscoverPeersRequest struct {
@@ -253,6 +290,7 @@ func (m *DiscoverPeersRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *DiscoverPeersRequest) GetType() uint32 { return DISCOVER_PEERS_REQUEST }
 
 type DiscoverPeerResponse struct {
 	//
@@ -283,6 +321,8 @@ func (m *DiscoverPeerResponse) Deserialize(buf *bufio.Reader) error {
 	}
 	return nil
 }
+
+func (m *DiscoverPeerResponse) GetType() uint32 { return DISCOVER_PEERS_RESPONSE }
 
 // ----------- query execution -----------
 
@@ -323,6 +363,8 @@ func (m *ReadRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *ReadRequest) GetType() uint32 { return READ_REQUEST }
+
 type WriteRequest struct {
 	ReadRequest
 	Timestamp time.Time
@@ -343,6 +385,8 @@ func (m *WriteRequest) Deserialize(buf *bufio.Reader) error {
 	}
 	return nil
 }
+
+func (m *WriteRequest) GetType() uint32 { return WRITE_REQUEST }
 
 type QueryResponse struct {
 	// ad hoc data returned by the storage backend
@@ -372,3 +416,4 @@ func (m *QueryResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *QueryResponse) GetType() uint32 { return QUERY_RESPONSE }
