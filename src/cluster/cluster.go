@@ -7,15 +7,39 @@
  */
 package cluster
 
-type Token [16]byte
+import (
+//	"net"
+)
+
+type Token []byte
 
 type Cluster struct {
-	// nodes to communicate with to
+	// nodes addressed to communicate with to
 	// discover the rest of the cluster
-	seeds []node
+	seeds []string
 
 	// the number of nodes a key should
 	// be replicated to
-	replicationFactor int32
+	replicationFactor uint32
 
+	localNode LocalNode
+
+	// map of node ids to node objects
+	nodeMap map[NodeId] *Node
+
+	// nodes ordered by token
+	tokenRing [] *Node
+
+}
+
+func NewCluster() (*Cluster, error) {
+	return nil, nil
+}
+
+func (c* Cluster) Start() error {
+	return nil
+}
+
+func (c* Cluster) Stop() error {
+	return nil
 }
