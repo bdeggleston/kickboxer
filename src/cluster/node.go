@@ -20,7 +20,7 @@ func NewNodeId() NodeId {
 	return NodeId(uuid.NewRandom().String())
 }
 
-type node interface {
+type Node interface {
 	Name() string
 	GetToken() Token
 	GetId() NodeId
