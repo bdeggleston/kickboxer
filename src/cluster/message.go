@@ -134,9 +134,6 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	// NodeId
 	b, err = readFieldBytes(buf)
 	if err != nil { return err }
-	if len(b) != 16 {
-		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
-	}
 	m.NodeId = NodeId(b)
 
 	// Addr
@@ -204,9 +201,6 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	if len(b) != 16 {
-		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
-	}
 	m.NodeId = NodeId(b)
 
 	b, err = readFieldBytes(buf)
@@ -255,9 +249,6 @@ func (m *DiscoverPeersRequest) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	if len(b) != 16 {
-		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for NodeId, got %v (%v)", b, len(b)))
-	}
 	m.NodeId = NodeId(b)
 	return nil
 }

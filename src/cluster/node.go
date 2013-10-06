@@ -17,7 +17,7 @@ import (
 type NodeId string
 
 func NewNodeId() NodeId {
-	return NodeId(uuid.New())
+	return NodeId(uuid.NewRandom().String())
 }
 
 type node interface {

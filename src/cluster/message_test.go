@@ -37,7 +37,7 @@ func sliceEqualityCheck(t *testing.T, name string, v1 []byte, v2 []byte) {
 func TestConnectionRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionRequest{PeerData{
-		NodeId:NodeId(uuid.NewRandom()),
+		NodeId:NewNodeId(),
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
@@ -68,7 +68,7 @@ func TestConnectionRequest(t *testing.T) {
 func TestConnectionAcceptedResponse(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionAcceptedResponse{
-		NodeId:NodeId(uuid.NewRandom()),
+		NodeId:NewNodeId(),
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}
@@ -96,7 +96,7 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 func TestDiscoverPeersRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &DiscoverPeersRequest{
-		NodeId:NodeId(uuid.NewRandom()),
+		NodeId:NewNodeId(),
 	}
 
 	writer := bufio.NewWriter(buf)
@@ -121,13 +121,13 @@ func TestDiscoverPeersResponse(t *testing.T) {
 	src := &DiscoverPeerResponse{
 		Peers: []*PeerData{
 			&PeerData{
-				NodeId:NodeId(uuid.NewRandom()),
+				NodeId:NewNodeId(),
 				Addr:"127.0.0.1:9998",
 				Name:"Test Node1",
 				Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 			},
 			&PeerData{
-				NodeId:NodeId(uuid.NewRandom()),
+				NodeId:NewNodeId(),
 				Addr:"127.0.0.1:9999",
 				Name:"Test Node2",
 				Token:Token([]byte{1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0}),
