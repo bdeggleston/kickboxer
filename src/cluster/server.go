@@ -29,8 +29,12 @@ func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
 
 func (s *PeerServer) handleConnection(conn net.Conn) {
 
-
 }
+
+func (s *PeerServer) GetAddr() string {
+	return s.listenAddr
+}
+
 
 func (s *PeerServer) acceptConnections() {
 	for {
