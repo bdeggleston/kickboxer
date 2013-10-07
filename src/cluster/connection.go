@@ -19,6 +19,7 @@ type Connection struct {
 	socket net.Conn
 	timeout int64
 	isClosed bool
+	completedHandshake bool
 }
 
 // connects and returns a new connection
@@ -59,6 +60,9 @@ func (c *Connection) Close() {
 func (c *Connection) Closed() bool {
 	return c.isClosed
 }
+
+func (c* Connection) HandshakeCompleted() bool { return c.completedHandshake }
+func (c* Connection) SetHandshakeCompleted() { c.completedHandshake = true }
 
 // linked list for connection pool
 type connHolder struct {
