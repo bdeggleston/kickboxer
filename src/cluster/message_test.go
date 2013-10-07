@@ -1,14 +1,6 @@
-/**
- * Created with IntelliJ IDEA.
- * User: bdeggleston
- * Date: 10/4/13
- * Time: 10:06 AM
- * To change this template use File | Settings | File Templates.
- */
 package cluster
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"testing"
@@ -48,17 +40,17 @@ func TestConnectionRequest(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &ConnectionRequest{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*ConnectionRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	// check values
@@ -82,17 +74,17 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &ConnectionAcceptedResponse{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*ConnectionAcceptedResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	// check value
@@ -109,17 +101,17 @@ func TestConnectionRefusedResponse(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &ConnectionRefusedResponse{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*ConnectionRefusedResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	// check value
@@ -136,17 +128,17 @@ func TestDiscoverPeersRequest(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &DiscoverPeersRequest{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*DiscoverPeersRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	equalityCheck(t, "Type", DISCOVER_PEERS_REQUEST, dst.GetType())
@@ -176,21 +168,17 @@ func TestDiscoverPeersResponse(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-
-	dst := &DiscoverPeerResponse{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
 	}
-	if len(dst.Peers) != 2 {
-		t.Fatalf("expected Peers length of 2, got %v", len(dst.Peers))
+	dst, ok := msg.(*DiscoverPeerResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	equalityCheck(t, "Type", DISCOVER_PEERS_RESPONSE, dst.GetType())
@@ -217,17 +205,17 @@ func TestReadRequest(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &ReadRequest{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*ReadRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	equalityCheck(t, "Type", READ_REQUEST, dst.GetType())
@@ -252,19 +240,17 @@ func TestWriteRequest(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	// interface check
-	messageInterfaceCheck(src)
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &WriteRequest{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*WriteRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	equalityCheck(t, "Type", WRITE_REQUEST, dst.GetType())
@@ -289,17 +275,17 @@ func TestQueryResponse(t *testing.T) {
 	// interface check
 	messageInterfaceCheck(src)
 
-	writer := bufio.NewWriter(buf)
-	err := src.Serialize(writer)
-	if err != nil {
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	writer.Flush()
-
-	dst := &QueryResponse{}
-	err = dst.Deserialize(bufio.NewReader(buf))
+	msg, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	dst, ok := msg.(*QueryResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
 	}
 
 	equalityCheck(t, "Type", QUERY_RESPONSE, dst.GetType())

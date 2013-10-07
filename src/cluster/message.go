@@ -8,9 +8,10 @@
 package cluster
 
 import (
-	"fmt"
 	"bufio"
 	"encoding/binary"
+	"fmt"
+	"io"
 	"time"
 )
 
@@ -417,3 +418,47 @@ func (m *QueryResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 func (m *QueryResponse) GetType() uint32 { return QUERY_RESPONSE }
+
+// writes a message to the given writer
+func WriteMessage(buf io.Writer, m Message) error {
+	writer := bufio.NewWriter(buf)
+
+	// write the message type
+	mtype := m.GetType()
+	if err:= binary.Write(writer, binary.LittleEndian, &mtype); err != nil { return err }
+	if err := m.Serialize(writer); err != nil { return err }
+	if err := writer.Flush(); err != nil { return err }
+	return nil
+}
+
+// reads a message from the given reader
+func ReadMessage(buf io.Reader) (Message, error) {
+	reader := bufio.NewReader(buf)
+	var mtype uint32
+	if err := binary.Read(reader, binary.LittleEndian, &mtype); err != nil { return nil, err }
+
+	var msg Message
+	switch mtype {
+	case CONNECTION_REQUEST:
+		msg = &ConnectionRequest{}
+	case CONNECTION_ACCEPTED_RESPONSE:
+		msg = &ConnectionAcceptedResponse{}
+	case CONNECTION_REFUSED_RESPONSE:
+		msg = &ConnectionRefusedResponse{}
+	case DISCOVER_PEERS_REQUEST:
+		msg = &DiscoverPeersRequest{}
+	case DISCOVER_PEERS_RESPONSE:
+		msg = &DiscoverPeerResponse{}
+	case READ_REQUEST:
+		msg = &ReadRequest{}
+	case WRITE_REQUEST:
+		msg = &WriteRequest{}
+	case QUERY_RESPONSE:
+		msg = &QueryResponse{}
+	default:
+		return nil, NewMessageEncodingError(fmt.Sprintf("Unexpected message type: %v", mtype))
+	}
+
+	if err := msg.Deserialize(reader); err != nil { return nil, err }
+	return msg, nil
+}
