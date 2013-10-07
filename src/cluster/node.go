@@ -8,6 +8,7 @@
 package cluster
 
 import (
+	"fmt"
 	"time"
 	"store"
 
@@ -15,6 +16,18 @@ import (
 )
 
 type NodeId string
+
+type NodeError struct {
+	reason string
+}
+
+func NewNodeError(reason string) *NodeError {
+	return &NodeError{reason:reason}
+}
+
+func (e *NodeError) Error() string {
+	return e.reason
+}
 
 func NewNodeId() NodeId {
 	return NodeId(uuid.NewRandom().String())
@@ -71,11 +84,16 @@ type RemoteNode struct {
 
 	// the node's network address
 	addr string
+
+	pool ConnectionPool
+	cluster *Cluster
 }
 
 
-func NewRemoteNode(addr string) (n *RemoteNode) {
+func NewRemoteNode(addr string, cluster *Cluster) (n *RemoteNode) {
 	n.addr = addr
+	n.pool = *NewConnectionPool(n.addr, 10, 10000)
+	n.cluster = cluster
 	return
 }
 
@@ -83,5 +101,48 @@ func (n *RemoteNode) start() {
 	// connect to the node and get it's info
 }
 
+// returns a connection with a completed handshake
+func (n *RemoteNode) getConnection() (*Connection, error) {
+
+	conn, err := n.pool.Get()
+	if err != nil { return nil, err }
+
+	if !conn.HandshakeCompleted() {
+		msg := &ConnectionRequest{PeerData{
+			NodeId:n.cluster.GetNodeId(),
+			Addr:n.cluster.GetPeerAddr(),
+			Name:n.cluster.GetName(),
+			Token:n.cluster.GetToken(),
+		}}
+		if err := WriteMessage(conn, msg); err != nil { return nil, err }
+		response, mtype, err := ReadMessage(conn)
+		if err != nil { return nil, err }
+		if mtype != CONNECTION_ACCEPTED_RESPONSE {
+			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
+		}
+		conn.SetHandshakeCompleted()
+	}
+	return conn, nil
+}
+
+func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
+
+	// get connection
+	conn, err := n.getConnection()
+	if  err != nil { return nil, 0, err }
+
+
+	// send the message
+	if err := WriteMessage(conn, m); err != nil {
+		conn.Close()
+		return nil, 0, err
+	}
+
+	// receive the message
+	response, messageType, err := ReadMessage(conn)
+	if err != nil { return nil, 0, err }
+
+	return response, messageType, nil
+}
 
 
