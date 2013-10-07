@@ -432,10 +432,10 @@ func WriteMessage(buf io.Writer, m Message) error {
 }
 
 // reads a message from the given reader
-func ReadMessage(buf io.Reader) (Message, error) {
+func ReadMessage(buf io.Reader) (Message, uint32, error) {
 	reader := bufio.NewReader(buf)
 	var mtype uint32
-	if err := binary.Read(reader, binary.LittleEndian, &mtype); err != nil { return nil, err }
+	if err := binary.Read(reader, binary.LittleEndian, &mtype); err != nil { return nil, 0, err }
 
 	var msg Message
 	switch mtype {
@@ -456,9 +456,9 @@ func ReadMessage(buf io.Reader) (Message, error) {
 	case QUERY_RESPONSE:
 		msg = &QueryResponse{}
 	default:
-		return nil, NewMessageEncodingError(fmt.Sprintf("Unexpected message type: %v", mtype))
+		return nil, 0, NewMessageEncodingError(fmt.Sprintf("Unexpected message type: %v", mtype))
 	}
 
-	if err := msg.Deserialize(reader); err != nil { return nil, err }
-	return msg, nil
+	if err := msg.Deserialize(reader); err != nil { return nil, 0, err }
+	return msg, mtype, nil
 }

@@ -44,9 +44,12 @@ func TestConnectionRequest(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONNECTION_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionRequest)
 	if !ok {
@@ -78,9 +81,12 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONNECTION_ACCEPTED_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionAcceptedResponse)
 	if !ok {
@@ -105,9 +111,12 @@ func TestConnectionRefusedResponse(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONNECTION_REFUSED_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionRefusedResponse)
 	if !ok {
@@ -132,9 +141,12 @@ func TestDiscoverPeersRequest(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != DISCOVER_PEERS_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*DiscoverPeersRequest)
 	if !ok {
@@ -172,9 +184,12 @@ func TestDiscoverPeersResponse(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != DISCOVER_PEERS_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*DiscoverPeerResponse)
 	if !ok {
@@ -209,9 +224,12 @@ func TestReadRequest(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != READ_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ReadRequest)
 	if !ok {
@@ -244,9 +262,12 @@ func TestWriteRequest(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != WRITE_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*WriteRequest)
 	if !ok {
@@ -279,9 +300,12 @@ func TestQueryResponse(t *testing.T) {
 	if err := WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, err := ReadMessage(buf)
+	msg, mtype, err := ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != QUERY_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*QueryResponse)
 	if !ok {
