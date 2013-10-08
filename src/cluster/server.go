@@ -27,8 +27,90 @@ func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
 	}
 }
 
-func (s *PeerServer) handleConnection(conn net.Conn) {
+// executes a request and returns a response message
+func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType uint32) (Message, error) {
+	_ = nodeId
+	switch requestType {
+	case DISCOVER_PEERS_REQUEST:
+		//
+	case READ_REQUEST:
+		//
+	case WRITE_REQUEST:
+		//
+	default:
+		return nil, fmt.Errorf("unexpected message type: %T", request)
+	}
+	panic("unreachable")
+}
 
+func (s *PeerServer) handleConnection(conn net.Conn) error {
+	// check that the opening message is a ConnectionRequest
+	msg, _, err := ReadMessage(conn)
+	if err != nil {
+		refusal := &ConnectionRefusedResponse{
+			Reason:fmt.Sprintf("Error reading message: %v", err),
+		}
+		WriteMessage(conn, refusal)
+		conn.Close()
+		return fmt.Errorf("Error reading opening message")
+	}
+
+	// if it's not, refuse the request
+	connectionRequest, ok := msg.(*ConnectionRequest)
+	if !ok {
+		errMsg := fmt.Sprintf("ConnectionRequest expected, got: %T", msg)
+		refusal := &ConnectionRefusedResponse{
+			Reason:errMsg,
+		}
+		WriteMessage(conn, refusal)
+		conn.Close()
+		return fmt.Errorf(errMsg)
+	}
+
+	// otherwise, accept it
+	acceptance := &ConnectionAcceptedResponse{
+		NodeId:s.cluster.GetNodeId(),
+		Name:s.cluster.GetName(),
+		Token:s.cluster.GetToken(),
+	}
+	if err := WriteMessage(conn, acceptance); err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("Error writing acceptance: %v", err)
+	}
+
+	nodeId := connectionRequest.NodeId
+
+	for {
+		// get the request
+		request, requestType, err := ReadMessage(conn)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error reading request: %v", err)
+			fmt.Println(errMsg)
+			conn.Close()
+			return fmt.Errorf(errMsg)
+		}
+
+		// handle the close connection message
+		if requestType == close_connection {
+			conn.Close()
+			return nil
+		}
+
+		// get the response
+		response, err := s.executeRequest(nodeId, request, requestType)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error executing request: %v", err)
+			fmt.Println(errMsg)
+			conn.Close()
+			return fmt.Errorf(errMsg)
+		}
+
+		// send response
+		if err = WriteMessage(conn, response); err != nil {
+			return fmt.Errorf("Error writing response: %v", err)
+		}
+	}
+	return nil
 }
 
 func (s *PeerServer) GetAddr() string {
