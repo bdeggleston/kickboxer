@@ -26,6 +26,9 @@ const (
 	READ_REQUEST = uint32(301)
 	WRITE_REQUEST = uint32(302)
 	QUERY_RESPONSE = uint32(303)
+
+	//internal messages
+	close_connection = uint32(0xffffff01)
 )
 
 type MessageError struct {
@@ -455,6 +458,8 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &WriteRequest{}
 	case QUERY_RESPONSE:
 		msg = &QueryResponse{}
+	case close_connection:
+		msg = &closeConnection{}
 	default:
 		return nil, 0, NewMessageEncodingError(fmt.Sprintf("Unexpected message type: %v", mtype))
 	}
@@ -462,3 +467,12 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 	if err := msg.Deserialize(reader); err != nil { return nil, 0, err }
 	return msg, mtype, nil
 }
+
+// ----------- internal messages -----------
+
+// message used for testing purposes to close
+// a connection
+type closeConnection struct { }
+func (m *closeConnection) Serialize(_ *bufio.Writer) error { return nil }
+func (m *closeConnection) Deserialize(_ *bufio.Reader) error { return nil }
+func (m *closeConnection) GetType() uint32 { return close_connection }
