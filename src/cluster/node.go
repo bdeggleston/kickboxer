@@ -110,16 +110,21 @@ type RemoteNode struct {
 
 
 // creates a new remote node from only an address
-func NewRemoteNode(addr string, cluster *Cluster) (n *RemoteNode) {
+func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
+	n := &RemoteNode{}
 	n.addr = addr
 	n.pool = *NewConnectionPool(n.addr, 10, 10000)
 	n.cluster = cluster
-	return
+	return n
 }
 
 // creates a new remote node from info provided from the node
-func NewRemoteNodeInfo() (n *RemoteNode) {
-	return nil
+func NewRemoteNodeInfo(id NodeId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
+	n = NewRemoteNode(addr, cluster)
+	n.id = id
+	n.token = token
+	n.name = name
+	return n
 }
 
 func (n *RemoteNode) Start() {
@@ -170,4 +175,20 @@ func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
 	return response, messageType, nil
 }
 
+// executes a read instruction against the node's store
+func (n *RemoteNode) ExecuteRead(cmd string, key string, args []string) {
+	_ = cmd
+	_ = key
+	_ = args
+
+}
+
+// executes a write instruction against the node's store
+func (n *RemoteNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) {
+	_ = cmd
+	_ = key
+	_ = args
+	_ = timestamp
+
+}
 
