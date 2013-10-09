@@ -17,6 +17,10 @@ import (
 
 type NodeId string
 
+func NewNodeId() NodeId {
+	return NodeId(uuid.NewRandom().String())
+}
+
 type NodeError struct {
 	reason string
 }
@@ -27,10 +31,6 @@ func NewNodeError(reason string) *NodeError {
 
 func (e *NodeError) Error() string {
 	return e.reason
-}
-
-func NewNodeId() NodeId {
-	return NodeId(uuid.NewRandom().String())
 }
 
 type Node interface {
@@ -65,18 +65,35 @@ type LocalNode struct {
 	store store.Store
 }
 
-func NewLocalNode(id NodeId, token Token, name string) (n *LocalNode) {
+func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
 	//
+	n := &LocalNode{}
 	n.id = id
 	n.token = token
 	n.name = name
-	return
+	return n
 }
 
 func (n *LocalNode) start() {
 	// connect the store
 }
 
+// executes a read instruction against the node's store
+func (n *LocalNode) ExecuteRead(cmd string, key string, args []string) {
+	_ = cmd
+	_ = key
+	_ = args
+
+}
+
+// executes a write instruction against the node's store
+func (n *LocalNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) {
+	_ = cmd
+	_ = key
+	_ = args
+	_ = timestamp
+
+}
 
 // RemoteNode communicates with other nodes in the cluster
 type RemoteNode struct {
@@ -90,11 +107,17 @@ type RemoteNode struct {
 }
 
 
+// creates a new remote node from only an address
 func NewRemoteNode(addr string, cluster *Cluster) (n *RemoteNode) {
 	n.addr = addr
 	n.pool = *NewConnectionPool(n.addr, 10, 10000)
 	n.cluster = cluster
 	return
+}
+
+// creates a new remote node from info provided from the node
+func NewRemoteNodeInfo() (n *RemoteNode) {
+	return nil
 }
 
 func (n *RemoteNode) start() {
