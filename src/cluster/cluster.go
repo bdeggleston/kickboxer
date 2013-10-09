@@ -8,7 +8,8 @@
 package cluster
 
 import (
-//	"net"
+	"fmt"
+	"sync"
 )
 
 type Token []byte
@@ -25,10 +26,11 @@ type Cluster struct {
 	localNode *LocalNode
 
 	// map of node ids to node objects
-	nodeMap map[NodeId] *Node
+	nodeMap map[NodeId] Node
+	nodeLock sync.RWMutex
 
 	// nodes ordered by token
-	tokenRing [] *Node
+	tokenRing [] Node
 
 	name string
 	token Token
@@ -43,7 +45,16 @@ func NewCluster(addr string, name string, token Token, nodeId NodeId) (*Cluster,
 	c.name = name
 	c.token = token
 	c.nodeId = nodeId
-//	c.localNode = NewLocalNode(c.nodeId, c.token, c.name)
+	c.localNode = NewLocalNode(c.nodeId, c.token, c.name)
+
+	// setup nodemap and initial token ring
+	c.nodeMap = make(map[NodeId] Node)
+	c.nodeLock.Lock()
+	defer c.nodeLock.Unlock()
+	c.nodeMap[nodeId] = c.localNode
+	c.tokenRing = make([]Node, 1)
+	c.tokenRing[0] = c.localNode
+
 	return c, nil
 }
 
@@ -52,6 +63,17 @@ func (c* Cluster) GetNodeId() NodeId { return c.nodeId }
 func (c* Cluster) GetToken() Token { return c.token }
 func (c* Cluster) GetName() string { return c.name }
 func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
+
+// gets a node by it's node id
+func (c *Cluster) getNode(nid NodeId) (Node, error) {
+	c.nodeLock.RLock()
+	defer c.nodeLock.RUnlock()
+	node, ok := c.nodeMap[nid]
+	if !ok {
+		return nil, fmt.Errorf("No node found by node id: %v", nid)
+	}
+	return node, nil
+}
 
 func (c* Cluster) Start() error {
 	return nil
