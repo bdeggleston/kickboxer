@@ -8,11 +8,47 @@
 package cluster
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 	"sync"
 )
 
 type Token []byte
+
+const (
+	CLUSTER_STARTED = "CLUSTER_STARTED"
+	CLUSTER_NORMAL = "CLUSTER_NORMAL"
+	CLUSTER_STREAMING = "CLUSTER_STREAMING"
+)
+
+const (
+	CONSISTENCY_ONE = "CONSISTENCY_ONE"
+	CONSISTENCY_QUORUM = "CONSISTENCY_QUORUM"
+	CONSISTENCY_ALL = "CONSISTENCY_ALL"
+)
+
+
+// implements sort.Interface
+type nodeSorter struct {
+	nodes []Node
+}
+
+func (ns *nodeSorter) Len() int {
+	return len(ns.nodes)
+}
+
+// returns true if the item at index i is less than
+// the item and index j
+func (ns *nodeSorter) Less(i, j int) bool {
+	return bytes.Compare(ns.nodes[i].GetToken(), ns.nodes[j].GetToken()) == -1
+}
+
+// switches the position of nodes at indices i & j
+func (ns *nodeSorter) Swap(i, j int) {
+	ns.nodes[i], ns.nodes[j] = ns.nodes[j], ns.nodes[i]
+}
+
 
 type Cluster struct {
 	// nodes addressed to communicate with to
@@ -31,6 +67,8 @@ type Cluster struct {
 
 	// nodes ordered by token
 	tokenRing [] Node
+	// the state of the ring before the most recent ring mutation
+	priorRing []Node
 
 	name string
 	token Token
@@ -49,11 +87,11 @@ func NewCluster(addr string, name string, token Token, nodeId NodeId) (*Cluster,
 
 	// setup nodemap and initial token ring
 	c.nodeMap = make(map[NodeId] Node)
-	c.nodeLock.Lock()
-	defer c.nodeLock.Unlock()
-	c.nodeMap[nodeId] = c.localNode
-	c.tokenRing = make([]Node, 1)
-	c.tokenRing[0] = c.localNode
+	c.tokenRing = make([]Node, 1, 10)
+	c.priorRing = make([]Node, 1, 10)
+
+	c.addNode(c.localNode)
+	c.priorRing = c.tokenRing
 
 	return c, nil
 }
@@ -73,6 +111,45 @@ func (c *Cluster) getNode(nid NodeId) (Node, error) {
 		return nil, fmt.Errorf("No node found by node id: %v", nid)
 	}
 	return node, nil
+}
+
+// refreshes the token ring after changes
+// this method is not threadsafe
+func (c* Cluster) refreshRing() error {
+	// create an array from the map
+	nodes := make([]Node, len(c.nodeMap))
+	idx := 0
+	for _, v := range c.nodeMap {
+		nodes[idx] = v
+		idx++
+	}
+
+	// sort by their tokens
+	sorter := &nodeSorter{nodes:nodes}
+	sort.Sort(sorter)
+
+	// update the ring
+	c.priorRing = c.tokenRing
+	c.tokenRing = sorter.nodes
+
+	return nil
+}
+
+// adds a node to the cluster, if it's not already
+// part of the cluster, and starting it if the cluster
+// has been started
+func (c *Cluster) addNode(node Node) error {
+	c.nodeLock.RLock()
+	nid := node.GetId()
+	_, ok := c.nodeMap[nid]
+	c.nodeLock.RUnlock()
+	if !ok {
+		c.nodeLock.Lock()
+		defer c.nodeLock.Unlock()
+		c.nodeMap[nid] = node
+		if err:= c.refreshRing(); err != nil { return err }
+	}
+	return nil
 }
 
 func (c* Cluster) Start() error {
