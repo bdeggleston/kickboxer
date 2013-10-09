@@ -117,14 +117,14 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 	c, _ := NewCluster(
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7}),
+		Token([]byte{0,0,0,7}),
 		NewNodeId(),
 	)
 	n1 := c.localNode
 
 	n2 := newMockNode(
 		NewNodeId(),
-		Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}),
+		Token([]byte{0,0,0,3}),
 		"N2",
 	)
 	c.addNode(n2)
@@ -134,7 +134,7 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 
 	n3 := newMockNode(
 		NewNodeId(),
-		Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5}),
+		Token([]byte{0,0,0,5}),
 		"N3",
 	)
 	c.addNode(n3)
@@ -145,7 +145,7 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 
 	n4 := newMockNode(
 		NewNodeId(),
-		Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0}),
+		Token([]byte{0,0,1,0}),
 		"N4",
 	)
 	c.addNode(n4)
