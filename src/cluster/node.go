@@ -38,6 +38,8 @@ type Node interface {
 	GetToken() Token
 	GetId() NodeId
 
+	Start()
+
 	// executes a read instruction against the node's store
 	ExecuteRead(cmd string, key string, args []string)
 
@@ -74,7 +76,7 @@ func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
 	return n
 }
 
-func (n *LocalNode) start() {
+func (n *LocalNode) Start() {
 	// connect the store
 }
 
@@ -120,7 +122,7 @@ func NewRemoteNodeInfo() (n *RemoteNode) {
 	return nil
 }
 
-func (n *RemoteNode) start() {
+func (n *RemoteNode) Start() {
 	// connect to the node and get it's info
 }
 
