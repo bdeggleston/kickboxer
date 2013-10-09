@@ -116,6 +116,41 @@ func TestServerConnectionFailure(t *testing.T) {
 // tests that a node is registered with the cluster
 // when it connects for the first time
 func TestServerNodeRegistrationOnConnection(t *testing.T) {
-	_ = t
+	conn := newBiConn(2,1)
+
+	// write input messages
+	connectMessage := &ConnectionRequest{PeerData{
+		NodeId:NewNodeId(),
+		Addr:"127.0.0.1:9999",
+		Name:"Test Node",
+		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+	}}
+	if err := WriteMessage(conn.input[0], connectMessage); err != nil {
+		t.Fatalf("Unexpected error writing connection message: %v", err)
+	}
+	closeMessage := &closeConnection{}
+	if err := WriteMessage(conn.input[1], closeMessage); err != nil {
+		t.Fatalf("Unexpected error writing close message: %v", err)
+	}
+
+	// create cluster and peer server
+	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
+	cluster, err := NewCluster("127.0.0.1:9999", "TestCluster", token, NewNodeId())
+	if err != nil {
+		t.Fatalf("Unexpected error creating mock cluster: %v", err)
+	}
+	// sanity check
+	if _, err := cluster.getNode(connectMessage.NodeId); err == nil {
+		t.Fatalf("Unexpected nil error getting new node")
+	}
+
+	server := &PeerServer{cluster:cluster}
+	err = server.handleConnection(conn)
+	if err != nil {
+		t.Fatalf("Unexpected error from connection method: %v", err)
+	}
+	if _, err := cluster.getNode(connectMessage.NodeId); err != nil {
+		t.Fatalf("Unexpected error getNode: %v", err)
+	}
 }
 

@@ -78,6 +78,16 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		return fmt.Errorf("Error writing acceptance: %v", err)
 	}
 
+	// register node with cluster
+	node := NewRemoteNodeInfo(
+		connectionRequest.NodeId,
+		connectionRequest.Token,
+		connectionRequest.Name,
+		connectionRequest.Addr,
+		s.cluster,
+	)
+	s.cluster.addNode(node)
+
 	nodeId := connectionRequest.NodeId
 
 	for {
