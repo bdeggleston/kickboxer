@@ -93,8 +93,7 @@ func TestAddingNewNodeToStoppedCluster(t *testing.T) {
 // the cluster has not seen it yet, and starts it
 // if the cluster has been started
 func TestAddingNewNodeToStartedCluster(t *testing.T) {
-
-
+	t.Skip("Cluster starting not implemented yet")
 }
 
 // tests that nothing is changed if a node is already
