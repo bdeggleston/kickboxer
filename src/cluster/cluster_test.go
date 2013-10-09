@@ -112,6 +112,8 @@ func TestAddingExistingNodeToCluster(t *testing.T) {
 	equalityCheck(t, "cluster ring size", 1, len(cluster.tokenRing))
 }
 
+/************** refreshRing tests **************/
+
 func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 	c, _ := NewCluster(
 		"127.0.0.1:9999",
@@ -159,3 +161,7 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 		t.Log(n.Name(), n.GetToken())
 	}
 }
+
+/************** key routing tests **************/
+
+
