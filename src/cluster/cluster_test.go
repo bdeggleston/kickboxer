@@ -18,6 +18,7 @@ func setupCluster() *Cluster {
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
+		3,
 	)
 	return c
 }
@@ -30,6 +31,12 @@ func TestClusterSetup(t *testing.T) {
 	equalityCheck(t, "cluster nodeId", cluster.nodeId, cluster.GetNodeId())
 	equalityCheck(t, "cluster addr", cluster.peerAddr, cluster.GetPeerAddr())
 	sliceEqualityCheck(t, "cluster name", cluster.token, cluster.GetToken())
+}
+
+// tests that instantiating a cluster with an invalid replication
+// factor returns an error
+func TestInvalidReplicationFactor(t *testing.T) {
+
 }
 
 
@@ -120,6 +127,7 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 		"Test Cluster",
 		Token([]byte{0,0,0,7}),
 		NewNodeId(),
+		3,
 	)
 	n1 := c.localNode
 

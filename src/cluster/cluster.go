@@ -66,7 +66,7 @@ type Cluster struct {
 	nodeLock sync.RWMutex
 
 	// nodes ordered by token
-	tokenRing [] Node
+	tokenRing []Node
 	// the state of the ring before the most recent ring mutation
 	priorRing []Node
 
@@ -77,7 +77,7 @@ type Cluster struct {
 	peerServer *PeerServer
 }
 
-func NewCluster(addr string, name string, token Token, nodeId NodeId) (*Cluster, error) {
+func NewCluster(addr string, name string, token Token, nodeId NodeId, replicationFactor uint32) (*Cluster, error) {
 	c := &Cluster{}
 	c.peerAddr = addr
 	c.name = name
@@ -158,4 +158,18 @@ func (c* Cluster) Start() error {
 
 func (c* Cluster) Stop() error {
 	return nil
+}
+
+/************** key routing **************/
+
+// returns the nodes that replicate the given token
+// includes the node that owns the token, and it's replicas
+func (c *Cluster) GetNodesForToken(t Token) []Node {
+	c.nodeLock.RLock()
+	defer c.nodeLock.RUnlock()
+
+}
+
+func (c *Cluster) GetNodesForKey(k string) []Node {
+
 }
