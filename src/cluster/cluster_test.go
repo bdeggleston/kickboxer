@@ -109,7 +109,7 @@ func TestAddingNewNodeToStoppedCluster(t *testing.T) {
 
 	equalityCheck(t, "cluster map size", 2, len(cluster.nodeMap))
 	equalityCheck(t, "cluster ring size", 2, len(cluster.tokenRing))
-	equalityCheck(t, "new node started", false, newNode.is_started)
+	equalityCheck(t, "new node started", false, newNode.IsStarted())
 	equalityCheck(t, "new node read size", 0, len(newNode.reads))
 	equalityCheck(t, "new node write size", 0, len(newNode.writes))
 }

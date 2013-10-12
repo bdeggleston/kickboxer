@@ -18,6 +18,8 @@ type PeerServer struct {
 	listener net.Listener
 	listenAddr string
 
+	isRunning bool
+
 }
 
 func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
@@ -147,10 +149,13 @@ func (s *PeerServer) Start() error {
 	}
 	s.listener = ln
 	go s.acceptConnections()
+	s.isRunning = true
 	return nil
 }
 
 func (s *PeerServer) Stop() error {
-	return s.listener.Close()
+	err := s.listener.Close()
+	s.isRunning = false
+	return err
 }
 

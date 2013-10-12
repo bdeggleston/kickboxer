@@ -29,7 +29,7 @@ type mockNode struct {
 	token Token
 	id NodeId
 
-	is_started bool
+	isStarted bool
 	reads []readCall
 	writes []writeCall
 }
@@ -47,8 +47,18 @@ func (n *mockNode) GetToken() Token { return n.token }
 
 func (n *mockNode) GetId() NodeId { return n.id }
 
-func (n *mockNode) Start() {
-	n.is_started = true
+func (n *mockNode) Start() error {
+	n.isStarted = true
+	return nil
+}
+
+func (n *mockNode) Stop() error {
+	n.isStarted = false
+	return nil
+}
+
+func (n *mockNode) IsStarted() bool {
+	return n.isStarted
 }
 
 func (n *mockNode) ExecuteRead(cmd string, key string, args []string) {

@@ -38,7 +38,9 @@ type Node interface {
 	GetToken() Token
 	GetId() NodeId
 
-	Start()
+	Start() error
+	Stop() error
+	IsStarted() bool
 
 	// executes a read instruction against the node's store
 	ExecuteRead(cmd string, key string, args []string)
@@ -65,6 +67,7 @@ func (n *baseNode) GetId() NodeId { return n.id }
 type LocalNode struct {
 	baseNode
 	store store.Store
+	isStarted bool
 }
 
 func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
@@ -76,8 +79,19 @@ func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
 	return n
 }
 
-func (n *LocalNode) Start() {
+func (n *LocalNode) Start() error {
 	// connect the store
+	n.isStarted = true
+	return nil
+}
+
+func (n *LocalNode) Stop() error {
+	n.isStarted = false
+	return nil
+}
+
+func (n *LocalNode) IsStarted() bool {
+	return n.isStarted
 }
 
 // executes a read instruction against the node's store
@@ -106,6 +120,8 @@ type RemoteNode struct {
 
 	pool ConnectionPool
 	cluster *Cluster
+
+	isStarted bool
 }
 
 
@@ -127,8 +143,20 @@ func NewRemoteNodeInfo(id NodeId, token Token, name string, addr string, cluster
 	return n
 }
 
-func (n *RemoteNode) Start() {
+func (n *RemoteNode) Start() error {
 	// connect to the node and get it's info
+	n.isStarted = true
+	return nil
+}
+
+func (n *RemoteNode) Stop() error {
+	// connect to the node and get it's info
+	n.isStarted = false
+	return nil
+}
+
+func (n *RemoteNode) IsStarted() bool {
+	return n.isStarted
 }
 
 // returns a connection with a completed handshake
