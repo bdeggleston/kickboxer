@@ -35,6 +35,9 @@ func (p literalPartitioner) GetToken(key string) Token {
 	if err := binary.Write(buf, binary.LittleEndian, &uval); err != nil {
 		panic(fmt.Sprintf("There was an error encoding the token: %v", err))
 	}
+	if len(b) != 8 {
+		panic(fmt.Sprintf("Expected token length of 8, got: %v", len(b)))
+	}
 	return Token(b)
 }
 

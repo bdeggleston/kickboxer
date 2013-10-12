@@ -14,13 +14,16 @@ import (
 
 
 func setupCluster() *Cluster {
-	c, _ := NewCluster(
+	c, err := NewCluster(
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
 		3,
 	)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
+	}
 	return c
 }
 // tests the cluster constructor works as expected
@@ -189,13 +192,16 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 
 // makes a ring of the given size, with the tokens evenly spaced
 func makeRing(size int, replicationFactor uint32) *Cluster {
-	c, _ := NewCluster(
+	c, err := NewCluster(
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,0,0,0}),
 		NewNodeId(),
 		replicationFactor,
 	)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
+	}
 
 	for i:=1; i<size; i++ {
 		n := newMockNode(
