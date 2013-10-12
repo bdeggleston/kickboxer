@@ -17,7 +17,7 @@ import (
 type Token []byte
 
 const (
-	CLUSTER_STARTED = "CLUSTER_STARTED"
+	CLUSTER_INITIALIZING = "CLUSTER_INITIALIZING"
 	CLUSTER_NORMAL = "CLUSTER_NORMAL"
 	CLUSTER_STREAMING = "CLUSTER_STREAMING"
 )
@@ -75,22 +75,27 @@ type Cluster struct {
 	nodeId NodeId
 	peerAddr string
 	peerServer *PeerServer
+	partitioner Partitioner
+
+	status string
 }
 
 func NewCluster(addr string, name string, token Token, nodeId NodeId, replicationFactor uint32) (*Cluster, error) {
 	c := &Cluster{}
+	c.status = CLUSTER_INITIALIZING
 	c.peerAddr = addr
 	c.name = name
 	c.token = token
 	c.nodeId = nodeId
 	c.localNode = NewLocalNode(c.nodeId, c.token, c.name)
 
+	c.peerServer = NewPeerServer(c, c.peerAddr)
+
 	if replicationFactor < 1 {
 		return nil, fmt.Errorf("Invalid replication factor: %v", replicationFactor)
 	}
 	c.replicationFactor = replicationFactor
 
-	// setup nodemap and initial token ring
 	c.nodeMap = make(map[NodeId] Node)
 	c.tokenRing = make([]Node, 1, 10)
 	c.priorRing = make([]Node, 1, 10)
@@ -151,17 +156,53 @@ func (c *Cluster) addNode(node Node) error {
 	if !ok {
 		c.nodeLock.Lock()
 		defer c.nodeLock.Unlock()
+		if c.status != CLUSTER_INITIALIZING && c.status != "" {
+			if err := node.Start(); err != nil { return err }
+		}
 		c.nodeMap[nid] = node
 		if err:= c.refreshRing(); err != nil { return err }
 	}
 	return nil
 }
 
+func(c* Cluster) discoverPeers() error {
+	return nil
+}
+
 func (c* Cluster) Start() error {
+	c.nodeLock.Lock()
+	defer c.nodeLock.Unlock()
+
+	// start listening for connections
+	if err := c.peerServer.Start(); err != nil {
+		return err
+	}
+
+	//startup the nodes
+	for i:=0; i<len(c.tokenRing); i++ {
+		node := c.tokenRing[i]
+		if !node.IsStarted() {
+			if err:= node.Start(); err != nil {
+				return err
+			}
+		}
+	}
+
+	// check for additional nodes
+	if err := c.discoverPeers(); err != nil {
+		return err
+	}
+
+	c.status = CLUSTER_NORMAL
+
 	return nil
 }
 
 func (c* Cluster) Stop() error {
+	c.peerServer.Stop()
+	for i:=0; i<len(c.tokenRing); i++ {
+		c.tokenRing[i].Stop()
+	}
 	return nil
 }
 
@@ -199,6 +240,7 @@ func (c *Cluster) GetNodesForToken(t Token) []Node {
 // gets the token of the given key and returns the nodes
 // that it maps to
 func (c *Cluster) GetNodesForKey(k string) []Node {
-	return nil
+	token := c.partitioner.GetToken(k)
+	return c.GetNodesForToken(token)
 }
 

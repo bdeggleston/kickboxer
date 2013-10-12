@@ -269,6 +269,63 @@ func TestReplicationFactor(t *testing.T) {
 
 }
 
+/************** startup tests **************/
+
+func TestNodesAreStartedOnStartup(t *testing.T) {
+	c := makeRing(10, 3)
+	err := c.Start()
+	defer c.Stop()
+	if err != nil {
+		t.Errorf("Unexpected error starting cluster: %v", err)
+	}
+
+	for i:=0; i<len(c.tokenRing); i++ {
+		n := c.tokenRing[i]
+		if !n.IsStarted() {
+			t.Errorf("Unexpected non-started node at token ring index %v", i)
+		}
+	}
+
+}
+
+func TestClusterStatusIsChangedOnStartup(t *testing.T) {
+	c := makeRing(10, 3)
+	if c.status != CLUSTER_INITIALIZING {
+		t.Fatalf("Unexpected initial cluster status. Expected %v, got %v", CLUSTER_INITIALIZING, c.status)
+	}
+	err := c.Start()
+	defer c.Stop()
+	if err != nil {
+		t.Errorf("Unexpected error starting cluster: %v", err)
+	}
+	if c.status != CLUSTER_NORMAL {
+		t.Fatalf("Unexpected initial cluster status. Expected %v, got %v", CLUSTER_NORMAL, c.status)
+	}
+}
+
+func TestPeerServerIsStartedOnStartup(t *testing.T) {
+	c := makeRing(10, 3)
+	if c.peerServer.isRunning {
+		t.Fatal("PeerServer unexpectedly running before cluster start")
+	}
+	err := c.Start()
+	defer c.Stop()
+	if err != nil {
+		t.Errorf("Unexpected error starting cluster: %v", err)
+	}
+	if !c.peerServer.isRunning {
+		t.Fatal("PeerServer unexpectedly not running after cluster start")
+	}
+
+}
+
+// tests that all peers are discovered on startup
+func TestPeerDiscoveryOnStartup(t *testing.T) {
+
+}
+
+/************** shutdown tests **************/
+
 /************** query tests **************/
 
 

@@ -134,7 +134,12 @@ func (s *PeerServer) acceptConnections() {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			fmt.Println(err)
+			// return if the server has been stopped
+			if !s.isRunning {
+				return
+			}
+			errMsg := fmt.Sprintf("Error accepting connection: %T %v", err, err)
+			fmt.Println(errMsg)
 			continue
 		}
 		go s.handleConnection(conn)
