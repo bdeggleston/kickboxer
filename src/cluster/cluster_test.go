@@ -37,7 +37,21 @@ func TestClusterSetup(t *testing.T) {
 // tests that instantiating a cluster with an invalid replication
 // factor returns an error
 func TestInvalidReplicationFactor(t *testing.T) {
+	c, err := NewCluster(
+		"127.0.0.1:9999",
+		"Test Cluster",
+		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		NewNodeId(),
+		0,
+	)
 
+	if c != nil {
+		t.Error("unexpected non nil cluster")
+	}
+
+	if err == nil {
+		t.Error("expected error from cluster constructor, got nil")
+	}
 }
 
 
