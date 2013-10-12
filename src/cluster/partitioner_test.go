@@ -8,6 +8,7 @@
 package cluster
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -29,8 +30,9 @@ func (p literalPartitioner) GetToken(key string) Token {
 	}
 	uval := uint64(val)
 	b := make([]byte, 8)
+	buf := bytes.NewBuffer(b)
 
-	if err := binary.Write(b, binary.LittleEndian, &uval); err != nil {
+	if err := binary.Write(buf, binary.LittleEndian, &uval); err != nil {
 		panic(fmt.Sprintf("There was an error encoding the token: %v", err))
 	}
 	return Token(b)

@@ -85,6 +85,11 @@ func NewCluster(addr string, name string, token Token, nodeId NodeId, replicatio
 	c.nodeId = nodeId
 	c.localNode = NewLocalNode(c.nodeId, c.token, c.name)
 
+	if replicationFactor < 1 {
+		return nil, fmt.Errorf("Invalid replication factor: %v", replicationFactor)
+	}
+	c.replicationFactor = replicationFactor
+
 	// setup nodemap and initial token ring
 	c.nodeMap = make(map[NodeId] Node)
 	c.tokenRing = make([]Node, 1, 10)
@@ -164,12 +169,36 @@ func (c* Cluster) Stop() error {
 
 // returns the nodes that replicate the given token
 // includes the node that owns the token, and it's replicas
+//
+// to simplify the binary search logic, a token belongs the first
+// node with a token greater than or equal to it
 func (c *Cluster) GetNodesForToken(t Token) []Node {
 	c.nodeLock.RLock()
 	defer c.nodeLock.RUnlock()
 
+	numNodes := int(c.replicationFactor)
+	ringLen := len(c.tokenRing)
+	if ringLen < int(c.replicationFactor) {
+		numNodes = len(c.tokenRing)
+	}
+	nodes := make([]Node, numNodes)
+
+	// this will return the first node with a token greater than
+	// the given token
+	searcher := func(i int) bool {
+		return bytes.Compare(t, c.tokenRing[i].GetToken()) <= 0
+	}
+	idx := sort.Search(ringLen, searcher)
+
+	for i:=0;i<numNodes;i++ {
+		nodes[i] = c.tokenRing[(idx + i) % ringLen]
+	}
+	return nodes
 }
 
+// gets the token of the given key and returns the nodes
+// that it maps to
 func (c *Cluster) GetNodesForKey(k string) []Node {
-
+	return nil
 }
+

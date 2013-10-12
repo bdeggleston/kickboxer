@@ -8,6 +8,7 @@
 package cluster
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -171,5 +172,84 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 }
 
 /************** key routing tests **************/
+
+// makes a ring of the given size, with the tokens evenly spaced
+func makeRing(size int, replicationFactor uint32) *Cluster {
+	c, _ := NewCluster(
+		"127.0.0.1:9999",
+		"Test Cluster",
+		Token([]byte{0,0,0,0}),
+		NewNodeId(),
+		replicationFactor,
+	)
+
+	for i:=1; i<size; i++ {
+		n := newMockNode(
+			NewNodeId(),
+			Token([]byte{0,0,byte(i),0}),
+			fmt.Sprintf("N%v", i),
+		)
+		c.addNode(n)
+	}
+
+	return c
+}
+
+// tests that the proper nodes are returned for the given keys
+func TestKeyRouting(t *testing.T) {
+	c := makeRing(10, 3)
+
+	var token Token
+	var nodes []Node
+
+	// test the upper bound
+	token = Token([]byte{0,0,9,5})
+	nodes = c.GetNodesForToken(token)
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	equalityCheck(t, "node[0]", c.tokenRing[0].GetId(), nodes[0].GetId())
+	equalityCheck(t, "node[1]", c.tokenRing[1].GetId(), nodes[1].GetId())
+	equalityCheck(t, "node[2]", c.tokenRing[2].GetId(), nodes[2].GetId())
+
+	// test the lower bound
+	token = Token([]byte{0,0,0,0})
+	nodes = c.GetNodesForToken(token)
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	equalityCheck(t, "node[0]", c.tokenRing[0].GetId(), nodes[0].GetId())
+	equalityCheck(t, "node[1]", c.tokenRing[1].GetId(), nodes[1].GetId())
+	equalityCheck(t, "node[2]", c.tokenRing[2].GetId(), nodes[2].GetId())
+
+	// test token intersection
+	token = Token([]byte{0,0,4,0})
+	nodes = c.GetNodesForToken(token)
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	equalityCheck(t, "node[0]", c.tokenRing[4].GetId(), nodes[0].GetId())
+	equalityCheck(t, "node[1]", c.tokenRing[5].GetId(), nodes[1].GetId())
+	equalityCheck(t, "node[2]", c.tokenRing[6].GetId(), nodes[2].GetId())
+
+	// test middle range
+	token = Token([]byte{0,0,4,5})
+	nodes = c.GetNodesForToken(token)
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	equalityCheck(t, "node[0]", c.tokenRing[5].GetId(), nodes[0].GetId())
+	equalityCheck(t, "node[1]", c.tokenRing[6].GetId(), nodes[1].GetId())
+	equalityCheck(t, "node[2]", c.tokenRing[7].GetId(), nodes[2].GetId())
+
+	// test wrapping
+	token = Token([]byte{0,0,8,5})
+	nodes = c.GetNodesForToken(token)
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	equalityCheck(t, "node[0]", c.tokenRing[9].GetId(), nodes[0].GetId())
+	equalityCheck(t, "node[1]", c.tokenRing[0].GetId(), nodes[1].GetId())
+	equalityCheck(t, "node[2]", c.tokenRing[1].GetId(), nodes[2].GetId())
+}
+
+
+// tests that the number of nodes returned matches the replication factor
+func TestReplicationFactor(t *testing.T) {
+
+}
+
+/************** query tests **************/
+
 
 
