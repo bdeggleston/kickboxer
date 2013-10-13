@@ -148,6 +148,7 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 
 	cluster := setupCluster()
 	node := NewRemoteNode("127.0.0.2:9998", cluster)
+	node.status = NODE_UP
 	conn := &Connection{socket:sock}
 	conn.SetHandshakeCompleted()
 	node.pool.Put(conn)
@@ -166,6 +167,10 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 	}
 	if len(response.Peers) != 0 {
 		t.Errorf("Unexpected response data length. Expected 0, got %v", len(response.Peers))
+	}
+
+	if node.status != NODE_UP {
+		t.Errorf("Unexpected node status, expected %v, got %v", NODE_UP, node.status)
 	}
 
 }
