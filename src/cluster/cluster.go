@@ -16,16 +16,20 @@ import (
 
 type Token []byte
 
-const (
-	CLUSTER_INITIALIZING = "CLUSTER_INITIALIZING"
-	CLUSTER_NORMAL = "CLUSTER_NORMAL"
-	CLUSTER_STREAMING = "CLUSTER_STREAMING"
-)
+type ClusterStatus string
 
 const (
-	CONSISTENCY_ONE = "CONSISTENCY_ONE"
-	CONSISTENCY_QUORUM = "CONSISTENCY_QUORUM"
-	CONSISTENCY_ALL = "CONSISTENCY_ALL"
+	CLUSTER_INITIALIZING 	= ClusterStatus("")
+	CLUSTER_NORMAL 			= ClusterStatus("NORMAL")
+	CLUSTER_STREAMING 		= ClusterStatus("STREAMING")
+)
+
+type ConsistencyLevel string
+
+const (
+	CONSISTENCY_ONE 	= ConsistencyLevel("ONE")
+	CONSISTENCY_QUORUM 	= ConsistencyLevel("QUORUM")
+	CONSISTENCY_ALL 	= ConsistencyLevel("ALL")
 )
 
 
@@ -77,7 +81,7 @@ type Cluster struct {
 	peerServer *PeerServer
 	partitioner Partitioner
 
-	status string
+	status ClusterStatus
 }
 
 func NewCluster(
@@ -176,7 +180,7 @@ func (c *Cluster) addNode(node Node) error {
 		c.nodeLock.Lock()
 		defer c.nodeLock.Unlock()
 		// if the cluster is not initializing, start the new node
-		if c.status != CLUSTER_INITIALIZING && c.status != "" {
+		if c.status != CLUSTER_INITIALIZING {
 			if err := node.Start(); err != nil { return err }
 		}
 		c.nodeMap[nid] = node

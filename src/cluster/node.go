@@ -15,6 +15,14 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
+type NodeStatus string
+
+const (
+	NODE_INITIALIZING 	= NodeStatus("")
+	NODE_UP 			= NodeStatus("UP")
+	NODE_DOWN 			= NodeStatus("DOWN")
+)
+
 type NodeId string
 
 func NewNodeId() NodeId {
@@ -37,6 +45,7 @@ type Node interface {
 	Name() string
 	GetToken() Token
 	GetId() NodeId
+	GetStatus() NodeStatus
 
 	Start() error
 	Stop() error
@@ -55,6 +64,7 @@ type baseNode struct {
 	name string
 	token Token
 	id NodeId
+	status NodeStatus
 }
 
 func (n *baseNode) Name() string { return n.name }
@@ -62,6 +72,8 @@ func (n *baseNode) Name() string { return n.name }
 func (n *baseNode) GetToken() Token { return n.token }
 
 func (n *baseNode) GetId() NodeId { return n.id }
+
+func (n *baseNode) GetStatus() NodeStatus { return n.status }
 
 // LocalNode provides access to the local store
 type LocalNode struct {
@@ -76,6 +88,7 @@ func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
 	n.id = id
 	n.token = token
 	n.name = name
+	n.status = NODE_UP
 	return n
 }
 
