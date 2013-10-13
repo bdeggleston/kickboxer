@@ -1,10 +1,3 @@
-/**
- * Created with IntelliJ IDEA.
- * User: bdeggleston
- * Date: 10/2/13
- * Time: 6:48 PM
- * To change this template use File | Settings | File Templates.
- */
 package cluster
 
 import (
@@ -47,6 +40,7 @@ func (e *NodeError) Error() string {
 
 type Node interface {
 	Name() string
+	GetAddr() string
 	GetToken() Token
 	GetId() NodeId
 	GetStatus() NodeStatus
@@ -66,12 +60,15 @@ type Node interface {
 // and methods in common among node types
 type baseNode struct {
 	name string
+	addr string
 	token Token
 	id NodeId
 	status NodeStatus
 }
 
 func (n *baseNode) Name() string { return n.name }
+
+func (n *baseNode) GetAddr() string { return n.addr }
 
 func (n *baseNode) GetToken() Token { return n.token }
 
@@ -131,9 +128,6 @@ func (n *LocalNode) ExecuteWrite(cmd string, key string, args []string, timestam
 // RemoteNode communicates with other nodes in the cluster
 type RemoteNode struct {
 	baseNode
-
-	// the node's network address
-	addr string
 
 	pool ConnectionPool
 	cluster *Cluster
