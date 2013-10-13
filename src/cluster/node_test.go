@@ -178,6 +178,24 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 // tests that a node is marked as down if sending
 // a message fails
 func TestMessageSendingFailureCase(t *testing.T) {
+	cluster := setupCluster()
+	node := NewRemoteNode("127.0.0.2:9998", cluster)
+	node.status = NODE_UP
+	conn := &Connection{socket:&readTimeoutConn{}}
+	conn.SetHandshakeCompleted()
+	node.pool.Put(conn)
+
+	request := &DiscoverPeersRequest{NodeId:node.GetId()}
+	response, mtype, err := node.sendMessage(request)
+	if err == nil {
+		t.Fatal("Expected error, received nil")
+	}
+	if response != nil || mtype != 0 {
+		t.Errorf("Expected nil message and response type, got: %T %v", response, mtype)
+	}
+	if node.status != NODE_DOWN {
+		t.Errorf("Unexpected node status. Expected %v, got %v", NODE_DOWN, node.status)
+	}
 
 }
 

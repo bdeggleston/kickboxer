@@ -195,9 +195,15 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 			Name:n.cluster.GetName(),
 			Token:n.cluster.GetToken(),
 		}}
-		if err := WriteMessage(conn, msg); err != nil { return nil, err }
+		if err := WriteMessage(conn, msg); err != nil {
+			n.status = NODE_DOWN
+			return nil, err
+		}
 		response, mtype, err := ReadMessage(conn)
-		if err != nil { return nil, err }
+		if err != nil {
+			n.status = NODE_DOWN
+			return nil, err
+		}
 		if mtype != CONNECTION_ACCEPTED_RESPONSE {
 			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
 		}
@@ -219,19 +225,27 @@ func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
 
 	// get connection
 	conn, err := n.getConnection()
-	if  err != nil { return nil, 0, err }
+	if  err != nil {
+		n.status = NODE_DOWN
+		return nil, 0, err
+	}
 
 
 	// send the message
 	if err := WriteMessage(conn, m); err != nil {
 		conn.Close()
+		n.status = NODE_DOWN
 		return nil, 0, err
 	}
 
 	// receive the message
 	response, messageType, err := ReadMessage(conn)
-	if err != nil { return nil, 0, err }
+	if err != nil {
+		n.status = NODE_DOWN
+		return nil, 0, err
+	}
 
+	n.status = NODE_UP
 	return response, messageType, nil
 }
 

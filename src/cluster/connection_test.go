@@ -49,6 +49,14 @@ func (c *fakeConn) Write(_ []byte) (int, error) {
 	return 0, &timeoutError{}
 }
 
+// times out on reads, but not on writes
+type readTimeoutConn struct {
+	timeoutConn
+}
+func (c *readTimeoutConn) Write(b []byte) (int, error) {
+	return len(b), nil
+}
+
 
 // mock connection that returns one byte on reads
 type dumbConn struct {
