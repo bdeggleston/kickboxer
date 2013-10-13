@@ -141,6 +141,32 @@ func TestStartingConnectsToPeer(t *testing.T) {
 // tests that sending and receiving messages works as
 // expected
 func TestMessageSendingSuccessCase(t *testing.T) {
+	sock := newBiConn(1, 1)
+	expected := &DiscoverPeerResponse{Peers:[]*PeerData{}}
+
+	WriteMessage(sock.input[0], expected)
+
+	cluster := setupCluster()
+	node := NewRemoteNode("127.0.0.2:9998", cluster)
+	conn := &Connection{socket:sock}
+	conn.SetHandshakeCompleted()
+	node.pool.Put(conn)
+
+	request := &DiscoverPeersRequest{NodeId:node.GetId()}
+	rawResponse, mtype, err := node.sendMessage(request)
+	if err != nil {
+		t.Fatalf("Unexpected error of type [%T]: %v", err, err)
+	}
+	if mtype != DISCOVER_PEERS_RESPONSE {
+		t.Errorf("Unexpected message response type. Expected %v, got %v", DISCOVER_PEERS_RESPONSE, mtype)
+	}
+	response, ok := rawResponse.(*DiscoverPeerResponse)
+	if !ok {
+		t.Fatalf("Unexpected message type. Expected DiscoverPeerResponse, got %T", rawResponse)
+	}
+	if len(response.Peers) != 0 {
+		t.Errorf("Unexpected response data length. Expected 0, got %v", len(response.Peers))
+	}
 
 }
 
