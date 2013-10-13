@@ -27,4 +27,8 @@ func (p MD5Partitioner) GetToken(key string) Token {
 	return Token(h.Sum(nil))
 }
 
+func NewMD5Partitioner() *MD5Partitioner {
+	return &MD5Partitioner{}
+}
+
 

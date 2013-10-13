@@ -20,6 +20,7 @@ func setupCluster() *Cluster {
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
 		3,
+		NewMD5Partitioner(),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
@@ -46,6 +47,7 @@ func TestInvalidReplicationFactor(t *testing.T) {
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
 		0,
+		NewMD5Partitioner(),
 	)
 
 	if c != nil {
@@ -57,6 +59,25 @@ func TestInvalidReplicationFactor(t *testing.T) {
 	}
 }
 
+func TestInvalidPartitioner(t *testing.T) {
+	c, err := NewCluster(
+		"127.0.0.1:9999",
+		"Test Cluster",
+		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		NewNodeId(),
+		3,
+		nil,
+	)
+
+	if c != nil {
+		t.Error("unexpected non nil cluster")
+	}
+
+	if err == nil {
+		t.Error("expected error from cluster constructor, got nil")
+	}
+
+}
 
 /************** getNode tests **************/
 
@@ -146,6 +167,7 @@ func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 		Token([]byte{0,0,0,7}),
 		NewNodeId(),
 		3,
+		NewMD5Partitioner(),
 	)
 	n1 := c.localNode
 
@@ -198,6 +220,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		Token([]byte{0,0,0,0}),
 		NewNodeId(),
 		replicationFactor,
+		NewMD5Partitioner(),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))

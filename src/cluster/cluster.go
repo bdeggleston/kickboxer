@@ -80,7 +80,22 @@ type Cluster struct {
 	status string
 }
 
-func NewCluster(addr string, name string, token Token, nodeId NodeId, replicationFactor uint32) (*Cluster, error) {
+func NewCluster(
+	// the address the peer server will be listening on
+	addr string,
+	// the name of this local node
+	name string,
+	// the token of this local node
+	token Token,
+	// the id of this local node
+	nodeId NodeId,
+	// the replication factor of the cluster
+	replicationFactor uint32,
+	// the partitioner used by the cluster
+	partitioner Partitioner,
+
+) (*Cluster, error) {
+	//
 	c := &Cluster{}
 	c.status = CLUSTER_INITIALIZING
 	c.peerAddr = addr
@@ -95,6 +110,10 @@ func NewCluster(addr string, name string, token Token, nodeId NodeId, replicatio
 		return nil, fmt.Errorf("Invalid replication factor: %v", replicationFactor)
 	}
 	c.replicationFactor = replicationFactor
+	if partitioner == nil {
+		return nil, fmt.Errorf("partitioner cannot be nil")
+	}
+	c.partitioner = partitioner
 
 	c.nodeMap = make(map[NodeId] Node)
 	c.tokenRing = make([]Node, 1, 10)
@@ -156,6 +175,7 @@ func (c *Cluster) addNode(node Node) error {
 	if !ok {
 		c.nodeLock.Lock()
 		defer c.nodeLock.Unlock()
+		// if the cluster is not initializing, start the new node
 		if c.status != CLUSTER_INITIALIZING && c.status != "" {
 			if err := node.Start(); err != nil { return err }
 		}
