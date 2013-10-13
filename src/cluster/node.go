@@ -29,6 +29,10 @@ func NewNodeId() NodeId {
 	return NodeId(uuid.NewRandom().String())
 }
 
+func (nid NodeId) IsNil() bool {
+	return nid == NodeId("")
+}
+
 type NodeError struct {
 	reason string
 }
@@ -158,6 +162,12 @@ func NewRemoteNodeInfo(id NodeId, token Token, name string, addr string, cluster
 
 func (n *RemoteNode) Start() error {
 	// connect to the node and get it's info
+	conn, err := n.getConnection()
+	if err != nil {
+		return err
+	}
+	n.pool.Put(conn)
+	n.status = NODE_UP
 	n.isStarted = true
 	return nil
 }
@@ -191,6 +201,15 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 		if mtype != CONNECTION_ACCEPTED_RESPONSE {
 			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
 		}
+
+		// copy the response info if we're still initializing
+		if n.status == NODE_INITIALIZING {
+			accept := response.(*ConnectionAcceptedResponse)
+			n.id = accept.NodeId
+			n.name = accept.Name
+			n.token = accept.Token
+		}
+
 		conn.SetHandshakeCompleted()
 	}
 	return conn, nil

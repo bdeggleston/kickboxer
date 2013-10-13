@@ -98,8 +98,43 @@ func TestWriteRequestCallsCorrectStoreMethod(t *testing.T) {
 /************** remote tests **************/
 
 // tests that calling Start on a remote node initiates
-// a connection to the remote peer server
+// a connection to the remote peer server, copies
+// it's data, and sets the node's status to UP
 func TestStartingConnectsToPeer(t *testing.T) {
+	// write a connection acceptance message
+	sock := newBiConn(1, 1)
+	response := &ConnectionAcceptedResponse{
+		NodeId:NewNodeId(),
+		Name:"Ghost",
+		Token:Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3}),
+	}
+	WriteMessage(sock.input[0], response)
+
+	cluster := setupCluster()
+	node := NewRemoteNode("127.0.0.2:9998", cluster)
+	conn := &Connection{socket:sock}
+	node.pool.Put(conn)
+
+	// pre startup sanity check
+	equalityCheck(t, "pre start conn status", false, conn.completedHandshake)
+	equalityCheck(t, "pre start name", "", node.name)
+	equalityCheck(t, "pre start id", NodeId(""), node.id)
+	equalityCheck(t, "pre start status", NODE_INITIALIZING, node.status)
+	sliceEqualityCheck(t, "pre start token", nil, node.token)
+
+	// start the node
+	err := node.Start()
+	if err != nil {
+		t.Fatalf("Unexpected error of type %T: %v", err, err)
+	}
+
+	// check that values were saved properly
+	equalityCheck(t, "post start conn status", true, conn.completedHandshake)
+	equalityCheck(t, "post start name", response.Name, node.name)
+	equalityCheck(t, "post start id", response.NodeId, node.id)
+	equalityCheck(t, "post start status", NODE_UP, node.status)
+	sliceEqualityCheck(t, "post start token", response.Token, node.token)
+
 
 }
 
