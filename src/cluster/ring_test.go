@@ -21,7 +21,7 @@ func setupRing() *Ring {
 	return r
 }
 
-/************** getNode tests **************/
+/************** GetNode tests **************/
 
 func TestGetUnknownNode_(t *testing.T) {
 	ring := setupRing()
@@ -52,7 +52,7 @@ func TestGetExistingNode_(t *testing.T) {
 	}
 }
 
-/************** addNode tests **************/
+/************** AddNode tests **************/
 
 // tests that a node is added to the cluster if
 // the cluster has not seen it yet
@@ -96,7 +96,27 @@ func TestAddingExistingNodeToRing(t *testing.T) {
 	equalityCheck(t, "ring size", 10, len(ring.tokenRing))
 }
 
-/************** refreshRing tests **************/
+/************** AddNode tests **************/
+
+func TestAllNodes(t *testing.T) {
+	ring := setupRing()
+
+	nodes := ring.AllNodes()
+	equalityCheck(t, "node list size", len(ring.nodeMap), len(nodes))
+
+	for i:=0; i<len(nodes); i++ {
+		expected := ring.tokenRing[i]
+		actual := nodes[i]
+
+		if actual == nil {
+			t.Errorf("Unexpected nil node at index [%v]", i)
+		}
+
+		equalityCheck(t, fmt.Sprintf("node[%v] id", i), expected.GetId(), actual.GetId())
+	}
+}
+
+/************** RefreshRing tests **************/
 
 func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	ring := NewRing()

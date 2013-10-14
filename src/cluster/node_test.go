@@ -202,31 +202,6 @@ func TestMessageSendingFailureCase(t *testing.T) {
 
 }
 
-// tests that discovering peers from a list of seed addresses
-// works properly
-func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
-
-}
-
-// tests that discovering peers from existing peers
-// works properly
-func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
-
-}
-
-// tests that a node is skipped if it can't be connected
-// to from the seed list
-func TestPeerDiscoverySeedFailure(t *testing.T) {
-
-}
-
-// tests that a node is still added to the ring, even if
-// there's a problem connecting to it when discovered from
-// another node
-func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
-
-}
-
 // tests that calling ExecuteRead sends a ReadMessage
 func TestReadRequestSendsCorrectMessage(t *testing.T) {
 	t.SkipNow()

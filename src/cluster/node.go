@@ -38,6 +38,7 @@ func (e *NodeError) Error() string {
 	return e.reason
 }
 
+// the basic node interface
 type Node interface {
 	Name() string
 	GetAddr() string

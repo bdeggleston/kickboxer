@@ -81,7 +81,7 @@ func (r *Ring) AddNode(node Node) error {
 	nid := node.GetId()
 	_, ok := r.nodeMap[nid]
 	if ok {
-		return fmt.Errorf("This node already belongs to this ring")
+		return fmt.Errorf("This node is already a part of the ring")
 	}
 
 	r.nodeMap[nid] = node
@@ -94,8 +94,10 @@ func (r *Ring) AllNodes() []Node {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 	//
-	nodes := make([]Node, len(r.tokenRing))
-	copy(r.tokenRing, nodes)
+	nodes := make([]Node, len(r.tokenRing), len(r.tokenRing))
+	for i, n := range r.tokenRing {
+		nodes[i] = n
+	}
 	return nodes
 }
 

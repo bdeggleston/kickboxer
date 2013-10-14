@@ -140,7 +140,7 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 		t.Fatalf("Unexpected error creating mock cluster: %v", err)
 	}
 	// sanity check
-	if _, err := cluster.getNode(connectMessage.NodeId); err == nil {
+	if _, err := cluster.ring.GetNode(connectMessage.NodeId); err == nil {
 		t.Fatalf("Unexpected nil error getting new node")
 	}
 
@@ -149,7 +149,7 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error from connection method: %v", err)
 	}
-	if _, err := cluster.getNode(connectMessage.NodeId); err != nil {
+	if _, err := cluster.ring.GetNode(connectMessage.NodeId); err != nil {
 		t.Fatalf("Unexpected error getNode: %v", err)
 	}
 }
