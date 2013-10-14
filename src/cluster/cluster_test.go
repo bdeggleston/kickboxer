@@ -82,6 +82,7 @@ func TestInvalidPartitioner(t *testing.T) {
 /************** getNode tests **************/
 
 
+// TODO: move to ring tests
 // tests that calling getNode with a non-existant
 // node id returns an error
 func TestGetUnknownNode(t *testing.T) {
@@ -95,6 +96,7 @@ func TestGetUnknownNode(t *testing.T) {
 	}
 }
 
+// TODO: move to ring tests
 // tests that fetching a node with a valid node id
 // returns the requested node
 func TestGetExistingNode(t *testing.T) {
@@ -114,6 +116,7 @@ func TestGetExistingNode(t *testing.T) {
 
 /************** addNode tests **************/
 
+// TODO: move to ring tests
 // tests that a node is added to the cluster if
 // the cluster has not seen it yet
 func TestAddingNewNodeToStoppedCluster(t *testing.T) {
@@ -142,6 +145,7 @@ func TestAddingNewNodeToStartedCluster(t *testing.T) {
 	t.Skip("Cluster starting not implemented yet")
 }
 
+// TODO: move to ring tests
 // tests that nothing is changed if a node is already
 // known by the cluster
 func TestAddingExistingNodeToCluster(t *testing.T) {
@@ -160,6 +164,7 @@ func TestAddingExistingNodeToCluster(t *testing.T) {
 
 /************** refreshRing tests **************/
 
+// TODO: move to ring tests
 func TestRingIsRefreshedAfterNodeAddition(t *testing.T) {
 	c, _ := NewCluster(
 		"127.0.0.1:9999",
@@ -238,6 +243,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 	return c
 }
 
+// TODO: move to ring tests
 // tests that the proper nodes are returned for the given keys
 func TestKeyRouting(t *testing.T) {
 	c := makeRing(10, 3)
@@ -342,8 +348,62 @@ func TestPeerServerIsStartedOnStartup(t *testing.T) {
 
 }
 
+/*
+TODO:
+	how to maintain token rings and maps without locks?
+		LOCKS
+			* we need to be able to run multiple requests of any type concurrently
+			* we only need to be concerned with concurrent mutation of the ring state
+			* with each of the peer servers connections running in their own goroutine,
+			sending all messages over a single channel doesn't seem practical
+			* cluster's core functionality is interacting with the node map and
+			token ring. Putting all of that in a single goroutine would be clunky
+			* cluster mutations should be relatively rare... so running an
+			actor seems overkill
+
+		CLUSTER CHANNELS
+			* having locks everywhere is error prone. It's fairly early in the
+			implementation, and has already been a dead lock condition
+
+		SERVER CHANNELS
+			* how many functions will the peer server really be calling? Having
+			a channel for each one probably wouldn't be that bad
+			* having a single peer server goroutine which interfaces with the cluster
+			would be ok from a complexity standpoint, but this would mean that the
+			request handler would essentially be single threaded
+
+	mocking out the remote node constructors
+		* wrapping a private constructor is probably the most straightforward and
+		flexible approach
+ */
+
 // tests that all peers are discovered on startup
 func TestPeerDiscoveryOnStartup(t *testing.T) {
+
+}
+
+// tests that discovering peers from a list of seed addresses
+// works properly
+func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
+
+}
+
+// tests that discovering peers from existing peers
+// works properly
+func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
+
+}
+
+// tests that a node is skipped if it can't be connected
+// to from the seed list
+func TestPeerDiscoverySeedFailure(t *testing.T) {
+
+}
+
+// tests that a node is still added to the ring, even if
+// there's a problem connecting to it when discovered from
+// another node
+func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 
 }
 
