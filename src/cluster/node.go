@@ -136,14 +136,17 @@ type RemoteNode struct {
 	isStarted bool
 }
 
-
-// creates a new remote node from only an address
-func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
+var newRemoteNode = func(addr string, cluster *Cluster) (*RemoteNode) {
 	n := &RemoteNode{}
 	n.addr = addr
 	n.pool = *NewConnectionPool(n.addr, 10, 10000)
 	n.cluster = cluster
 	return n
+}
+
+// creates a new remote node from only an address
+func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
+	return newRemoteNode(addr, cluster)
 }
 
 // creates a new remote node from info provided from the node
