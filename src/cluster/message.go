@@ -231,8 +231,8 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	if len(b) != 16 {
-		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for Token, got %v (%v)", b, len(b)))
+	if len(b) < 1 {
+		return NewMessageEncodingError(fmt.Sprintf("expected at least 1 byte for Token, got %v (%v)", b, len(b)))
 	}
 	m.Token = Token(b)
 
@@ -302,7 +302,12 @@ type DiscoverPeerResponse struct {
 }
 
 func (m *DiscoverPeerResponse) Serialize(buf *bufio.Writer) error {
-	numArgs := uint32(len(m.Peers))
+	var numArgs uint32
+	if m.Peers == nil {
+		numArgs = uint32(0)
+	} else {
+		numArgs = uint32(len(m.Peers))
+	}
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 	for i:=0; i<int(numArgs); i++ {
 		pd := m.Peers[i]

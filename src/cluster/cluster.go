@@ -113,6 +113,12 @@ func NewCluster(
 	}
 	c.partitioner = partitioner
 
+	if seeds == nil {
+		c.seeds = []string{}
+	} else {
+		c.seeds = seeds
+	}
+
 	c.ring = NewRing()
 	c.ring.AddNode(c.localNode)
 
