@@ -21,6 +21,7 @@ func setupCluster() *Cluster {
 		NewNodeId(),
 		3,
 		NewMD5Partitioner(),
+		nil,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
@@ -48,6 +49,7 @@ func TestInvalidReplicationFactor(t *testing.T) {
 		NewNodeId(),
 		0,
 		NewMD5Partitioner(),
+		nil,
 	)
 
 	if c != nil {
@@ -66,6 +68,7 @@ func TestInvalidPartitioner(t *testing.T) {
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
 		3,
+		nil,
 		nil,
 	)
 
@@ -99,6 +102,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		NewNodeId(),
 		replicationFactor,
 		NewMD5Partitioner(),
+		nil,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))

@@ -89,6 +89,8 @@ func NewCluster(
 	replicationFactor uint32,
 	// the partitioner used by the cluster
 	partitioner Partitioner,
+	// list of seed node addresses
+	seeds []string,
 
 ) (*Cluster, error) {
 	//
