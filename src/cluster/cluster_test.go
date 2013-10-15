@@ -16,6 +16,10 @@ var (
 	originalNewRemoteNode = newRemoteNode
 )
 
+func tearDownNewRemoteNode() {
+	newRemoteNode = originalNewRemoteNode
+}
+
 func setupCluster() *Cluster {
 	c, err := NewCluster(
 		"127.0.0.1:9999",
@@ -214,8 +218,7 @@ func TestPeerDiscoveryOnStartup(t *testing.T) {
 // tests that discovering peers from a list of seed addresses
 // works properly
 func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
-	// restore newRemoteNode
-	defer func() { newRemoteNode = originalNewRemoteNode }()
+	defer tearDownNewRemoteNode()
 
 	seeds := []string{"127.0.0.2:9999", "127.0.0.3:9999"}
 
