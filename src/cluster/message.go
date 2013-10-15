@@ -169,8 +169,8 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	// Token
 	b, err = readFieldBytes(buf)
 	if err != nil { return err }
-	if len(b) != 16 {
-		return NewMessageEncodingError(fmt.Sprintf("expected 16 bytes for Token, got %v (%v)", b, len(b)))
+	if len(b) < 1 {
+		return NewMessageEncodingError(fmt.Sprintf("expected at least one byte for Token, got %v (%v)", b, len(b)))
 	}
 	m.Token = Token(b)
 
