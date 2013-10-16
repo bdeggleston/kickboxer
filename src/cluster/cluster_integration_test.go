@@ -9,4 +9,5 @@ package cluster
 	quorum reads and writes
 	network partition
 	inconsistent views of ring between nodes`
+	key routing
  */
