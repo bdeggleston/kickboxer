@@ -13,9 +13,13 @@ import (
 	"time"
 )
 
+// enum indicating type of value
+type ValueType string
+
 type Value interface {
 	// returns the highest level timestamp for this value
 	GetTimestamp() time.Time
+	GetValueType() ValueType
 
 	Serialize(buf *bufio.Writer) error
 	Deserialize(buf *bufio.Reader) error
@@ -45,8 +49,8 @@ type Store interface {
 	// executes a write instruction against the node's store
 	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (*Value, error)
 
-	// reconciles multiple values
-	Reconcile(values map[string] *Value) (*Value, []*Instruction, error)
-
+	// reconciles multiple values and returns instructions for correting
+	// the values
+	Reconcile(values map[string] *Value) (*Value, map[string][]*Instruction, error)
 }
 
