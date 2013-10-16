@@ -203,6 +203,7 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 			return nil, err
 		}
 		if mtype != CONNECTION_ACCEPTED_RESPONSE {
+			n.status = NODE_DOWN
 			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
 		}
 

@@ -370,6 +370,9 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 	if err != nil { t.Fatalf("n2 was not found: %v", err) }
 	if err != nil { t.Fatalf("n3 was not found: %v", err) }
 
+	n2.Start()
+	n3.Start()
+
 	equalityCheck(t, "n2 id", n2.GetId(), n2Response.NodeId)
 	equalityCheck(t, "n2 name", n2.Name(), n2Response.Name)
 	equalityCheck(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
@@ -491,6 +494,9 @@ func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 	n3, err := cluster.ring.GetNode(n3Response.NodeId)
 	if err != nil { t.Fatalf("n2 was not found: %v", err) }
 	if err != nil { t.Fatalf("n3 was not found: %v", err) }
+
+	n2.Start()
+	n3.Start()
 
 	equalityCheck(t, "n2 id", n2.GetId(), n2Response.NodeId)
 	equalityCheck(t, "n2 name", n2.Name(), n2Response.Name)
