@@ -4,6 +4,7 @@ import (
 //	"bufio"
 //	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,7 +27,13 @@ const (
 
 type Redis struct {
 
-	data map[string] simpleValue
+	data map[string] Value
+
+	// TODO: delete
+	// temporary lock, used until
+	// things are broken out into
+	// goroutines
+	lock sync.RWMutex
 
 }
 
@@ -39,10 +46,14 @@ func (s *Redis) Stop() error {
 }
 
 func (s *Redis) ExecuteRead(cmd string, key string, args []string) (*Value, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	return nil, nil
 }
 
 func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (*Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	return nil, nil
 }
 
