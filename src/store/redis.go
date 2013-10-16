@@ -1,10 +1,3 @@
-/**
- * Created with IntelliJ IDEA.
- * User: bdeggleston
- * Date: 10/5/13
- * Time: 7:16 PM
- * To change this template use File | Settings | File Templates.
- */
 package store
 
 import (
@@ -23,5 +16,13 @@ type Redis struct {
 
 	data map[string] simpleValue
 
+}
+
+func (s *Redis) Start() error {
+	return nil
+}
+
+func (s *Redis) Stop() error {
+	return nil
 }
 
