@@ -45,5 +45,8 @@ type Store interface {
 	// reconciles multiple values and returns instructions for correting
 	// the values
 	Reconcile(values map[string] *Value) (*Value, map[string][]*Instruction, error)
+
+	IsReadCommand(cmd string) bool
+	IsWriteCommand(cmd string) bool
 }
 
