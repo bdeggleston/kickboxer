@@ -123,6 +123,13 @@ type Redis struct {
 
 }
 
+func NewRedis() *Redis {
+	r := &Redis{
+		data:make(map[string] Value),
+	}
+	return r
+}
+
 func (s *Redis) SerializeValue(v Value) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	if err := WriteRedisValue(buf, v) ; err != nil { return nil, err }
@@ -144,6 +151,13 @@ func (s *Redis) Stop() error {
 	return nil
 }
 
+// returns the contents of the given key
+func (s *Redis) get(key string) Value {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.data[key]
+}
+
 func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -151,6 +165,10 @@ func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error
 	switch cmd {
 	case GET:
 		//
+		if len(args) != 0 {
+			return nil, fmt.Errorf("too many args for GET")
+		}
+		return s.get(key), nil
 	default:
 		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
 	}

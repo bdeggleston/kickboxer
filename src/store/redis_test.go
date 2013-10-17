@@ -74,3 +74,58 @@ func TestSingleValue(t *testing.T) {
 	testing_helpers.AssertEqual(t, "data", src.data, dst.data)
 	testing_helpers.AssertEqual(t, "time", src.time, dst.time)
 }
+
+/***************** query tests *****************/
+
+func setupRedis() *Redis {
+	r := NewRedis()
+	return r
+}
+
+// tests basic function of set
+func TestSet(t *testing.T) {
+
+}
+
+// if set is called with a timestamp which is lower than
+// the existing value, it should be ignored
+func TestSetConflictingTimestamp(t *testing.T) {
+
+}
+
+// tests validation of SET insructions
+func TestSetValidation(t *testing.T) {
+
+}
+
+func TestGet(t *testing.T) {
+	r := setupRedis()
+	expected := newSingleValue("b", time.Now())
+	r.data["a"] = expected
+
+	val, err := r.ExecuteRead("GET", "a", []string{})
+	if err != nil {
+		t.Fatalf("Unexpected error on read: %v", err)
+	}
+	actual, ok := val.(*singleValue)
+	if !ok {
+		t.Fatalf("Unexpected value type: %T", val)
+	}
+
+	testing_helpers.AssertEqual(t, "data", expected.data, actual.data)
+	testing_helpers.AssertEqual(t, "time", expected.time, actual.time)
+}
+
+// tests validation of GET insructions
+func TestGetValidation(t *testing.T) {
+	r := setupRedis()
+
+	// too many args
+	val, err := r.ExecuteRead("GET", "a", []string{"b"})
+	if val != nil {
+		t.Errorf("Unexpected non-nil value")
+	}
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+}
