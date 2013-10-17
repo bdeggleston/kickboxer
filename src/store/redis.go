@@ -3,6 +3,7 @@ package store
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -47,6 +48,9 @@ func (v *singleValue) Serialize(buf *bufio.Writer) error {
 	if err := serializer.WriteTime(buf, v.time); err != nil {
 		return err
 	}
+	if err := buf.Flush(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -64,6 +68,35 @@ func (v *singleValue) Deserialize(buf *bufio.Reader) error {
 	}
 	return nil
 }
+
+func WriteRedisValue(buf io.Writer, v Value) error {
+	writer := bufio.NewWriter(buf)
+
+	vtype := v.GetValueType()
+	if err := serializer.WriteFieldBytes(writer, []byte(vtype)); err != nil { return err }
+	if err := v.Serialize(writer); err != nil { return err }
+	if err := writer.Flush(); err != nil { return err }
+	return nil
+}
+
+func ReadRedisValue(buf io.Reader) (Value, ValueType, error) {
+	reader := bufio.NewReader(buf)
+	vstr, err := serializer.ReadFieldBytes(reader)
+	if err != nil { return nil, "", err }
+
+	vtype := ValueType(vstr)
+	var value Value
+	switch vtype {
+	case SINGLE_VALUE:
+		value = &singleValue{}
+	default:
+		return nil, "", fmt.Errorf("Unexpected value type: %v", vtype)
+	}
+
+	if err := value.Deserialize(reader); err != nil { return nil, "", err}
+	return value, vtype, nil
+}
+
 
 // read instructions
 const (
