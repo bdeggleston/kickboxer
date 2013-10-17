@@ -84,7 +84,37 @@ func setupRedis() *Redis {
 
 // tests basic function of set
 func TestSet(t *testing.T) {
+	r := setupRedis()
 
+	// sanity check
+	_, exists := r.data["a"]
+	if exists {
+		t.Fatalf("Unexpectedly found 'a' in store")
+	}
+
+	ts := time.Now()
+	rawval, err := r.ExecuteWrite("SET", "a", []string{"b"}, ts)
+	if err != nil {
+		t.Errorf("Unexpected write error: %v", err)
+	}
+	rval, ok := rawval.(*singleValue)
+	if !ok {
+		t.Errorf("returned value of unexpected type: %T", rawval)
+	}
+
+	actualraw, exists := r.data["a"]
+	if ! exists {
+		t.Errorf("No value found for 'a'")
+	}
+	actual, ok := actualraw.(*singleValue)
+	if !ok {
+		t.Errorf("actual value of unexpected type: %T", actualraw)
+	}
+
+	testing_helpers.AssertEqual(t, "rval data", "b", rval.data)
+	testing_helpers.AssertEqual(t, "actual data", "b", actual.data)
+	testing_helpers.AssertEqual(t, "rval time", ts, rval.time)
+	testing_helpers.AssertEqual(t, "actual time", ts, actual.time)
 }
 
 // if set is called with a timestamp which is lower than

@@ -159,21 +159,26 @@ func (s *Redis) get(key string) Value {
 }
 
 func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
 	switch cmd {
 	case GET:
 		//
-		if len(args) != 0 {
-			return nil, fmt.Errorf("too many args for GET")
-		}
+		if len(args) != 0 { return nil, fmt.Errorf("too many args for GET") }
 		return s.get(key), nil
 	default:
 		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
 	}
 
 	return nil, nil
+}
+
+func (s *Redis) set(key string, val string, ts time.Time) (Value) {
+	existing, exists := s.data[key]
+	if exists && ts.Before(existing.GetTimestamp()) {
+		return existing
+	}
+	value := newSingleValue(val, ts)
+	s.data[key] = value
+	return value
 }
 
 func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error) {
@@ -183,6 +188,10 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 	switch cmd {
 	case SET:
 		//
+		if len(args) != 1 {
+			return nil, fmt.Errorf("incorrect number of args for SET. Expected 1, got %v", len(args))
+		}
+		return s.set(key, args[0], timestamp), nil
 	case DEL:
 		//
 	default:
