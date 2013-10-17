@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"bufio"
+	"time"
 )
 
 // writes the field length, then the field to the writer
@@ -45,4 +46,28 @@ func ReadFieldBytes(buf *bufio.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected num bytes read. Expected %v, got %v", size, n)
 	}
 	return bytes, nil
+}
+
+// writes a time value
+func WriteTime(buf *bufio.Writer, t time.Time) error {
+	b, err := t.GobEncode()
+	if err != nil { return err }
+	if err := WriteFieldBytes(buf, b); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// reads a time value
+func ReadTime(buf *bufio.Reader) (time.Time, error) {
+	t := time.Time{}
+	timeBytes, err := ReadFieldBytes(buf)
+	if err != nil {
+		return t, err
+	}
+	if err := t.GobDecode(timeBytes); err != nil {
+		return t, err
+	}
+	return t, nil
 }
