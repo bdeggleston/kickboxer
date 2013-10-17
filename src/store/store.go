@@ -37,10 +37,10 @@ type Store interface {
 	DeserializeValue(b []byte) (Value, ValueType, error)
 
 	// executes a read instruction against the node's store
-	ExecuteRead(cmd string, key string, args []string) (*Value, error)
+	ExecuteRead(cmd string, key string, args []string) (Value, error)
 
 	// executes a write instruction against the node's store
-	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (*Value, error)
+	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error)
 
 	// reconciles multiple values and returns instructions for correting
 	// the values

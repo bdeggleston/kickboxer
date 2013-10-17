@@ -144,7 +144,7 @@ func (s *Redis) Stop() error {
 	return nil
 }
 
-func (s *Redis) ExecuteRead(cmd string, key string, args []string) (*Value, error) {
+func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -158,7 +158,7 @@ func (s *Redis) ExecuteRead(cmd string, key string, args []string) (*Value, erro
 	return nil, nil
 }
 
-func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (*Value, error) {
+func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
