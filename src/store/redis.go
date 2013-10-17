@@ -11,6 +11,7 @@ import (
 
 import (
 	"serializer"
+	"bytes"
 )
 
 const (
@@ -120,6 +121,19 @@ type Redis struct {
 	// goroutines
 	lock sync.RWMutex
 
+}
+
+func (s *Redis) SerializeValue(v Value) ([]byte, error) {
+	buf := &bytes.Buffer{}
+	if err := WriteRedisValue(buf, v) ; err != nil { return nil, err }
+	return buf.Bytes(), nil
+}
+
+func (s *Redis) DeserializeValue(b []byte) (Value, ValueType, error) {
+	buf := bytes.NewBuffer(b)
+	val, vtype, err := ReadRedisValue(buf)
+	if err != nil { return nil, "", err }
+	return val, vtype, nil
 }
 
 func (s *Redis) Start() error {

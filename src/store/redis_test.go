@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"testing"
 	"testing_helpers"
 	"time"
@@ -51,15 +50,16 @@ func TestIsReadCmd(t *testing.T) {
 
 // tests the single value
 func TestSingleValue(t *testing.T) {
-	buf := &bytes.Buffer{}
+	store := &Redis{}
 	src := newSingleValue("blake", time.Now())
 	valueInterfaceCheck(src)
 
-	if err := WriteRedisValue(buf, src); err != nil {
+	b, err := store.SerializeValue(src)
+	if err != nil {
 		t.Fatalf("Unexpected serialization error: %v", err)
 	}
 
-	val, vtype, err := ReadRedisValue(buf)
+	val, vtype, err := store.DeserializeValue(b)
 	if err != nil {
 		t.Fatalf("Unexpected deserialization error: %v", err)
 	}

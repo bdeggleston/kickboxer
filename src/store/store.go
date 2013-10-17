@@ -31,10 +31,10 @@ type Store interface {
 	Stop() error
 
 	// serializes a value
-	SerializeValue(v *Value) ([]byte, error)
+	SerializeValue(v Value) ([]byte, error)
 
 	// serializes a value
-	DeserializeValue(b []byte) (Value, error)
+	DeserializeValue(b []byte) (Value, ValueType, error)
 
 	// executes a read instruction against the node's store
 	ExecuteRead(cmd string, key string, args []string) (*Value, error)
