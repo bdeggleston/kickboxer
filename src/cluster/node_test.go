@@ -1,10 +1,3 @@
-/**
- * Created with IntelliJ IDEA.
- * User: bdeggleston
- * Date: 10/9/13
- * Time: 7:27 AM
- * To change this template use File | Settings | File Templates.
- */
 package cluster
 
 import (
