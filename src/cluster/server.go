@@ -27,7 +27,9 @@ func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType 
 	_ = nodeId
 	switch requestType {
 	case DISCOVER_PEERS_REQUEST:
-		//
+		peerData := s.cluster.getPeerData()
+		return &DiscoverPeerResponse{Peers:peerData}, nil
+
 	case READ_REQUEST:
 		//
 	case WRITE_REQUEST:
