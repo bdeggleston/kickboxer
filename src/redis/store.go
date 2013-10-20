@@ -65,7 +65,8 @@ func (s *Redis) Stop() error {
 	return nil
 }
 
-// returns the contents of the given key
+// Get the value of key. If the key does not exist the special value nil is returned.
+// An error is returned if the value stored at key is not a string, because GET only handles string values.
 func (s *Redis) get(key string) store.Value {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -77,7 +78,9 @@ func (s *Redis) ExecuteRead(cmd string, key string, args []string) (store.Value,
 	case GET:
 		//
 		if len(args) != 0 { return nil, fmt.Errorf("too many args for GET") }
-		return s.get(key), nil
+		rval, err := s.get(key)
+		if err != nil { return nil, err }
+		return rval, nil
 	default:
 		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
 	}
@@ -85,6 +88,9 @@ func (s *Redis) ExecuteRead(cmd string, key string, args []string) (store.Value,
 	return nil, nil
 }
 
+// Set key to hold the string value. If key already holds a value, it is overwritten,
+// regardless of its type. Any previous time to live associated with the key is discarded
+// on successful SET operation.
 func (s *Redis) set(key string, val string, ts time.Time) (store.Value) {
 	existing, exists := s.data[key]
 	if exists && ts.Before(existing.GetTimestamp()) {
@@ -93,6 +99,12 @@ func (s *Redis) set(key string, val string, ts time.Time) (store.Value) {
 	value := newSingleValue(val, ts)
 	s.data[key] = value
 	return value
+}
+
+// Removes the specified keys. A key is ignored if it does not exist.
+// Return value: Integer reply: The number of keys that were removed.
+func (s *Redis) del(keys []string) {
+
 }
 
 func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
