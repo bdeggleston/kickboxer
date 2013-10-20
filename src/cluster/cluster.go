@@ -138,8 +138,21 @@ func (c *Cluster) addNode(node Node) error {
 }
 
 // returns data on peer nodes
-func (c *Cluster) getPeerData() *PeerData {
-	return nil
+func (c *Cluster) getPeerData() []*PeerData {
+	nodes := c.ring.AllNodes()
+	peers := make([]*PeerData, 0, len(nodes) - 1)
+	for _, node := range nodes {
+		if node.GetId() != c.GetNodeId() {
+			pd := &PeerData{
+				NodeId:node.GetId(),
+				Addr:node.GetAddr(),
+				Name:node.Name(),
+				Token:node.GetToken(),
+			}
+			peers = append(peers, pd)
+		}
+	}
+	return peers
 }
 
 // talks to the seed addresses and any additional

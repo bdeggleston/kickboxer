@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"testing"
+	"testing_helpers"
 )
 
 var (
@@ -89,6 +90,42 @@ func TestInvalidPartitioner(t *testing.T) {
 // if the cluster has been started
 func TestAddingNewNodeToStartedCluster(t *testing.T) {
 	t.Skip("Cluster starting not implemented yet")
+}
+
+/************** getPeerData tests **************/
+
+func TestExpectedPeerDataIsReturned(t *testing.T) {
+	c := makeRing(5, 3)
+
+	var data []*PeerData
+
+	data = c.getPeerData()
+	for _, pd := range data {
+		node, err := c.ring.GetNode(pd.NodeId)
+		if err != nil {
+			t.Errorf("Unexpected error returned for: %v", pd.NodeId)
+		}
+		if node == nil {
+			t.Errorf("Unexpected nil node returned for: %v", pd.NodeId)
+		}
+		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Name"), node.Name(), pd.Name)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Addr"), node.GetAddr(), pd.Addr)
+		testing_helpers.AssertSliceEqual(t, fmt.Sprintf("n[%v] Token"), node.GetToken(), pd.Token)
+	}
+}
+
+func TestSelfNodeIsNotReturned(t *testing.T) {
+	c := makeRing(5, 3)
+
+	var data []*PeerData
+
+	data = c.getPeerData()
+	testing_helpers.AssertEqual(t, "data size", 4, len(data))
+	for _, pd := range data {
+		if pd.NodeId == c.GetNodeId() {
+			t.Errorf("local node found in peer data")
+		}
+	}
 }
 
 /************** key routing tests **************/
