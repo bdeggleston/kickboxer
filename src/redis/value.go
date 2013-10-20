@@ -70,6 +70,48 @@ func (v *singleValue) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+// a value indicating a deletion
+type tombstoneValue struct {
+	time time.Time
+}
+
+// single value constructor
+func newTombstoneValue(time time.Time) *tombstoneValue {
+	v := &tombstoneValue{
+		time:time,
+	}
+	return v
+}
+
+func (v *tombstoneValue) GetTimestamp() time.Time {
+	return v.time
+}
+
+func (v *tombstoneValue) GetValueType() store.ValueType {
+	return TOMBSTONE_VALUE
+}
+
+func (v *tombstoneValue) Serialize(buf *bufio.Writer) error {
+	if err := serializer.WriteTime(buf, v.time); err != nil {
+		return err
+	}
+	if err := buf.Flush(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *tombstoneValue) Deserialize(buf *bufio.Reader) error {
+	if t, err := serializer.ReadTime(buf); err != nil {
+		return err
+	} else {
+		v.time = t
+	}
+	return nil
+}
+
+/***************** reader/writer functions *****************/
+
 func WriteRedisValue(buf io.Writer, v store.Value) error {
 	writer := bufio.NewWriter(buf)
 
@@ -90,6 +132,8 @@ func ReadRedisValue(buf io.Reader) (store.Value, store.ValueType, error) {
 	switch vtype {
 	case SINGLE_VALUE:
 		value = &singleValue{}
+	case TOMBSTONE_VALUE:
+		value = &tombstoneValue{}
 	default:
 		return nil, "", fmt.Errorf("Unexpected value type: %v", vtype)
 	}

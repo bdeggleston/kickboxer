@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-import (
-	"store"
-)
-
 // table of instructions, and whether they're
 // a write (true) or read (false)
 var isWrite = []struct {
@@ -20,9 +16,6 @@ var isWrite = []struct {
 	{"SET", true},
 	{"DEL", true},
 }
-
-// compile time assertion that Value is implemented
-func valueInterfaceCheck(v store.Value) {}
 
 func TestIsWriteCmd(t *testing.T) {
 	r := &Redis{}
@@ -49,36 +42,6 @@ func TestIsReadCmd(t *testing.T) {
 		}
 	}
 }
-
-/***************** value tests *****************/
-
-// tests the single value
-func TestSingleValue(t *testing.T) {
-	s := &Redis{}
-	src := newSingleValue("blake", time.Now())
-	valueInterfaceCheck(src)
-
-	b, err := s.SerializeValue(src)
-	if err != nil {
-		t.Fatalf("Unexpected serialization error: %v", err)
-	}
-
-	val, vtype, err := s.DeserializeValue(b)
-	if err != nil {
-		t.Fatalf("Unexpected deserialization error: %v", err)
-	}
-	if vtype != SINGLE_VALUE {
-		t.Fatalf("Unexpected value type enum: %v", vtype)
-	}
-	dst, ok := val.(*singleValue)
-	if !ok {
-		t.Fatalf("Unexpected value type: %T", val)
-	}
-
-	testing_helpers.AssertEqual(t, "data", src.data, dst.data)
-	testing_helpers.AssertEqual(t, "time", src.time, dst.time)
-}
-
 /***************** query tests *****************/
 
 func setupRedis() *Redis {
