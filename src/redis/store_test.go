@@ -113,6 +113,13 @@ func TestGet(t *testing.T) {
 	testing_helpers.AssertEqual(t, "time", expected.time, actual.time)
 }
 
+// tests that calling get on a key holding a value other than
+// a string value returns an error
+func TestGetNonStringFails(t *testing.T) {
+	t.Skipf("other types not implemented yet")
+
+}
+
 // tests validation of GET insructions
 func TestGetValidation(t *testing.T) {
 	r := setupRedis()
