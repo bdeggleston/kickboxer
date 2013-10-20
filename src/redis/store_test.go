@@ -64,7 +64,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected write error: %v", err)
 	}
-	rval, ok := rawval.(*singleValue)
+	rval, ok := rawval.(*stringValue)
 	if !ok {
 		t.Errorf("returned value of unexpected type: %T", rawval)
 	}
@@ -73,7 +73,7 @@ func TestSet(t *testing.T) {
 	if ! exists {
 		t.Errorf("No value found for 'a'")
 	}
-	actual, ok := actualraw.(*singleValue)
+	actual, ok := actualraw.(*stringValue)
 	if !ok {
 		t.Errorf("actual value of unexpected type: %T", actualraw)
 	}
@@ -97,14 +97,14 @@ func TestSetValidation(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	r := setupRedis()
-	expected := newSingleValue("b", time.Now())
+	expected := newStringValue("b", time.Now())
 	r.data["a"] = expected
 
 	val, err := r.ExecuteRead("GET", "a", []string{})
 	if err != nil {
 		t.Fatalf("Unexpected error on read: %v", err)
 	}
-	actual, ok := val.(*singleValue)
+	actual, ok := val.(*stringValue)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}

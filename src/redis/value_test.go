@@ -11,14 +11,14 @@ import (
 )
 
 // compile time assertion that Value is implemented
-func valueInterfaceCheck(v store.Value) {}
+func valueInterfaceCheck(_ store.Value) {}
 
 /***************** value tests *****************/
 
 // tests the single value
 func TestSingleValue(t *testing.T) {
 	s := &Redis{}
-	src := newSingleValue("blake", time.Now())
+	src := newStringValue("blake", time.Now())
 	valueInterfaceCheck(src)
 
 	b, err := s.SerializeValue(src)
@@ -30,10 +30,10 @@ func TestSingleValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected deserialization error: %v", err)
 	}
-	if vtype != SINGLE_VALUE {
+	if vtype != STRING_VALUE {
 		t.Fatalf("Unexpected value type enum: %v", vtype)
 	}
-	dst, ok := val.(*singleValue)
+	dst, ok := val.(*stringValue)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}

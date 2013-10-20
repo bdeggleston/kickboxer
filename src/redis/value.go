@@ -14,35 +14,35 @@ import (
 )
 
 const (
-	SINGLE_VALUE = store.ValueType("SINGLE")
+	STRING_VALUE = store.ValueType("STRING")
 	TOMBSTONE_VALUE	= store.ValueType("TOMBSTONE")
 )
 
 // a single value used for
 // key/val types
-type singleValue struct {
+type stringValue struct {
 	data string
 	time time.Time
 }
 
 // single value constructor
-func newSingleValue(data string, time time.Time) *singleValue {
-	v := &singleValue{
+func newStringValue(data string, time time.Time) *stringValue {
+	v := &stringValue{
 		data:data,
 		time:time,
 	}
 	return v
 }
 
-func (v *singleValue) GetTimestamp() time.Time {
+func (v *stringValue) GetTimestamp() time.Time {
 	return v.time
 }
 
-func (v *singleValue) GetValueType() store.ValueType {
-	return SINGLE_VALUE
+func (v *stringValue) GetValueType() store.ValueType {
+	return STRING_VALUE
 }
 
-func (v *singleValue) Serialize(buf *bufio.Writer) error {
+func (v *stringValue) Serialize(buf *bufio.Writer) error {
 	if err := serializer.WriteFieldBytes(buf, []byte(v.data)); err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (v *singleValue) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (v *singleValue) Deserialize(buf *bufio.Reader) error {
+func (v *stringValue) Deserialize(buf *bufio.Reader) error {
 	if val, err := serializer.ReadFieldBytes(buf); err != nil {
 		return err
 	} else {
@@ -130,8 +130,8 @@ func ReadRedisValue(buf io.Reader) (store.Value, store.ValueType, error) {
 	vtype := store.ValueType(vstr)
 	var value store.Value
 	switch vtype {
-	case SINGLE_VALUE:
-		value = &singleValue{}
+	case STRING_VALUE:
+		value = &stringValue{}
 	case TOMBSTONE_VALUE:
 		value = &tombstoneValue{}
 	default:
