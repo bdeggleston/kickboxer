@@ -1,9 +1,13 @@
-package store
+package redis
 
 import (
 	"testing"
 	"testing_helpers"
 	"time"
+)
+
+import (
+	"store"
 )
 
 // table of instructions, and whether they're
@@ -18,7 +22,7 @@ var isWrite = []struct {
 }
 
 // compile time assertion that Value is implemented
-func valueInterfaceCheck(v Value) {}
+func valueInterfaceCheck(v store.Value) {}
 
 func TestIsWriteCmd(t *testing.T) {
 	r := &Redis{}
@@ -50,16 +54,16 @@ func TestIsReadCmd(t *testing.T) {
 
 // tests the single value
 func TestSingleValue(t *testing.T) {
-	store := &Redis{}
+	s := &Redis{}
 	src := newSingleValue("blake", time.Now())
 	valueInterfaceCheck(src)
 
-	b, err := store.SerializeValue(src)
+	b, err := s.SerializeValue(src)
 	if err != nil {
 		t.Fatalf("Unexpected serialization error: %v", err)
 	}
 
-	val, vtype, err := store.DeserializeValue(b)
+	val, vtype, err := s.DeserializeValue(b)
 	if err != nil {
 		t.Fatalf("Unexpected deserialization error: %v", err)
 	}

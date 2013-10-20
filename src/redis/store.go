@@ -1,7 +1,8 @@
-package store
+package redis
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -11,11 +12,12 @@ import (
 
 import (
 	"serializer"
-	"bytes"
+	"store"
 )
 
 const (
-	SINGLE_VALUE = ValueType("SINGLE")
+	SINGLE_VALUE = store.ValueType("SINGLE")
+	TOMBSTONE_VALUE	= store.ValueType("TOMBSTONE")
 )
 
 // a single value used for
@@ -38,7 +40,7 @@ func (v *singleValue) GetTimestamp() time.Time {
 	return v.time
 }
 
-func (v *singleValue) GetValueType() ValueType {
+func (v *singleValue) GetValueType() store.ValueType {
 	return SINGLE_VALUE
 }
 
@@ -70,7 +72,7 @@ func (v *singleValue) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
-func WriteRedisValue(buf io.Writer, v Value) error {
+func WriteRedisValue(buf io.Writer, v store.Value) error {
 	writer := bufio.NewWriter(buf)
 
 	vtype := v.GetValueType()
@@ -80,13 +82,13 @@ func WriteRedisValue(buf io.Writer, v Value) error {
 	return nil
 }
 
-func ReadRedisValue(buf io.Reader) (Value, ValueType, error) {
+func ReadRedisValue(buf io.Reader) (store.Value, store.ValueType, error) {
 	reader := bufio.NewReader(buf)
 	vstr, err := serializer.ReadFieldBytes(reader)
 	if err != nil { return nil, "", err }
 
-	vtype := ValueType(vstr)
-	var value Value
+	vtype := store.ValueType(vstr)
+	var value store.Value
 	switch vtype {
 	case SINGLE_VALUE:
 		value = &singleValue{}
@@ -113,7 +115,7 @@ const (
 
 type Redis struct {
 
-	data map[string] Value
+	data map[string] store.Value
 
 	// TODO: delete
 	// temporary lock, used until
@@ -125,18 +127,18 @@ type Redis struct {
 
 func NewRedis() *Redis {
 	r := &Redis{
-		data:make(map[string] Value),
+		data:make(map[string] store.Value),
 	}
 	return r
 }
 
-func (s *Redis) SerializeValue(v Value) ([]byte, error) {
+func (s *Redis) SerializeValue(v store.Value) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	if err := WriteRedisValue(buf, v) ; err != nil { return nil, err }
 	return buf.Bytes(), nil
 }
 
-func (s *Redis) DeserializeValue(b []byte) (Value, ValueType, error) {
+func (s *Redis) DeserializeValue(b []byte) (store.Value, store.ValueType, error) {
 	buf := bytes.NewBuffer(b)
 	val, vtype, err := ReadRedisValue(buf)
 	if err != nil { return nil, "", err }
@@ -152,13 +154,13 @@ func (s *Redis) Stop() error {
 }
 
 // returns the contents of the given key
-func (s *Redis) get(key string) Value {
+func (s *Redis) get(key string) store.Value {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.data[key]
 }
 
-func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error) {
+func (s *Redis) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	switch cmd {
 	case GET:
 		//
@@ -171,7 +173,7 @@ func (s *Redis) ExecuteRead(cmd string, key string, args []string) (Value, error
 	return nil, nil
 }
 
-func (s *Redis) set(key string, val string, ts time.Time) (Value) {
+func (s *Redis) set(key string, val string, ts time.Time) (store.Value) {
 	existing, exists := s.data[key]
 	if exists && ts.Before(existing.GetTimestamp()) {
 		return existing
@@ -181,7 +183,7 @@ func (s *Redis) set(key string, val string, ts time.Time) (Value) {
 	return value
 }
 
-func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error) {
+func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
