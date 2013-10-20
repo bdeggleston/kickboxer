@@ -34,10 +34,10 @@ func setupCluster() *Cluster {
 // values
 func TestClusterSetup(t *testing.T) {
 	cluster := setupCluster()
-	equalityCheck(t, "cluster name", cluster.name, cluster.GetName())
-	equalityCheck(t, "cluster nodeId", cluster.nodeId, cluster.GetNodeId())
-	equalityCheck(t, "cluster addr", cluster.peerAddr, cluster.GetPeerAddr())
-	sliceEqualityCheck(t, "cluster name", cluster.token, cluster.GetToken())
+	testing_helpers.AssertEqual(t, "cluster name", cluster.name, cluster.GetName())
+	testing_helpers.AssertEqual(t, "cluster nodeId", cluster.nodeId, cluster.GetNodeId())
+	testing_helpers.AssertEqual(t, "cluster addr", cluster.peerAddr, cluster.GetPeerAddr())
+	testing_helpers.AssertSliceEqual(t, "cluster name", cluster.token, cluster.GetToken())
 }
 
 // tests that instantiating a cluster with an invalid replication
@@ -305,17 +305,17 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 	if err != nil { t.Fatalf("n2 was not found: %v", err) }
 	if err != nil { t.Fatalf("n3 was not found: %v", err) }
 
-	equalityCheck(t, "n2 id", n2.GetId(), n2Response.NodeId)
-	equalityCheck(t, "n2 name", n2.Name(), n2Response.Name)
-	equalityCheck(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
-	equalityCheck(t, "n2 status", NODE_UP, n2.GetStatus())
-	sliceEqualityCheck(t, "n2 token", n2.GetToken(), n2Response.Token)
+	testing_helpers.AssertEqual(t, "n2 id", n2.GetId(), n2Response.NodeId)
+	testing_helpers.AssertEqual(t, "n2 name", n2.Name(), n2Response.Name)
+	testing_helpers.AssertEqual(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
+	testing_helpers.AssertEqual(t, "n2 status", NODE_UP, n2.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n2 token", n2.GetToken(), n2Response.Token)
 
-	equalityCheck(t, "n3 id", n3.GetId(), n3Response.NodeId)
-	equalityCheck(t, "n3 name", n3.Name(), n3Response.Name)
-	equalityCheck(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
-	equalityCheck(t, "n3 status", NODE_UP, n3.GetStatus())
-	sliceEqualityCheck(t, "n3 token", n3.GetToken(), n3Response.Token)
+	testing_helpers.AssertEqual(t, "n3 id", n3.GetId(), n3Response.NodeId)
+	testing_helpers.AssertEqual(t, "n3 name", n3.Name(), n3Response.Name)
+	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
+	testing_helpers.AssertEqual(t, "n3 status", NODE_UP, n3.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
 }
 
 // tests that discovering peers from existing peers
@@ -403,17 +403,17 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 	n2.Start()
 	n3.Start()
 
-	equalityCheck(t, "n2 id", n2.GetId(), n2Response.NodeId)
-	equalityCheck(t, "n2 name", n2.Name(), n2Response.Name)
-	equalityCheck(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
-	equalityCheck(t, "n2 status", NODE_UP, n2.GetStatus())
-	sliceEqualityCheck(t, "n2 token", n2.GetToken(), n2Response.Token)
+	testing_helpers.AssertEqual(t, "n2 id", n2.GetId(), n2Response.NodeId)
+	testing_helpers.AssertEqual(t, "n2 name", n2.Name(), n2Response.Name)
+	testing_helpers.AssertEqual(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
+	testing_helpers.AssertEqual(t, "n2 status", NODE_UP, n2.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n2 token", n2.GetToken(), n2Response.Token)
 
-	equalityCheck(t, "n3 id", n3.GetId(), n3Response.NodeId)
-	equalityCheck(t, "n3 name", n3.Name(), n3Response.Name)
-	equalityCheck(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
-	equalityCheck(t, "n3 status", NODE_UP, n3.GetStatus())
-	sliceEqualityCheck(t, "n3 token", n3.GetToken(), n3Response.Token)
+	testing_helpers.AssertEqual(t, "n3 id", n3.GetId(), n3Response.NodeId)
+	testing_helpers.AssertEqual(t, "n3 name", n3.Name(), n3Response.Name)
+	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
+	testing_helpers.AssertEqual(t, "n3 status", NODE_UP, n3.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
 }
 
 // tests that a node is skipped if it can't be connected
@@ -528,17 +528,17 @@ func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 	n2.Start()
 	n3.Start()
 
-	equalityCheck(t, "n2 id", n2.GetId(), n2Response.NodeId)
-	equalityCheck(t, "n2 name", n2.Name(), n2Response.Name)
-	equalityCheck(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
-	equalityCheck(t, "n2 status", NODE_UP, n2.GetStatus())
-	sliceEqualityCheck(t, "n2 token", n2.GetToken(), n2Response.Token)
+	testing_helpers.AssertEqual(t, "n2 id", n2.GetId(), n2Response.NodeId)
+	testing_helpers.AssertEqual(t, "n2 name", n2.Name(), n2Response.Name)
+	testing_helpers.AssertEqual(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
+	testing_helpers.AssertEqual(t, "n2 status", NODE_UP, n2.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n2 token", n2.GetToken(), n2Response.Token)
 
-	equalityCheck(t, "n3 id", n3.GetId(), n3Response.NodeId)
-	equalityCheck(t, "n3 name", n3.Name(), n3Response.Name)
-	equalityCheck(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
-	equalityCheck(t, "n3 status", NODE_DOWN, n3.GetStatus())
-	sliceEqualityCheck(t, "n3 token", n3.GetToken(), n3Response.Token)
+	testing_helpers.AssertEqual(t, "n3 id", n3.GetId(), n3Response.NodeId)
+	testing_helpers.AssertEqual(t, "n3 name", n3.Name(), n3Response.Name)
+	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
+	testing_helpers.AssertEqual(t, "n3 status", NODE_DOWN, n3.GetStatus())
+	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
 
 }
 

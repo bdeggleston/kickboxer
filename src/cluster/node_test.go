@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+import (
+	"testing_helpers"
+)
+
 type readCall struct {
 	cmd string
 	key string
@@ -112,11 +116,11 @@ func TestStartingConnectsToPeer(t *testing.T) {
 	node.pool.Put(conn)
 
 	// pre startup sanity check
-	equalityCheck(t, "pre start conn status", false, conn.completedHandshake)
-	equalityCheck(t, "pre start name", "", node.name)
-	equalityCheck(t, "pre start id", NodeId(""), node.id)
-	equalityCheck(t, "pre start status", NODE_INITIALIZING, node.status)
-	sliceEqualityCheck(t, "pre start token", nil, node.token)
+	testing_helpers.AssertEqual(t, "pre start conn status", false, conn.completedHandshake)
+	testing_helpers.AssertEqual(t, "pre start name", "", node.name)
+	testing_helpers.AssertEqual(t, "pre start id", NodeId(""), node.id)
+	testing_helpers.AssertEqual(t, "pre start status", NODE_INITIALIZING, node.status)
+	testing_helpers.AssertSliceEqual(t, "pre start token", nil, node.token)
 
 	// start the node
 	err := node.Start()
@@ -125,11 +129,11 @@ func TestStartingConnectsToPeer(t *testing.T) {
 	}
 
 	// check that values were saved properly
-	equalityCheck(t, "post start conn status", true, conn.completedHandshake)
-	equalityCheck(t, "post start name", response.Name, node.name)
-	equalityCheck(t, "post start id", response.NodeId, node.id)
-	equalityCheck(t, "post start status", NODE_UP, node.status)
-	sliceEqualityCheck(t, "post start token", response.Token, node.token)
+	testing_helpers.AssertEqual(t, "post start conn status", true, conn.completedHandshake)
+	testing_helpers.AssertEqual(t, "post start name", response.Name, node.name)
+	testing_helpers.AssertEqual(t, "post start id", response.NodeId, node.id)
+	testing_helpers.AssertEqual(t, "post start status", NODE_UP, node.status)
+	testing_helpers.AssertSliceEqual(t, "post start token", response.Token, node.token)
 
 
 }

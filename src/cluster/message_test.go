@@ -8,6 +8,10 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
+import (
+	"testing_helpers"
+)
+
 
 func messageInterfaceCheck(_ Message) {}
 
@@ -41,11 +45,11 @@ func TestConnectionRequest(t *testing.T) {
 	}
 
 	// check values
-	equalityCheck(t, "Type", CONNECTION_REQUEST, dst.GetType())
-	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
-	equalityCheck(t, "Addr", src.Addr, dst.Addr)
-	equalityCheck(t, "Name", src.Name, dst.Name)
-	sliceEqualityCheck(t, "Token", src.Token, dst.Token)
+	testing_helpers.AssertEqual(t, "Type", CONNECTION_REQUEST, dst.GetType())
+	testing_helpers.AssertEqual(t, "NodeId", src.NodeId, dst.NodeId)
+	testing_helpers.AssertEqual(t, "Addr", src.Addr, dst.Addr)
+	testing_helpers.AssertEqual(t, "Name", src.Name, dst.Name)
+	testing_helpers.AssertSliceEqual(t, "Token", src.Token, dst.Token)
 
 }
 
@@ -78,10 +82,10 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	}
 
 	// check value
-	equalityCheck(t, "Type", CONNECTION_ACCEPTED_RESPONSE, dst.GetType())
-	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
-	equalityCheck(t, "Name", src.Name, dst.Name)
-	sliceEqualityCheck(t, "Token", src.Token, dst.Token)
+	testing_helpers.AssertEqual(t, "Type", CONNECTION_ACCEPTED_RESPONSE, dst.GetType())
+	testing_helpers.AssertEqual(t, "NodeId", src.NodeId, dst.NodeId)
+	testing_helpers.AssertEqual(t, "Name", src.Name, dst.Name)
+	testing_helpers.AssertSliceEqual(t, "Token", src.Token, dst.Token)
 }
 
 func TestConnectionRefusedResponse(t *testing.T) {
@@ -108,8 +112,8 @@ func TestConnectionRefusedResponse(t *testing.T) {
 	}
 
 	// check value
-	equalityCheck(t, "Type", CONNECTION_REFUSED_RESPONSE, dst.GetType())
-	equalityCheck(t, "Reason", src.Reason, dst.Reason)
+	testing_helpers.AssertEqual(t, "Type", CONNECTION_REFUSED_RESPONSE, dst.GetType())
+	testing_helpers.AssertEqual(t, "Reason", src.Reason, dst.Reason)
 }
 
 func TestDiscoverPeersRequest(t *testing.T) {
@@ -137,8 +141,8 @@ func TestDiscoverPeersRequest(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	equalityCheck(t, "Type", DISCOVER_PEERS_REQUEST, dst.GetType())
-	equalityCheck(t, "NodeId", src.NodeId, dst.NodeId)
+	testing_helpers.AssertEqual(t, "Type", DISCOVER_PEERS_REQUEST, dst.GetType())
+	testing_helpers.AssertEqual(t, "NodeId", src.NodeId, dst.NodeId)
 }
 
 
@@ -180,15 +184,15 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	equalityCheck(t, "Type", DISCOVER_PEERS_RESPONSE, dst.GetType())
+	testing_helpers.AssertEqual(t, "Type", DISCOVER_PEERS_RESPONSE, dst.GetType())
 	for i:=0; i<2; i++ {
 		s := src.Peers[i]
 		d := dst.Peers[i]
 
-		equalityCheck(t, fmt.Sprintf("NodeId:%v", i), s.NodeId, d.NodeId)
-		equalityCheck(t, fmt.Sprintf("Addr:%v", i), s.Addr, d.Addr)
-		equalityCheck(t, fmt.Sprintf("Name:%v", i), s.Name, d.Name)
-		sliceEqualityCheck(t, fmt.Sprintf("Token:%v", i), s.Token, d.Token)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("NodeId:%v", i), s.NodeId, d.NodeId)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("Addr:%v", i), s.Addr, d.Addr)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("Name:%v", i), s.Name, d.Name)
+		testing_helpers.AssertSliceEqual(t, fmt.Sprintf("Token:%v", i), s.Token, d.Token)
 	}
 
 }
@@ -220,12 +224,12 @@ func TestReadRequest(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	equalityCheck(t, "Type", READ_REQUEST, dst.GetType())
-	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
-	equalityCheck(t, "Key", src.Key, dst.Key)
-	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
-	equalityCheck(t, "Arg[0]", src.Args[0], dst.Args[0])
-	equalityCheck(t, "Arg[1]", src.Args[1], dst.Args[1])
+	testing_helpers.AssertEqual(t, "Type", READ_REQUEST, dst.GetType())
+	testing_helpers.AssertEqual(t, "Cmd", src.Cmd, dst.Cmd)
+	testing_helpers.AssertEqual(t, "Key", src.Key, dst.Key)
+	testing_helpers.AssertEqual(t, "Arg len", len(src.Args), len(dst.Args))
+	testing_helpers.AssertEqual(t, "Arg[0]", src.Args[0], dst.Args[0])
+	testing_helpers.AssertEqual(t, "Arg[1]", src.Args[1], dst.Args[1])
 }
 
 func TestWriteRequest(t *testing.T) {
@@ -258,13 +262,13 @@ func TestWriteRequest(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	equalityCheck(t, "Type", WRITE_REQUEST, dst.GetType())
-	equalityCheck(t, "Cmd", src.Cmd, dst.Cmd)
-	equalityCheck(t, "Key", src.Key, dst.Key)
-	equalityCheck(t, "Arg len", len(src.Args), len(dst.Args))
-	equalityCheck(t, "Arg[0]", src.Args[0], dst.Args[0])
-	equalityCheck(t, "Arg[1]", src.Args[1], dst.Args[1])
-	equalityCheck(t, "Timestamp", src.Timestamp, dst.Timestamp)
+	testing_helpers.AssertEqual(t, "Type", WRITE_REQUEST, dst.GetType())
+	testing_helpers.AssertEqual(t, "Cmd", src.Cmd, dst.Cmd)
+	testing_helpers.AssertEqual(t, "Key", src.Key, dst.Key)
+	testing_helpers.AssertEqual(t, "Arg len", len(src.Args), len(dst.Args))
+	testing_helpers.AssertEqual(t, "Arg[0]", src.Args[0], dst.Args[0])
+	testing_helpers.AssertEqual(t, "Arg[1]", src.Args[1], dst.Args[1])
+	testing_helpers.AssertEqual(t, "Timestamp", src.Timestamp, dst.Timestamp)
 }
 
 func TestQueryResponse(t *testing.T) {
@@ -296,9 +300,9 @@ func TestQueryResponse(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	equalityCheck(t, "Type", QUERY_RESPONSE, dst.GetType())
-	equalityCheck(t, "Data len", len(src.Data), len(dst.Data))
-	sliceEqualityCheck(t, "Data[0]", src.Data[0], dst.Data[0])
-	sliceEqualityCheck(t, "Data[1]", src.Data[1], dst.Data[1])
-	sliceEqualityCheck(t, "Data[2]", src.Data[2], dst.Data[2])
+	testing_helpers.AssertEqual(t, "Type", QUERY_RESPONSE, dst.GetType())
+	testing_helpers.AssertEqual(t, "Data len", len(src.Data), len(dst.Data))
+	testing_helpers.AssertSliceEqual(t, "Data[0]", src.Data[0], dst.Data[0])
+	testing_helpers.AssertSliceEqual(t, "Data[1]", src.Data[1], dst.Data[1])
+	testing_helpers.AssertSliceEqual(t, "Data[2]", src.Data[2], dst.Data[2])
 }
