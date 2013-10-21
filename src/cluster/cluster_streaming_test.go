@@ -4,9 +4,16 @@ import (
 	"testing"
 )
 
-// tests streamFromNode methods sends a StreamDataRequest
-// to the requesting node
+// tests streamFromNode method
 func TestStreamFromNodeMethod(t *testing.T) {
+	// TODO: test StreamRequest is sent
+
+	// TODO: test status is set to CLUSTER_STREAMING
+
+}
+
+// tests that method panics if the given node is not a remote node
+func TestStreamFromNodeMethodWithNonRemoteNode(t *testing.T) {
 
 }
 
