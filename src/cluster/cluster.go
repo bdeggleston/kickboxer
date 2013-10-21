@@ -276,6 +276,13 @@ func (c *Cluster) GetNodesForKey(k string) []Node {
 
 // initiates streaming tokens from the given node
 func (c *Cluster) streamFromNode(n Node) error {
+	node := n.(*RemoteNode)
+	msg := &StreamRequest{}
+	_, mtype, err := node.sendMessage(msg)
+	if err != nil { return err }
+	if mtype != STREAM_RESPONSE {
+		return fmt.Errorf("Expected STREAM_RESPONSE, got: %v", mtype)
+	}
 	c.status = CLUSTER_STREAMING
 	return nil
 }
