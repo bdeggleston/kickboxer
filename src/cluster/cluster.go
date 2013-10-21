@@ -220,6 +220,9 @@ func (c* Cluster) discoverPeers() error {
 }
 
 func (c* Cluster) Start() error {
+	// check for existing nodes
+	firstStartup := len(c.ring.AllNodes()) == 0
+
 	// start listening for connections
 	if err := c.peerServer.Start(); err != nil {
 		return err
@@ -239,7 +242,15 @@ func (c* Cluster) Start() error {
 		return err
 	}
 
-	c.status = CLUSTER_NORMAL
+	if firstStartup {
+		// join the cluster, and stream from from the left
+		// neighbor
+		if err := c.JoinCluster(); err != nil {
+			return err
+		}
+	} else {
+		c.status = CLUSTER_NORMAL
+	}
 
 	return nil
 }
@@ -261,3 +272,43 @@ func (c *Cluster) GetNodesForKey(k string) []Node {
 	return c.ring.GetNodesForToken(token, c.replicationFactor)
 }
 
+/************** node changes **************/
+
+// initiates streaming tokens from the given node
+func (c *Cluster) streamFromNode(n Node) error {
+	c.status = CLUSTER_STREAMING
+	return nil
+}
+
+// called when a node is first added to the cluster
+//
+// When changing the token ring from this:
+// N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+// [00    ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+//
+// to this:
+// N0  N10 N1      N2      N3      N4      N5      N6      N7      N8      N9
+// [00][05][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// |--|->
+//
+// N10 should stream data from the node to it's left, since it's taking control
+// of a portion of it's previous token space
+func (c *Cluster) JoinCluster() error {
+	ring := c.ring.AllNodes()
+	var idx int
+	for i, node := range ring {
+		if node.GetId() == c.GetNodeId() {
+			idx = i
+			break
+		}
+	}
+
+	// check that the node at the idx matches this cluster's id
+	if ring[idx].GetId() != c.GetNodeId() {
+		panic("node at index is not the local node")
+	}
+
+	stream_from := ring[idx % len(ring)]
+	c.streamFromNode(stream_from)
+	return nil
+}

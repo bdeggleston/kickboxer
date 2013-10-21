@@ -4,6 +4,12 @@ import (
 	"testing"
 )
 
+// tests streamFromNode methods sends a StreamDataRequest
+// to the requesting node
+func TestStreamFromNodeMethod(t *testing.T) {
+
+}
+
 /************** query behavior tests **************/
 
 // writes should be routed to the streaming node and mirrored to the local node
@@ -17,5 +23,4 @@ func TestStreamingReadRouting(t *testing.T) {
 }
 
 /************** streaming data tests **************/
-
 
