@@ -20,6 +20,9 @@ const (
 	WRITE_REQUEST = uint32(302)
 	QUERY_RESPONSE = uint32(303)
 
+	STREAM_REQUEST = uint32(401)
+	STREAM_RESPONSE = uint32(402)
+
 	//internal messages
 	close_connection = uint32(0xffffff01)
 )
@@ -420,6 +423,22 @@ func (m *QueryResponse) Deserialize(buf *bufio.Reader) error {
 
 func (m *QueryResponse) GetType() uint32 { return QUERY_RESPONSE }
 
+// ----------- streaming messages -----------
+
+// requests that a node initiate streaming to the requesting node
+type StreamRequest struct { }
+func (m *StreamRequest) Serialize(*bufio.Writer) error { return nil }
+func (m *StreamRequest) Deserialize(*bufio.Reader) error { return nil }
+func (m *StreamRequest) GetType() uint32 { return STREAM_REQUEST }
+
+// stream request acknowledgement
+type StreamResponse struct { }
+func (m *StreamResponse) Serialize(*bufio.Writer) error { return nil }
+func (m *StreamResponse) Deserialize(*bufio.Reader) error { return nil }
+func (m *StreamResponse) GetType() uint32 { return STREAM_RESPONSE }
+
+// ----------- read / write functions -----------
+
 // writes a message to the given writer
 func WriteMessage(buf io.Writer, m Message) error {
 	writer := bufio.NewWriter(buf)
@@ -456,6 +475,10 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &WriteRequest{}
 	case QUERY_RESPONSE:
 		msg = &QueryResponse{}
+	case STREAM_REQUEST:
+		msg = &StreamRequest{}
+	case STREAM_RESPONSE:
+		msg = &StreamResponse{}
 	case close_connection:
 		msg = &closeConnection{}
 	default:

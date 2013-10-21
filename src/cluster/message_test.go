@@ -306,3 +306,51 @@ func TestQueryResponse(t *testing.T) {
 	testing_helpers.AssertSliceEqual(t, "Data[1]", src.Data[1], dst.Data[1])
 	testing_helpers.AssertSliceEqual(t, "Data[2]", src.Data[2], dst.Data[2])
 }
+
+func TestStreamRequest(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &StreamRequest{}
+
+	// interface check
+	messageInterfaceCheck(src)
+
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != STREAM_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	_, ok := msg.(*StreamRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
+}
+
+func TestStreamResponse(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &StreamResponse{}
+
+	// interface check
+	messageInterfaceCheck(src)
+
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != STREAM_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	_, ok := msg.(*StreamResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
+}
