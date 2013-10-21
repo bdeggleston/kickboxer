@@ -22,6 +22,8 @@ const (
 
 	STREAM_REQUEST = uint32(401)
 	STREAM_RESPONSE = uint32(402)
+	STREAM_COMPLETE_REQUEST = uint32(403)
+	STREAM_COMPLETE_RESPONSE = uint32(404)
 
 	//internal messages
 	close_connection = uint32(0xffffff01)
@@ -437,6 +439,18 @@ func (m *StreamResponse) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamResponse) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamResponse) GetType() uint32 { return STREAM_RESPONSE }
 
+// notifies a node that there is no more data to stream to it
+type StreamCompleteRequest struct { }
+func (m *StreamCompleteRequest) Serialize(*bufio.Writer) error { return nil }
+func (m *StreamCompleteRequest) Deserialize(*bufio.Reader) error { return nil }
+func (m *StreamCompleteRequest) GetType() uint32 { return STREAM_COMPLETE_REQUEST }
+
+// stream completion request acknowledgement
+type StreamCompleteResponse struct { }
+func (m *StreamCompleteResponse) Serialize(*bufio.Writer) error { return nil }
+func (m *StreamCompleteResponse) Deserialize(*bufio.Reader) error { return nil }
+func (m *StreamCompleteResponse) GetType() uint32 { return STREAM_COMPLETE_RESPONSE }
+
 // ----------- read / write functions -----------
 
 // writes a message to the given writer
@@ -479,6 +493,10 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &StreamRequest{}
 	case STREAM_RESPONSE:
 		msg = &StreamResponse{}
+	case STREAM_COMPLETE_REQUEST:
+		msg = &StreamCompleteRequest{}
+	case STREAM_COMPLETE_RESPONSE:
+		msg = &StreamCompleteResponse{}
 	case close_connection:
 		msg = &closeConnection{}
 	default:
