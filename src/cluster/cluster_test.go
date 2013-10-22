@@ -100,7 +100,7 @@ func TestExpectedPeerDataIsReturned(t *testing.T) {
 	var data []*PeerData
 
 	data = c.getPeerData()
-	for _, pd := range data {
+	for i, pd := range data {
 		node, err := c.ring.GetNode(pd.NodeId)
 		if err != nil {
 			t.Errorf("Unexpected error returned for: %v", pd.NodeId)
@@ -108,9 +108,9 @@ func TestExpectedPeerDataIsReturned(t *testing.T) {
 		if node == nil {
 			t.Errorf("Unexpected nil node returned for: %v", pd.NodeId)
 		}
-		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Name"), node.Name(), pd.Name)
-		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Addr"), node.GetAddr(), pd.Addr)
-		testing_helpers.AssertSliceEqual(t, fmt.Sprintf("n[%v] Token"), node.GetToken(), pd.Token)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Name", i), node.Name(), pd.Name)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("n[%v] Addr", i), node.GetAddr(), pd.Addr)
+		testing_helpers.AssertSliceEqual(t, fmt.Sprintf("n[%v] Token", i), node.GetToken(), pd.Token)
 	}
 }
 
