@@ -272,7 +272,7 @@ func (c *Cluster) GetNodesForKey(k string) []Node {
 	return c.ring.GetNodesForToken(token, c.replicationFactor)
 }
 
-/************** node changes **************/
+/************** streaming **************/
 
 // initiates streaming tokens from the given node
 func (c *Cluster) streamFromNode(n Node) error {
@@ -286,6 +286,13 @@ func (c *Cluster) streamFromNode(n Node) error {
 	c.status = CLUSTER_STREAMING
 	return nil
 }
+
+// streams the data to the given node
+func (c *Cluster) streamToNode(n Node) {
+	//
+}
+
+/************** node changes **************/
 
 // called when a node is first added to the cluster
 //

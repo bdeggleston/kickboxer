@@ -117,6 +117,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 			return fmt.Errorf("Error writing response: %v", err)
 		}
 	}
+	return nil
 }
 
 func (s *PeerServer) GetAddr() string {
