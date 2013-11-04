@@ -3,6 +3,7 @@ package store
 import (
 	"bufio"
 	"time"
+	"go/token"
 )
 
 // enum indicating type of value
@@ -29,11 +30,7 @@ type Store interface {
 	Start() error
 	Stop() error
 
-	// serializes a value
-	SerializeValue(v Value) ([]byte, error)
-
-	// serializes a value
-	DeserializeValue(b []byte) (Value, ValueType, error)
+	// ----------- queries -----------
 
 	// executes a read instruction against the node's store
 	ExecuteRead(cmd string, key string, args []string) (Value, error)
@@ -47,5 +44,19 @@ type Store interface {
 
 	IsReadCommand(cmd string) bool
 	IsWriteCommand(cmd string) bool
+
+	// ----------- data import / export -----------
+
+	// serializes a value
+	SerializeValue(v Value) ([]byte, error)
+
+	// serializes a value
+	DeserializeValue(b []byte) (Value, ValueType, error)
+
+	// returns raw data associated with the given key
+	GetRawKey(key string) (Value, error)
+
+	// sets the contents of the given key
+	SetRawKey(key string, val Value) error
 }
 
