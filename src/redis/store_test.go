@@ -87,6 +87,12 @@ func TestSet(t *testing.T) {
 // if set is called with a timestamp which is lower than
 // the existing value, it should be ignored
 func TestSetConflictingTimestamp(t *testing.T) {
+	r := setupRedis()
+	now := time.Now()
+	then := now.Add(time.Duration(-1))
+	expected := r.set("a", "b", now)
+	actual := r.set("a", "c", then)
+	testing_helpers.AssertEqual(t, "set val", expected, actual)
 
 }
 
