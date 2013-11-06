@@ -37,8 +37,8 @@ type Store interface {
 	// executes a write instruction against the node's store
 	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error)
 
-	// reconciles multiple values and returns instructions for correting
-	// the values
+	// reconciles multiple values and returns instructions for correcting
+	// the values on inaccurate nodes
 	Reconcile(values map[string] *Value) (*Value, map[string][]*Instruction, error)
 
 	IsReadCommand(cmd string) bool
@@ -57,5 +57,8 @@ type Store interface {
 
 	// sets the contents of the given key
 	SetRawKey(key string, val Value) error
+
+	// returns all of the keys held by the store
+	GetKeys() []string
 }
 
