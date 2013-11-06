@@ -3,7 +3,6 @@ package store
 import (
 	"bufio"
 	"time"
-	"go/token"
 )
 
 // enum indicating type of value

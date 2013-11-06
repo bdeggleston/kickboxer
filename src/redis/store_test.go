@@ -92,6 +92,14 @@ func TestSetConflictingTimestamp(t *testing.T) {
 
 // tests validation of SET insructions
 func TestSetValidation(t *testing.T) {
+	r := setupRedis()
+	val, err := r.ExecuteWrite("SET", "a", []string{"x", "y"}, time.Now())
+	if val != nil {
+		t.Errorf("Expected nil value, got %v", val)
+	}
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
 
 }
 
