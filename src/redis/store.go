@@ -65,15 +65,6 @@ func (s *Redis) Stop() error {
 	return nil
 }
 
-// Get the value of key. If the key does not exist the special value nil is returned.
-// An error is returned if the value stored at key is not a string, because GET only handles string values.
-func (s *Redis) get(key string) (store.Value, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	// TODO: check that the returned value is a string or tombstone value
-	return s.data[key], nil
-}
-
 func (s *Redis) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	switch cmd {
 	case GET:
