@@ -91,6 +91,7 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 		if err := s.validateSet(key, args, timestamp); err != nil { return nil, err }
 		return s.set(key, args[0], timestamp), nil
 	case DEL:
+		if err := s.validateDel(key, args, timestamp); err != nil { return nil, err }
 		val, err := s.del(key, timestamp)
 		if err != nil { return nil, err }
 		return val, nil

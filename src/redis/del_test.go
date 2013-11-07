@@ -4,6 +4,7 @@ import (
 	"testing"
 	"testing_helpers"
 	"time"
+	"store"
 )
 
 // test that a tombstone value is written
@@ -83,5 +84,24 @@ func TestDelNonExistingVal(t *testing.T) {
 
 // tests validation of DEL insructions
 func TestDelValidation(t *testing.T) {
-	t.Skip("no validation at the moment")
+	r := setupRedis()
+
+	var val store.Value
+	var err error
+
+	val, err = r.ExecuteWrite("DEL", "a", []string{"x", "y"}, time.Now())
+	if val != nil { t.Errorf("Expected nil value, got %v", val) }
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	} else {
+		t.Logf("Got expected err: %v", err)
+	}
+
+	val, err = r.ExecuteWrite("DEL", "a", []string{}, time.Time{})
+	if val != nil { t.Errorf("Expected nil value, got %v", val) }
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	} else {
+		t.Logf("Got expected err: %v", err)
+	}
 }
