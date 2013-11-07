@@ -111,51 +111,6 @@ func (v *tombstoneValue) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
-type delResponseValue struct {
-	keys []string
-}
-
-// return an uninitialized value
-func (v *delResponseValue) GetTimestamp() time.Time {
-	return time.Time{}
-}
-
-func (v *delResponseValue) GetValueType() store.ValueType {
-	return DEL_RESPONSE_VALUE
-}
-
-func (v *delResponseValue) Serialize(buf *bufio.Writer) error {
-	numKeys := uint32(len(v.keys))
-	if err := binary.Write(buf, binary.LittleEndian, &numKeys); err != nil {
-		return err
-	}
-	for _, key := range v.keys {
-		if err := serializer.WriteFieldBytes(buf, []byte(key)); err != nil {
-			return err
-		}
-	}
-	if err := buf.Flush(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *delResponseValue) Deserialize(buf *bufio.Reader) error {
-	var numKeys uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numKeys); err != nil {
-		return err
-	}
-	v.keys = make([]string, numKeys)
-	for i:=0; i<int(numKeys); i++ {
-		if val, err := serializer.ReadFieldBytes(buf); err != nil {
-			return err
-		} else {
-			v.keys[i] = string(val)
-		}
-	}
-	return nil
-}
-
 /***************** reader/writer functions *****************/
 
 func WriteRedisValue(buf io.Writer, v store.Value) error {
