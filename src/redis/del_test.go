@@ -26,7 +26,8 @@ func TestDelExistingVal(t *testing.T) {
 	}
 
 	// delete value
-	rawval, err := r.ExecuteWrite("DEL", "a", []string{}, time.Now())
+	ts := time.Now()
+	rawval, err := r.ExecuteWrite("DEL", "a", []string{}, ts)
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
@@ -37,6 +38,17 @@ func TestDelExistingVal(t *testing.T) {
 
 	testing_helpers.AssertEqual(t, "value", val.value, true)
 	testing_helpers.AssertEqual(t, "time", val.time, expected.time)
+
+	// check tombstone
+	rawval, exists = r.data["a"]
+	if !exists {
+		t.Fatalf("Expected tombstone, got nil")
+	}
+	tsval, ok := rawval.(*tombstoneValue)
+	if !ok {
+		t.Errorf("tombstone value of unexpected type: %T", rawval)
+	}
+	testing_helpers.AssertEqual(t, "time", tsval.time, ts)
 }
 
 func TestDelNonExistingVal(t *testing.T) {
@@ -49,7 +61,8 @@ func TestDelNonExistingVal(t *testing.T) {
 	}
 
 	// delete value
-	rawval, err := r.ExecuteWrite("DEL", "a", []string{}, time.Now())
+	ts := time.Now()
+	rawval, err := r.ExecuteWrite("DEL", "a", []string{}, ts)
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
@@ -60,6 +73,12 @@ func TestDelNonExistingVal(t *testing.T) {
 
 	testing_helpers.AssertEqual(t, "value", val.value, false)
 	testing_helpers.AssertEqual(t, "time", val.time, time.Time{})
+
+	// check tombstone
+	rawval, exists = r.data["a"]
+	if exists {
+		t.Fatalf("Unexpected tombstone val found: %T %v", rawval, rawval)
+	}
 }
 
 // tests validation of DEL insructions
