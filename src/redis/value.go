@@ -2,7 +2,6 @@ package redis
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -16,7 +15,7 @@ import (
 const (
 	STRING_VALUE = store.ValueType("STRING")
 	TOMBSTONE_VALUE	= store.ValueType("TOMBSTONE")
-	DEL_RESPONSE_VALUE = store.ValueType("DEL_RESPONSE")
+	BOOL_VALUE	= store.ValueType("BOOL")
 )
 
 // a single value used for
@@ -111,6 +110,56 @@ func (v *tombstoneValue) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+type boolValue struct {
+	value bool
+	time time.Time
+}
+
+func newBoolValue(val bool, timestamp time.Time) *boolValue {
+	v := &boolValue{
+		value:val,
+		time:timestamp,
+	}
+	return v
+}
+
+func (v *boolValue) GetTimestamp() time.Time {
+	return v.time
+}
+
+func (v *boolValue) GetValueType() store.ValueType {
+	return BOOL_VALUE
+}
+
+func (v *boolValue) Serialize(buf *bufio.Writer) error {
+	var b byte
+	if v.value { b = 0xff }
+	if err := buf.WriteByte(b); err != nil {
+		return err
+	}
+	if err := serializer.WriteTime(buf, v.time); err != nil {
+		return err
+	}
+	if err := buf.Flush(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *boolValue) Deserialize(buf *bufio.Reader) error {
+	if b, err := buf.ReadByte(); err != nil {
+		return err
+	} else {
+		v.value = b != 0x00
+	}
+	if t, err := serializer.ReadTime(buf); err != nil {
+		return err
+	} else {
+		v.time = t
+	}
+	return nil
+}
+
 /***************** reader/writer functions *****************/
 
 func WriteRedisValue(buf io.Writer, v store.Value) error {
@@ -135,8 +184,8 @@ func ReadRedisValue(buf io.Reader) (store.Value, store.ValueType, error) {
 		value = &stringValue{}
 	case TOMBSTONE_VALUE:
 		value = &tombstoneValue{}
-	case DEL_RESPONSE_VALUE:
-		value = &delResponseValue{}
+	case BOOL_VALUE:
+		value = &boolValue{}
 	default:
 		return nil, "", fmt.Errorf("Unexpected value type: %v", vtype)
 	}
