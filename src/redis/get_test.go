@@ -28,7 +28,6 @@ func TestGet(t *testing.T) {
 // a string value returns an error
 func TestGetNonStringFails(t *testing.T) {
 	t.Skipf("other types not implemented yet")
-
 }
 
 // tests validation of GET insructions
