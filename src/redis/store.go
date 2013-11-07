@@ -66,10 +66,12 @@ func (s *Redis) Stop() error {
 }
 
 func (s *Redis) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	switch cmd {
 	case GET:
 		//
-		if len(args) != 0 { return nil, fmt.Errorf("too many args for GET") }
+		if err := s.validateGet(key, args); err != nil { return nil, err }
 		rval, err := s.get(key)
 		if err != nil { return nil, err }
 		return rval, nil
@@ -86,8 +88,7 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 
 	switch cmd {
 	case SET:
-		//
-		if err := s.validateSet(key, args); err != nil { return nil, err }
+		if err := s.validateSet(key, args, timestamp); err != nil { return nil, err }
 		return s.set(key, args[0], timestamp), nil
 	case DEL:
 		//
