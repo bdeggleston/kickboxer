@@ -8,9 +8,11 @@ import (
 
 func (s *Redis) validateSet(key string, args []string, timestamp time.Time) error {
 	_ = key
-	_ = timestamp
 	if len(args) != 1 {
 		return fmt.Errorf("incorrect number of args for SET. Expected 1, got %v", len(args))
+	}
+	if timestamp.IsZero() {
+		return fmt.Errorf("DEL Got zero timestamp")
 	}
 	return nil
 }

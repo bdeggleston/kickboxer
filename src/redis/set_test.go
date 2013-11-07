@@ -4,6 +4,7 @@ import (
 	"testing"
 	"testing_helpers"
 	"time"
+	"store"
 )
 
 // tests basic function of set
@@ -57,13 +58,23 @@ func TestSetConflictingTimestamp(t *testing.T) {
 func TestSetValidation(t *testing.T) {
 	r := setupRedis()
 
-	val, err := r.ExecuteWrite("SET", "a", []string{"x", "y"}, time.Now())
-	if val != nil {
-		t.Errorf("Expected nil value, got %v", val)
-	}
+	var val store.Value
+	var err error
+
+	val, err = r.ExecuteWrite("SET", "a", []string{"x", "y"}, time.Now())
+	if val != nil { t.Errorf("Expected nil value, got %v", val) }
 	if err == nil {
 		t.Errorf("Expected error, got nil")
+	} else {
+		t.Logf("Got expected err: %v", err)
 	}
 
+	val, err = r.ExecuteWrite("SET", "a", []string{"x"}, time.Time{})
+	if val != nil { t.Errorf("Expected nil value, got %v", val) }
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	} else {
+		t.Logf("Got expected err: %v", err)
+	}
 }
 
