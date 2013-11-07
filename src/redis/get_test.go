@@ -41,6 +41,8 @@ func TestGetValidation(t *testing.T) {
 	}
 	if err == nil {
 		t.Errorf("Expected error, got nil")
+	} else {
+		t.Logf("Got expected err: %v", err)
 	}
 }
 
