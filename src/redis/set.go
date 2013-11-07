@@ -3,7 +3,16 @@ package redis
 import (
 	"store"
 	"time"
+	"fmt"
 )
+
+func (s *Redis) validateSet(key string, args []string) error {
+	_ = key
+	if len(args) != 1 {
+		return fmt.Errorf("incorrect number of args for SET. Expected 1, got %v", len(args))
+	}
+	return nil
+}
 
 // Set key to hold the string value. If key already holds a value, it is overwritten,
 // regardless of its type. Any previous time to live associated with the key is discarded

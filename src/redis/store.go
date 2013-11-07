@@ -87,9 +87,7 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 	switch cmd {
 	case SET:
 		//
-		if len(args) != 1 {
-			return nil, fmt.Errorf("incorrect number of args for SET. Expected 1, got %v", len(args))
-		}
+		if err := s.validateSet(key, args); err != nil { return nil, err }
 		return s.set(key, args[0], timestamp), nil
 	case DEL:
 		//
