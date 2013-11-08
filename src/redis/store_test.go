@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 	"testing_helpers"
+	"store"
 )
 
 // table of instructions, and whether they're
@@ -45,8 +46,8 @@ func TestIsReadCmd(t *testing.T) {
 
 func TestInterfaceIsImplemented(t *testing.T) {
 	t.Skipf("Not working yet!")
-//	tt := func(s store.Store) {}
-//	tt(&Redis{})
+	tt := func(s store.Store) {}
+	tt(&Redis{})
 }
 
 /***************** query tests *****************/
