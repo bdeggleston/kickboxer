@@ -125,6 +125,7 @@ func (s *Redis) IsWriteCommand(cmd string) bool {
 // ----------- data import / export -----------
 
 
+// blindly gets the contents of the given key
 func (s *Redis) GetRawKey(key string) (store.Value, error) {
 	val, ok := s.data[key]
 	if !ok {
@@ -133,13 +134,14 @@ func (s *Redis) GetRawKey(key string) (store.Value, error) {
 	return val, nil
 }
 
-// sets the contents of the given key
+// blindly sets the contents of the given key
 func (s *Redis) SetRawKey(key string, val store.Value) error {
 	s.data[key] = val
 	return nil
 }
 
-// returns all of the keys held by the store
+// returns all of the keys held by the store, including keys containing
+// tombstones
 func (s *Redis) GetKeys() []string {
 	var i int
 	keys := make([]string, len(s.data))

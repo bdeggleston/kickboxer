@@ -118,8 +118,8 @@ func TestGetKeys(t *testing.T) {
 	}
 }
 
-// when reconciling different value types, the type with
-// the newest timestamp should overwrite the other values
+// when reconciling different value types, not including tombstones,
+// the type with the newest timestamp should overwrite the other values
 func TestReconcileDifferentValueTypes(t *testing.T) {
 
 }
