@@ -3,6 +3,8 @@ package redis
 import (
 	"fmt"
 	"time"
+
+	"redis/values"
 )
 
 func (s *Redis) validateDel(key string, args []string, timestamp time.Time) error {
@@ -22,12 +24,13 @@ func (s *Redis) validateDel(key string, args []string, timestamp time.Time) erro
 // internally, each key is deleted one at a time, and a bool value
 // is returned indicating if a key was deleted, and the previos value's
 // timestamp if one was found
-func (s *Redis) del(key string, ts time.Time) (*boolValue, error) {
-	rval := &boolValue{}
+func (s *Redis) del(key string, ts time.Time) (*values.Boolean, error) {
+	var rval *values.Boolean
 	if val, exists := s.data[key]; exists {
-		s.data[key] = newTombstoneValue(ts)
-		rval.value = true
-		rval.time = val.GetTimestamp()
+		s.data[key] = values.NewTombstone(ts)
+		rval = values.NewBoolean(true, val.GetTimestamp())
+	} else {
+		rval = values.NewBoolean(false, time.Time{})
 	}
 	return rval, nil
 }

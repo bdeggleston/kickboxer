@@ -9,6 +9,7 @@ import (
 )
 
 import (
+	"redis/values"
 	"store"
 )
 
@@ -44,15 +45,22 @@ func NewRedis() *Redis {
 	return r
 }
 
+// returns a redis instance with defaults set
+// primarily used for testing
+func NewDefaultRedis() *Redis {
+	return NewRedis()
+}
+
+
 func (s *Redis) SerializeValue(v store.Value) ([]byte, error) {
 	buf := &bytes.Buffer{}
-	if err := WriteRedisValue(buf, v) ; err != nil { return nil, err }
+	if err := values.WriteValue(buf, v) ; err != nil { return nil, err }
 	return buf.Bytes(), nil
 }
 
 func (s *Redis) DeserializeValue(b []byte) (store.Value, store.ValueType, error) {
 	buf := bytes.NewBuffer(b)
-	val, vtype, err := ReadRedisValue(buf)
+	val, vtype, err := values.ReadValue(buf)
 	if err != nil { return nil, "", err }
 	return val, vtype, nil
 }

@@ -4,12 +4,14 @@ import (
 	"testing"
 	"testing_helpers"
 	"time"
+
+	"redis/values"
 	"store"
 )
 
 // tests basic function of set
 func TestSet(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	// sanity check
 	_, exists := r.data["a"]
@@ -22,7 +24,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected write error: %v", err)
 	}
-	rval, ok := rawval.(*stringValue)
+	rval, ok := rawval.(*values.String)
 	if !ok {
 		t.Errorf("returned value of unexpected type: %T", rawval)
 	}
@@ -31,21 +33,21 @@ func TestSet(t *testing.T) {
 	if ! exists {
 		t.Errorf("No value found for 'a'")
 	}
-	actual, ok := actualraw.(*stringValue)
+	actual, ok := actualraw.(*values.String)
 	if !ok {
 		t.Errorf("actual value of unexpected type: %T", actualraw)
 	}
 
-	testing_helpers.AssertEqual(t, "rval data", "b", rval.data)
-	testing_helpers.AssertEqual(t, "actual data", "b", actual.data)
-	testing_helpers.AssertEqual(t, "rval time", ts, rval.time)
-	testing_helpers.AssertEqual(t, "actual time", ts, actual.time)
+	testing_helpers.AssertEqual(t, "rval data", "b", rval.GetValue())
+	testing_helpers.AssertEqual(t, "actual data", "b", actual.GetValue())
+	testing_helpers.AssertEqual(t, "rval time", ts, rval.GetTimestamp())
+	testing_helpers.AssertEqual(t, "actual time", ts, actual.GetTimestamp())
 }
 
 // if set is called with a timestamp which is lower than
 // the existing value, it should be ignored
 func TestSetConflictingTimestamp(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 	now := time.Now()
 	then := now.Add(time.Duration(-1))
 	expected := r.set("a", "b", now)
@@ -56,7 +58,7 @@ func TestSetConflictingTimestamp(t *testing.T) {
 
 // tests validation of SET insructions
 func TestSetValidation(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	var val store.Value
 	var err error

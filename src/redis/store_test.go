@@ -3,6 +3,8 @@ package redis
 import (
 	"testing"
 	"time"
+
+	"redis/values"
 	"testing_helpers"
 	"store"
 )
@@ -70,7 +72,7 @@ func TestGetRawKeySuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpectedly got error: %v", err)
 	}
-	val, ok := rval.(*stringValue)
+	val, ok := rval.(*values.String)
 	if !ok {
 		t.Fatal("expected value of type stringValue, got %T", rval)
 	}
@@ -79,14 +81,14 @@ func TestGetRawKeySuccess(t *testing.T) {
 
 func TestSetRawKey(t *testing.T) {
 	r := setupRedis()
-	expected := newBoolValue(true, time.Now())
+	expected := values.NewBoolean(true, time.Now())
 	r.SetRawKey("x", expected)
 
 	rval, exists := r.data["x"]
 	if !exists {
 		t.Fatalf("no value found for key 'x'")
 	}
-	val, ok := rval.(*boolValue)
+	val, ok := rval.(*values.Boolean)
 	if !ok {
 		t.Fatal("expected value of type boolValues, got %T", rval)
 	}
@@ -96,7 +98,7 @@ func TestSetRawKey(t *testing.T) {
 
 func TestGetKeys(t *testing.T) {
 	r := setupRedis()
-	val := newBoolValue(true, time.Now())
+	val := values.NewBoolean(true, time.Now())
 	r.SetRawKey("x", val)
 	r.SetRawKey("y", val)
 	r.SetRawKey("z", val)

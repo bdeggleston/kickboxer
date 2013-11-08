@@ -4,6 +4,8 @@ import (
 	"store"
 	"time"
 	"fmt"
+
+	"redis/values"
 )
 
 func (s *Redis) validateSet(key string, args []string, timestamp time.Time) error {
@@ -25,7 +27,7 @@ func (s *Redis) set(key string, val string, ts time.Time) (store.Value) {
 	if exists && ts.Before(existing.GetTimestamp()) {
 		return existing
 	}
-	value := newStringValue(val, ts)
+	value := values.NewString(val, ts)
 	s.data[key] = value
 	return value
 }

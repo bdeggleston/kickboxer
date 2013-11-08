@@ -2,14 +2,16 @@ package redis
 
 import (
 	"testing"
-	"testing_helpers"
 	"time"
+
+	"redis/values"
 	"store"
+	"testing_helpers"
 )
 
 // test that a tombstone value is written
 func TestDelExistingVal(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	// write value
 	if _, err := r.ExecuteWrite("SET", "a", []string{"b"}, time.Now()); err != nil {
@@ -21,7 +23,7 @@ func TestDelExistingVal(t *testing.T) {
 	if ! exists {
 		t.Errorf("No value found for 'a'")
 	}
-	expected, ok := oldval.(*stringValue)
+	expected, ok := oldval.(*values.String)
 	if !ok {
 		t.Errorf("actual value of unexpected type: %T", oldval)
 	}
@@ -32,28 +34,28 @@ func TestDelExistingVal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
-	val, ok := rawval.(*boolValue)
+	val, ok := rawval.(*values.Boolean)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}
 
-	testing_helpers.AssertEqual(t, "value", val.value, true)
-	testing_helpers.AssertEqual(t, "time", val.time, expected.time)
+	testing_helpers.AssertEqual(t, "value", val.GetValue(), true)
+	testing_helpers.AssertEqual(t, "time", val.GetTimestamp(), expected.GetTimestamp())
 
 	// check tombstone
 	rawval, exists = r.data["a"]
 	if !exists {
 		t.Fatalf("Expected tombstone, got nil")
 	}
-	tsval, ok := rawval.(*tombstoneValue)
+	tsval, ok := rawval.(*values.Tombstone)
 	if !ok {
 		t.Errorf("tombstone value of unexpected type: %T", rawval)
 	}
-	testing_helpers.AssertEqual(t, "time", tsval.time, ts)
+	testing_helpers.AssertEqual(t, "time", tsval.GetTimestamp(), ts)
 }
 
 func TestDelNonExistingVal(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	// sanity check
 	_, exists := r.data["a"]
@@ -67,13 +69,13 @@ func TestDelNonExistingVal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
-	val, ok := rawval.(*boolValue)
+	val, ok := rawval.(*values.Boolean)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}
 
-	testing_helpers.AssertEqual(t, "value", val.value, false)
-	testing_helpers.AssertEqual(t, "time", val.time, time.Time{})
+	testing_helpers.AssertEqual(t, "value", val.GetValue(), false)
+	testing_helpers.AssertEqual(t, "time", val.GetTimestamp(), time.Time{})
 
 	// check tombstone
 	rawval, exists = r.data["a"]
@@ -84,7 +86,7 @@ func TestDelNonExistingVal(t *testing.T) {
 
 // tests validation of DEL insructions
 func TestDelValidation(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	var val store.Value
 	var err error

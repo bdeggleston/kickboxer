@@ -4,24 +4,26 @@ import (
 	"testing"
 	"time"
 	"testing_helpers"
+
+	"redis/values"
 )
 
 func TestGet(t *testing.T) {
-	r := setupRedis()
-	expected := newStringValue("b", time.Now())
+	r := NewDefaultRedis()
+	expected := values.NewString("b", time.Now())
 	r.data["a"] = expected
 
 	val, err := r.ExecuteRead("GET", "a", []string{})
 	if err != nil {
 		t.Fatalf("Unexpected error on read: %v", err)
 	}
-	actual, ok := val.(*stringValue)
+	actual, ok := val.(*values.String)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}
 
-	testing_helpers.AssertEqual(t, "data", expected.data, actual.data)
-	testing_helpers.AssertEqual(t, "time", expected.time, actual.time)
+	testing_helpers.AssertEqual(t, "data", expected.GetValue(), actual.GetValue())
+	testing_helpers.AssertEqual(t, "time", expected.GetTimestamp(), actual.GetTimestamp())
 }
 
 // tests that calling get on a key holding a value other than
@@ -32,7 +34,7 @@ func TestGetNonStringFails(t *testing.T) {
 
 // tests validation of GET insructions
 func TestGetValidation(t *testing.T) {
-	r := setupRedis()
+	r := NewDefaultRedis()
 
 	// too many args
 	val, err := r.ExecuteRead("GET", "a", []string{"b"})
