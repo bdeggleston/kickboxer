@@ -134,5 +134,11 @@ func (s *Redis) SetRawKey(key string, val store.Value) error {
 
 // returns all of the keys held by the store
 func (s *Redis) GetKeys() []string {
-	return []string{}
+	var i int
+	keys := make([]string, len(s.data))
+	for key, _ := range s.data {
+		keys[i] = key
+		i ++
+	}
+	return keys
 }

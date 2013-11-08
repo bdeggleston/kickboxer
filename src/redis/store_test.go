@@ -94,5 +94,25 @@ func TestSetRawKey(t *testing.T) {
 }
 
 func TestGetKeys(t *testing.T) {
+	r := setupRedis()
+	val := newBoolValue(true, time.Now())
+	r.SetRawKey("x", val)
+	r.SetRawKey("y", val)
+	r.SetRawKey("z", val)
 
+	// make set of expected keys
+	expected := map[string]bool {"x": true, "y": true, "z": true}
+
+	seen := make(map[string] bool)
+	keys := r.GetKeys()
+	testing_helpers.AssertEqual(t, "num keys", len(expected), len(keys))
+	for _, key := range keys {
+		if expected[key] && !seen[key] {
+			seen[key] = true
+		} else if seen[key] {
+			t.Errorf("Key '%v' seen more than once", key)
+		} else {
+			t.Errorf("Unexpected key returned: '%v'", key)
+		}
+	}
 }
