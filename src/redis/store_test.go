@@ -117,3 +117,15 @@ func TestGetKeys(t *testing.T) {
 		}
 	}
 }
+
+// when reconciling different value types, the type with
+// the newest timestamp should overwrite the other values
+func TestReconcileDifferentValueTypes(t *testing.T) {
+
+}
+
+// when reconciling the same data types, reconcile should
+// defer to that value's reconcile function
+func TestReconcileSameValueTypes(t *testing.T) {
+
+}
