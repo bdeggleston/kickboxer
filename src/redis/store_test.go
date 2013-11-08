@@ -2,6 +2,8 @@ package redis
 
 import (
 	"testing"
+	"time"
+	"testing_helpers"
 )
 
 // table of instructions, and whether they're
@@ -40,6 +42,13 @@ func TestIsReadCmd(t *testing.T) {
 		}
 	}
 }
+
+func TestInterfaceIsImplemented(t *testing.T) {
+	t.Skipf("Not working yet!")
+//	tt := func(s store.Store) {}
+//	tt(&Redis{})
+}
+
 /***************** query tests *****************/
 
 func setupRedis() *Redis {
@@ -47,3 +56,43 @@ func setupRedis() *Redis {
 	return r
 }
 
+// ----------- data import / export -----------
+
+func TestGetRawKeySuccess(t *testing.T) {
+	r := setupRedis()
+	expected, err := r.ExecuteWrite("SET", "a", []string{"b"}, time.Now())
+	if err != nil {
+		t.Fatalf("Unexpected error executing set: %v", err)
+	}
+
+	rval, err := r.GetRawKey("a")
+	if err != nil {
+		t.Fatal("unexpectedly got error: %v", err)
+	}
+	val, ok := rval.(*stringValue)
+	if !ok {
+		t.Fatal("expected value of type stringValue, got %T", rval)
+	}
+	testing_helpers.AssertEqual(t, "value", expected, val)
+}
+
+func TestSetRawKey(t *testing.T) {
+	r := setupRedis()
+	expected := newBoolValue(true, time.Now())
+	r.SetRawKey("x", expected)
+
+	rval, exists := r.data["x"]
+	if !exists {
+		t.Fatalf("no value found for key 'x'")
+	}
+	val, ok := rval.(*boolValue)
+	if !ok {
+		t.Fatal("expected value of type boolValues, got %T", rval)
+	}
+
+	testing_helpers.AssertEqual(t, "val", expected, val)
+}
+
+func TestGetKeys(t *testing.T) {
+
+}

@@ -114,3 +114,25 @@ func (s *Redis) IsWriteCommand(cmd string) bool {
 	}
 	return false
 }
+
+// ----------- data import / export -----------
+
+
+func (s *Redis) GetRawKey(key string) (store.Value, error) {
+	val, ok := s.data[key]
+	if !ok {
+		return nil, fmt.Errorf("key [%v] does not exist", key)
+	}
+	return val, nil
+}
+
+// sets the contents of the given key
+func (s *Redis) SetRawKey(key string, val store.Value) error {
+	s.data[key] = val
+	return nil
+}
+
+// returns all of the keys held by the store
+func (s *Redis) GetKeys() []string {
+	return []string{}
+}
