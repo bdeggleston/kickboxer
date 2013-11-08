@@ -24,6 +24,10 @@ func NewString(data string, time time.Time) *String {
 	return v
 }
 
+func (v *String) GetValue() string {
+	return v.data
+}
+
 func (v *String) GetTimestamp() time.Time {
 	return v.time
 }

@@ -21,6 +21,10 @@ func NewBoolean(val bool, timestamp time.Time) *Boolean {
 	return v
 }
 
+func (v *Boolean) GetValue() bool {
+	return v.value
+}
+
 func (v *Boolean) GetTimestamp() time.Time {
 	return v.time
 }
