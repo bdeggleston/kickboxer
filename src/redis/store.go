@@ -99,6 +99,13 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 	return nil, nil
 }
 
+// reconciles multiple values and returns instructions for correcting
+// the values on inaccurate nodes
+func (s *Redis) Reconcile(values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
+	_ = values
+	return nil, make(map[string][]*store.Instruction), nil
+}
+
 func (s *Redis) IsReadCommand(cmd string) bool {
 	switch strings.ToUpper(cmd) {
 	case GET:
