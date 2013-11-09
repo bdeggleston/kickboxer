@@ -47,8 +47,7 @@ func TestIsReadCmd(t *testing.T) {
 
 func TestInterfaceIsImplemented(t *testing.T) {
 	t.Skipf("Not working yet!")
-	tt := func(s store.Store) {}
-	tt(&Redis{})
+	func(s store.Store) { _ = s }(&Redis{})
 }
 
 /***************** query tests *****************/
