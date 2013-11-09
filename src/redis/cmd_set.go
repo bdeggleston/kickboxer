@@ -4,8 +4,6 @@ import (
 	"store"
 	"time"
 	"fmt"
-
-	"redis/values"
 )
 
 func (s *Redis) validateSet(key string, args []string, timestamp time.Time) error {

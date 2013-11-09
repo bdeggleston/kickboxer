@@ -3,8 +3,6 @@ package redis
 import (
 	"fmt"
 	"time"
-
-	"redis/values"
 )
 
 func (s *Redis) validateDel(key string, args []string, timestamp time.Time) error {
