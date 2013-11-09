@@ -5,7 +5,6 @@ import (
 	"testing_helpers"
 	"time"
 
-	"redis/values"
 	"store"
 )
 

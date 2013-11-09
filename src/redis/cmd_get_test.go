@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 	"testing_helpers"
-
-	"redis/values"
 )
 
 func TestGet(t *testing.T) {
