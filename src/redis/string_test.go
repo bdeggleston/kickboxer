@@ -1,17 +1,16 @@
-package values
+package redis
 
 import (
 	"testing"
 	"time"
 
-	"redis"
 	"store"
 	"testing_helpers"
 )
 
 // tests the string value
 func TestStringValue(t *testing.T) {
-	s := redis.NewDefaultRedis()
+	s := NewDefaultRedis()
 	src := NewString("blake", time.Now())
 
 	b, err := s.SerializeValue(src)

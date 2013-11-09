@@ -27,7 +27,7 @@ func (s *Redis) set(key string, val string, ts time.Time) (store.Value) {
 	if exists && ts.Before(existing.GetTimestamp()) {
 		return existing
 	}
-	value := values.NewString(val, ts)
+	value := NewString(val, ts)
 	s.data[key] = value
 	return value
 }

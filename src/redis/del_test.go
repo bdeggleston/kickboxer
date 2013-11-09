@@ -23,7 +23,7 @@ func TestDelExistingVal(t *testing.T) {
 	if ! exists {
 		t.Errorf("No value found for 'a'")
 	}
-	expected, ok := oldval.(*values.String)
+	expected, ok := oldval.(*String)
 	if !ok {
 		t.Errorf("actual value of unexpected type: %T", oldval)
 	}
@@ -34,7 +34,7 @@ func TestDelExistingVal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
-	val, ok := rawval.(*values.Boolean)
+	val, ok := rawval.(*Boolean)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}
@@ -47,7 +47,7 @@ func TestDelExistingVal(t *testing.T) {
 	if !exists {
 		t.Fatalf("Expected tombstone, got nil")
 	}
-	tsval, ok := rawval.(*values.Tombstone)
+	tsval, ok := rawval.(*Tombstone)
 	if !ok {
 		t.Errorf("tombstone value of unexpected type: %T", rawval)
 	}
@@ -69,7 +69,7 @@ func TestDelNonExistingVal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
-	val, ok := rawval.(*values.Boolean)
+	val, ok := rawval.(*Boolean)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}

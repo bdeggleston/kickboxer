@@ -72,7 +72,7 @@ func TestGetRawKeySuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpectedly got error: %v", err)
 	}
-	val, ok := rval.(*values.String)
+	val, ok := rval.(*String)
 	if !ok {
 		t.Fatal("expected value of type stringValue, got %T", rval)
 	}
@@ -81,14 +81,14 @@ func TestGetRawKeySuccess(t *testing.T) {
 
 func TestSetRawKey(t *testing.T) {
 	r := setupRedis()
-	expected := values.NewBoolean(true, time.Now())
+	expected := NewBoolean(true, time.Now())
 	r.SetRawKey("x", expected)
 
 	rval, exists := r.data["x"]
 	if !exists {
 		t.Fatalf("no value found for key 'x'")
 	}
-	val, ok := rval.(*values.Boolean)
+	val, ok := rval.(*Boolean)
 	if !ok {
 		t.Fatal("expected value of type boolValues, got %T", rval)
 	}
@@ -98,7 +98,7 @@ func TestSetRawKey(t *testing.T) {
 
 func TestGetKeys(t *testing.T) {
 	r := setupRedis()
-	val := values.NewBoolean(true, time.Now())
+	val := NewBoolean(true, time.Now())
 	r.SetRawKey("x", val)
 	r.SetRawKey("y", val)
 	r.SetRawKey("z", val)

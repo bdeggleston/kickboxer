@@ -1,4 +1,4 @@
-package values
+package redis
 
 import (
 	"bufio"

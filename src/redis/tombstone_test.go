@@ -1,16 +1,15 @@
-package values
+package redis
 
 import (
 	"testing"
 	"time"
 
-	"redis"
 	"testing_helpers"
 	"store"
 )
 
 func TestTombstoneValue(t *testing.T) {
-	s := redis.NewDefaultRedis()
+	s := NewDefaultRedis()
 	src := NewTombstone(time.Now())
 
 	b, err := s.SerializeValue(src)

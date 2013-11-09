@@ -10,14 +10,14 @@ import (
 
 func TestGet(t *testing.T) {
 	r := NewDefaultRedis()
-	expected := values.NewString("b", time.Now())
+	expected := NewString("b", time.Now())
 	r.data["a"] = expected
 
 	val, err := r.ExecuteRead("GET", "a", []string{})
 	if err != nil {
 		t.Fatalf("Unexpected error on read: %v", err)
 	}
-	actual, ok := val.(*values.String)
+	actual, ok := val.(*String)
 	if !ok {
 		t.Fatalf("Unexpected value type: %T", val)
 	}

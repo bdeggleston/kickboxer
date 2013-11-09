@@ -24,7 +24,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected write error: %v", err)
 	}
-	rval, ok := rawval.(*values.String)
+	rval, ok := rawval.(*String)
 	if !ok {
 		t.Errorf("returned value of unexpected type: %T", rawval)
 	}
@@ -33,7 +33,7 @@ func TestSet(t *testing.T) {
 	if ! exists {
 		t.Errorf("No value found for 'a'")
 	}
-	actual, ok := actualraw.(*values.String)
+	actual, ok := actualraw.(*String)
 	if !ok {
 		t.Errorf("actual value of unexpected type: %T", actualraw)
 	}

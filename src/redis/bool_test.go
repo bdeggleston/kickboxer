@@ -1,15 +1,14 @@
-package values
+package redis
 
 import (
 	"testing"
 	"time"
 
-	"redis"
 	"testing_helpers"
 )
 
 func TestBooleanValue(t *testing.T) {
-	s := redis.NewDefaultRedis()
+	s := NewDefaultRedis()
 	for _, val := range []bool{true, false} {
 		src := NewBoolean(val, time.Now())
 

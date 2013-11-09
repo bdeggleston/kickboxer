@@ -54,13 +54,13 @@ func NewDefaultRedis() *Redis {
 
 func (s *Redis) SerializeValue(v store.Value) ([]byte, error) {
 	buf := &bytes.Buffer{}
-	if err := values.WriteValue(buf, v) ; err != nil { return nil, err }
+	if err := WriteValue(buf, v) ; err != nil { return nil, err }
 	return buf.Bytes(), nil
 }
 
 func (s *Redis) DeserializeValue(b []byte) (store.Value, store.ValueType, error) {
 	buf := bytes.NewBuffer(b)
-	val, vtype, err := values.ReadValue(buf)
+	val, vtype, err := ReadValue(buf)
 	if err != nil { return nil, "", err }
 	return val, vtype, nil
 }
