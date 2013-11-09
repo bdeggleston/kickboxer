@@ -7,7 +7,7 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 	expected := NewString("b", time.Now())
 	r.data["a"] = expected
 
@@ -32,7 +32,7 @@ func TestGetNonStringFails(t *testing.T) {
 
 // tests validation of GET insructions
 func TestGetValidation(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	// too many args
 	val, err := r.ExecuteRead("GET", "a", []string{"b"})

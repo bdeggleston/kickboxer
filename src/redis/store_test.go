@@ -50,13 +50,6 @@ func TestInterfaceIsImplemented(t *testing.T) {
 	func(s store.Store) { _ = s }(&Redis{})
 }
 
-/***************** query tests *****************/
-
-func setupRedis() *Redis {
-	r := NewRedis()
-	return r
-}
-
 // ----------- data import / export -----------
 
 func TestGetRawKeySuccess(t *testing.T) {

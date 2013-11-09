@@ -10,7 +10,7 @@ import (
 
 // test that a tombstone value is written
 func TestDelExistingVal(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	// write value
 	if _, err := r.ExecuteWrite("SET", "a", []string{"b"}, time.Now()); err != nil {
@@ -54,7 +54,7 @@ func TestDelExistingVal(t *testing.T) {
 }
 
 func TestDelNonExistingVal(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	// sanity check
 	_, exists := r.data["a"]
@@ -85,7 +85,7 @@ func TestDelNonExistingVal(t *testing.T) {
 
 // tests validation of DEL insructions
 func TestDelValidation(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	var val store.Value
 	var err error

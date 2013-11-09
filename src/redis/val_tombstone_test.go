@@ -9,7 +9,7 @@ import (
 )
 
 func TestTombstoneValue(t *testing.T) {
-	s := NewDefaultRedis()
+	s := setupRedis()
 	src := NewTombstone(time.Now())
 
 	b, err := s.SerializeValue(src)

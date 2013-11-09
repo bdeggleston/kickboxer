@@ -10,7 +10,7 @@ import (
 
 // tests the string value
 func TestStringValue(t *testing.T) {
-	s := NewDefaultRedis()
+	s := setupRedis()
 	src := NewString("blake", time.Now())
 
 	b, err := s.SerializeValue(src)

@@ -8,7 +8,7 @@ import (
 )
 
 func TestBooleanValue(t *testing.T) {
-	s := NewDefaultRedis()
+	s := setupRedis()
 	for _, val := range []bool{true, false} {
 		src := NewBoolean(val, time.Now())
 

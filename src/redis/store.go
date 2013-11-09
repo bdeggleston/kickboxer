@@ -44,13 +44,6 @@ func NewRedis() *Redis {
 	return r
 }
 
-// returns a redis instance with defaults set
-// primarily used for testing
-func NewDefaultRedis() *Redis {
-	return NewRedis()
-}
-
-
 func (s *Redis) SerializeValue(v store.Value) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	if err := WriteValue(buf, v) ; err != nil { return nil, err }

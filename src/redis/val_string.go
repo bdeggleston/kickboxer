@@ -63,3 +63,7 @@ func (v *String) Deserialize(buf *bufio.Reader) error {
 	}
 	return nil
 }
+
+func reconcileString(values map[string] *String) (*String, map[string][]*store.Instruction, error) {
+	return nil, nil, nil
+}

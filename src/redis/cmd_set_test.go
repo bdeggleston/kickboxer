@@ -10,7 +10,7 @@ import (
 
 // tests basic function of set
 func TestSet(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	// sanity check
 	_, exists := r.data["a"]
@@ -46,7 +46,7 @@ func TestSet(t *testing.T) {
 // if set is called with a timestamp which is lower than
 // the existing value, it should be ignored
 func TestSetConflictingTimestamp(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 	now := time.Now()
 	then := now.Add(time.Duration(-1))
 	expected := r.set("a", "b", now)
@@ -57,7 +57,7 @@ func TestSetConflictingTimestamp(t *testing.T) {
 
 // tests validation of SET insructions
 func TestSetValidation(t *testing.T) {
-	r := NewDefaultRedis()
+	r := setupRedis()
 
 	var val store.Value
 	var err error
