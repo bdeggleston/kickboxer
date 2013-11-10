@@ -42,7 +42,7 @@ func TestStringInterface(_ *testing.T) {
 
 // tests that mismatched values are reconciled and
 // corrected as expected
-func TestMismatchReconciliation(t *testing.T) {
+func TestStringMismatchReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	ts1 := ts0.Add(time.Duration(-3000))
 	expected := NewString("a", ts0)
@@ -80,7 +80,7 @@ func TestMismatchReconciliation(t *testing.T) {
 
 // should set values of different types to the value
 // with the largest timestamp
-func TestMultiTypeReconciliation(t *testing.T) {
+func TestStringMultiTypeReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	ts1 := ts0.Add(time.Duration(-3000))
 	expected := NewString("a", ts0)
@@ -117,7 +117,7 @@ func TestMultiTypeReconciliation(t *testing.T) {
 
 // should return the correct value and no adjustment
 // instructions if all of the values match
-func TestNoOpReconciliation(t *testing.T) {
+func TestStringNoOpReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	expected := NewString("a", ts0)
 	vmap := map[string]store.Value {
