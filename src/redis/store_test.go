@@ -146,6 +146,7 @@ func TestReconcileValueMismatch(t *testing.T) {
 		t.Fatalf("unexpected reconciled value type: %T", rawval)
 	}
 
+	// TODO: use value equal method instead
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
 
