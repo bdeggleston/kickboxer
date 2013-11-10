@@ -118,35 +118,17 @@ func (s *Redis) Reconcile(key string, values map[string] store.Value) (store.Val
 		for _, v := range values { val = v }
 		return val, nil, nil
 	default:
-		// check for inconsistencies
-		// and record the highest timestamp and it's value type
-		var last store.Value
-		var highTimeStamp time.Time
-		var highValueType store.ValueType
-		count := 0
-		reconcile := false
-		for _, val := range values {
-			if count > 0 { reconcile = reconcile || val != last }
-			last = val
-			count++
+		highValue := getHighValue(values)
+		switch highValue.GetValueType() {
+		case STRING_VALUE:
+			//
+			return reconcileString(key, highValue.(*String), values)
+		case TOMBSTONE_VALUE:
+			//
+			return reconcileTombstone(key, highValue.(*Tombstone), values)
+		default:
+			return nil, nil, fmt.Errorf("Unknown value type: %T", highValue)
 
-			if ts := val.GetTimestamp(); ts.After(highTimeStamp) {
-				highTimeStamp = ts
-				highValueType = val.GetValueType()
-			}
-		}
-
-		if reconcile {
-			switch highValueType {
-			case STRING_VALUE:
-				//
-				return reconcileString(key, values)
-			case TOMBSTONE_VALUE:
-				//
-			default:
-				return nil, nil, fmt.Errorf("Unknown value type: %v", highValueType)
-
-			}
 		}
 	}
 	return nil, make(map[string][]*store.Instruction), nil

@@ -52,11 +52,14 @@ func TestMismatchReconciliation(t *testing.T) {
 		"2": expected,
 	}
 
-	actual, adjustments, err := reconcileString("k", vmap)
+	ractual, adjustments, err := setupRedis().Reconcile("k", vmap)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
 	}
+
+	actual, ok := ractual.(*String)
+	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	// TODO: use value equal method instead
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
@@ -86,11 +89,14 @@ func TestMultiTypeReconciliation(t *testing.T) {
 		"1": NewTombstone(ts1),
 	}
 
-	actual, adjustments, err := reconcileString("k", vmap)
+	ractual, adjustments, err := setupRedis().Reconcile("k", vmap)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
 	}
+
+	actual, ok := ractual.(*String)
+	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	// TODO: use value equal method instead
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
@@ -120,11 +126,14 @@ func TestNoOpReconciliation(t *testing.T) {
 		"2": expected,
 	}
 
-	actual, adjustments, err := reconcileString("k", vmap)
+	ractual, adjustments, err := setupRedis().Reconcile("k", vmap)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
 	}
+
+	actual, ok := ractual.(*String)
+	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	// TODO: use value equal method instead
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)

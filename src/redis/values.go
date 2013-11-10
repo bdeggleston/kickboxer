@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"time"
 
 	"serializer"
 	"store"
@@ -45,4 +46,19 @@ func ReadValue(buf io.Reader) (store.Value, store.ValueType, error) {
 
 	if err := value.Deserialize(reader); err != nil { return nil, "", err}
 	return value, vtype, nil
+}
+
+// ----------- reconcile helpers -----------
+
+// returns the value with the highest timestamp
+func getHighValue(values map[string]store.Value) store.Value {
+	var highTimestamp time.Time
+	var highValue store.Value
+	for _, val := range values {
+		if ts := val.GetTimestamp(); ts.After(highTimestamp) {
+			highTimestamp = ts
+			highValue = val
+		}
+	}
+	return highValue
 }
