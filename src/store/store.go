@@ -39,7 +39,7 @@ type Store interface {
 
 	// reconciles multiple values and returns instructions for correcting
 	// the values on inaccurate nodes
-	Reconcile(values map[string] Value) (Value, map[string][]*Instruction, error)
+	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
 
 	IsReadCommand(cmd string) bool
 	IsWriteCommand(cmd string) bool
