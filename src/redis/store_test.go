@@ -122,3 +122,55 @@ func TestReconcileDifferentValueTypes(t *testing.T) {
 func TestReconcileSameValueTypes(t *testing.T) {
 
 }
+
+// tests reconciling mismatched values
+func TestReconcileValueMismatch(t *testing.T) {
+	s := setupRedis()
+	ts0 := time.Now()
+	ts1 := ts0.Add(time.Duration(-3000))
+	expected := NewString("a", ts0)
+	vmap := map[string]store.Value {
+		"0": expected,
+		"1": NewString("b", ts1),
+		"2": expected,
+	}
+
+	rawval, adjustments, err := s.Reconcile("k", vmap)
+
+	if err != nil {
+		t.Fatalf("unexpected reconciliation error: %v", err)
+	}
+
+	actual, ok := rawval.(*String)
+	if !ok {
+		t.Fatalf("unexpected reconciled value type: %T", rawval)
+	}
+
+	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
+	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
+
+	instructions, ok := adjustments["1"]
+	if !ok {
+		t.Fatalf("instruction set for '1' not found")
+	}
+	testing_helpers.AssertEqual(t, "num instructions", 1, len(instructions))
+
+	instruction := instructions[0]
+	testing_helpers.AssertEqual(t, "instruction cmd", "SET", instruction.Cmd)
+	testing_helpers.AssertEqual(t, "instruction key", "k", instruction.Key)
+	testing_helpers.AssertEqual(t, "instruction arg size", 1, len(instruction.Args))
+	testing_helpers.AssertEqual(t, "instruction arg", "a", instruction.Args[0])
+	testing_helpers.AssertEqual(t, "instruction ts", ts0, instruction.Timestamp)
+}
+
+// tests that attempting to reconcile an empty map
+// returns an error
+func TestReconcilingEmptyMap(t *testing.T) {
+
+}
+
+// tests reconciling a value map with only a single element
+func TestReconcileSingleValue(t *testing.T) {
+
+}
+

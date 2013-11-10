@@ -101,8 +101,46 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 
 // reconciles multiple values and returns instructions for correcting
 // the values on inaccurate nodes
-func (s *Redis) Reconcile(values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
-	_ = values
+func (s *Redis) Reconcile(key string, values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
+	switch len(values){
+	case 0:
+		return nil, nil, fmt.Errorf("At least one value must be provided")
+	case 1:
+		var val store.Value
+		for _, v := range values { val = v }
+		return val, nil, nil
+	default:
+		// check for inconsistencies
+		// and record the highest timestamp and it's value type
+		var last store.Value
+		var highTimeStamp time.Time
+		var highValueType store.ValueType
+		count := 0
+		reconcile := false
+		for _, val := range values {
+			if count > 0 { reconcile = reconcile || val != last }
+			last = val
+			count++
+
+			if ts := val.GetTimestamp(); ts.After(highTimeStamp) {
+				highTimeStamp = ts
+				highValueType = val.GetValueType()
+			}
+		}
+
+		if reconcile {
+			switch highValueType {
+			case STRING_VALUE:
+				//
+				return reconcileString(key, values)
+			case TOMBSTONE_VALUE:
+				//
+			default:
+				return nil, nil, fmt.Errorf("Unknown value type: %v", highValueType)
+
+			}
+		}
+	}
 	return nil, make(map[string][]*store.Instruction), nil
 }
 
