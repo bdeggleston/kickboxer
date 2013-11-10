@@ -33,3 +33,14 @@ func TestBooleanValue(t *testing.T) {
 		testing_helpers.AssertEqual(t, "time", src.time, dst.time)
 	}
 }
+
+// tests the boolean value's equality method
+func TestBooleanEquality(t *testing.T) {
+	t0 := time.Now()
+	v0 := NewBoolean(true, t0)
+
+	testing_helpers.AssertEqual(t, "equal value", true, v0.Equal(NewBoolean(true, t0)))
+	testing_helpers.AssertEqual(t, "unequal timestamp", false, v0.Equal(NewBoolean(true, t0.Add(4))))
+	testing_helpers.AssertEqual(t, "unequal value", false, v0.Equal(NewBoolean(false, t0)))
+	testing_helpers.AssertEqual(t, "unequal type", false, v0.Equal(NewString("asdf", t0)))
+}

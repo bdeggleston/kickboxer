@@ -33,6 +33,13 @@ func (v *Boolean) GetValueType() store.ValueType {
 	return BOOL_VALUE
 }
 
+func (v *Boolean) Equal(o store.Value) bool {
+	if !baseValueEqual(v, o) { return false }
+	other := o.(*Boolean)
+	if v.value != other.value { return false }
+	return true
+}
+
 func (v *Boolean) Serialize(buf *bufio.Writer) error {
 	var b byte
 	if v.value { b = 0xff }
