@@ -48,6 +48,14 @@ func ReadValue(buf io.Reader) (store.Value, store.ValueType, error) {
 	return value, vtype, nil
 }
 
+// ----------- equality helpers -----------
+
+func baseValueEqual(v0, v1 store.Value) bool {
+	if v0.GetValueType() != v1.GetValueType() { return false }
+	if v0.GetTimestamp() != v1.GetTimestamp() { return false }
+	return true
+}
+
 // ----------- reconcile helpers -----------
 
 // returns the value with the highest timestamp
