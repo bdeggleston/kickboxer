@@ -101,6 +101,14 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 
 // reconciles multiple values and returns instructions for correcting
 // the values on inaccurate nodes
+//
+// Reconcile should handle value maps with one value without hitting
+// a value type specific reconciliation function
+//
+// value type specific reconciliation functions should be able to handle
+// getting unfamiliar types, but can operate under the assumption that if
+// they're being called, the oldest timestamp of the given values belongs
+// to a value of it's type.
 func (s *Redis) Reconcile(key string, values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
 	switch len(values){
 	case 0:
