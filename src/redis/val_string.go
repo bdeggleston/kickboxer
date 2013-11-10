@@ -11,21 +11,21 @@ import (
 // a single value used for
 // key/val types
 type String struct {
-	data string
+	value string
 	time time.Time
 }
 
 // single value constructor
-func NewString(data string, time time.Time) *String {
+func NewString(value string, time time.Time) *String {
 	v := &String{
-		data:data,
+		value:value,
 		time:time,
 	}
 	return v
 }
 
 func (v *String) GetValue() string {
-	return v.data
+	return v.value
 }
 
 func (v *String) GetTimestamp() time.Time {
@@ -39,12 +39,12 @@ func (v *String) GetValueType() store.ValueType {
 func (v *String) Equal(o store.Value) bool {
 	if !baseValueEqual(v, o) { return false }
 	other := o.(*String)
-	if v.data != other.data { return false }
+	if v.value != other.value { return false }
 	return true
 }
 
 func (v *String) Serialize(buf *bufio.Writer) error {
-	if err := serializer.WriteFieldBytes(buf, []byte(v.data)); err != nil {
+	if err := serializer.WriteFieldBytes(buf, []byte(v.value)); err != nil {
 		return err
 	}
 	if err := serializer.WriteTime(buf, v.time); err != nil {
@@ -60,7 +60,7 @@ func (v *String) Deserialize(buf *bufio.Reader) error {
 	if val, err := serializer.ReadFieldBytes(buf); err != nil {
 		return err
 	} else {
-		v.data = string(val)
+		v.value = string(val)
 	}
 
 	if t, err := serializer.ReadTime(buf); err != nil {
@@ -80,7 +80,7 @@ func reconcileString(key string, highValue *String, values map[string]store.Valu
 			instructions[nodeid] = []*store.Instruction{&store.Instruction{
 				Cmd:"SET",
 				Key:key,
-				Args:[]string{highValue.data},
+				Args:[]string{highValue.value},
 				Timestamp:highValue.time,
 			}}
 		}

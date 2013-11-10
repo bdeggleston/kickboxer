@@ -30,7 +30,7 @@ func TestStringValue(t *testing.T) {
 		t.Fatalf("Unexpected value type: %T", val)
 	}
 
-	testing_helpers.AssertEqual(t, "data", src.data, dst.data)
+	testing_helpers.AssertEqual(t, "value", src.value, dst.value)
 	testing_helpers.AssertEqual(t, "time", src.time, dst.time)
 }
 
