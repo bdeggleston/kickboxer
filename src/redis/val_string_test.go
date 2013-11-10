@@ -139,3 +139,14 @@ func TestStringNoOpReconciliation(t *testing.T) {
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 0, len(adjustments))
 }
+
+// tests the boolean value's equality method
+func TestStringEquality(t *testing.T) {
+	t0 := time.Now()
+	v0 := NewString("abc", t0)
+
+	testing_helpers.AssertEqual(t, "equal value", true, v0.Equal(NewString("abc", t0)))
+	testing_helpers.AssertEqual(t, "unequal timestamp", false, v0.Equal(NewString("abc", t0.Add(4))))
+	testing_helpers.AssertEqual(t, "unequal value", false, v0.Equal(NewString("def", t0)))
+	testing_helpers.AssertEqual(t, "unequal type", false, v0.Equal(NewTombstone(t0)))
+}

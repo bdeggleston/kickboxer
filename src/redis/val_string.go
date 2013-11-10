@@ -36,6 +36,13 @@ func (v *String) GetValueType() store.ValueType {
 	return STRING_VALUE
 }
 
+func (v *String) Equal(o store.Value) bool {
+	if !baseValueEqual(v, o) { return false }
+	other := o.(*String)
+	if v.data != other.data { return false }
+	return true
+}
+
 func (v *String) Serialize(buf *bufio.Writer) error {
 	if err := serializer.WriteFieldBytes(buf, []byte(v.data)); err != nil {
 		return err
