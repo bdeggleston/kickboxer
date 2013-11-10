@@ -29,6 +29,10 @@ func (v *Tombstone) GetValueType() store.ValueType {
 	return TOMBSTONE_VALUE
 }
 
+func (v *Tombstone) Equal(o store.Value) bool {
+	return baseValueEqual(v, o)
+}
+
 func (v *Tombstone) Serialize(buf *bufio.Writer) error {
 	if err := serializer.WriteTime(buf, v.time); err != nil {
 		return err

@@ -137,3 +137,13 @@ func TestTombstoneNoOpReconciliation(t *testing.T) {
 	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 0, len(adjustments))
 }
+
+// tests the tombstone value's equality method
+func TestTombstoneEquality(t *testing.T) {
+	t0 := time.Now()
+	v0 := NewTombstone(t0)
+
+	testing_helpers.AssertEqual(t, "equal value", true, v0.Equal(NewTombstone(t0)))
+	testing_helpers.AssertEqual(t, "unequal timestamp", false, v0.Equal(NewTombstone(t0.Add(4))))
+	testing_helpers.AssertEqual(t, "unequal type", false, v0.Equal(NewString("asdf", t0)))
+}
