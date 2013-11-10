@@ -75,8 +75,7 @@ func reconcileString(key string, highValue *String, values map[string]store.Valu
 	// create instructions for the unequal nodes
 	instructions := make(map[string][]*store.Instruction)
 	for nodeid, val := range values {
-		// TODO: use Value.Equal() method
-		if val != highValue {
+		if !highValue.Equal(val) {
 			instructions[nodeid] = []*store.Instruction{&store.Instruction{
 				Cmd:"SET",
 				Key:key,

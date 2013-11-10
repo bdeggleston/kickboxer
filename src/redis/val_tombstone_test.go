@@ -59,8 +59,7 @@ func TestTombstoneMismatchReconciliation(t *testing.T) {
 	actual, ok := ractual.(*Tombstone)
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
-	// TODO: use value equal method instead
-	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
+	assertEqualValue(t, "reconciled value", expected, actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
 
 	instructions, ok := adjustments["1"]
@@ -96,8 +95,7 @@ func TestTombstoneMultiTypeReconciliation(t *testing.T) {
 	actual, ok := ractual.(*Tombstone)
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
-	// TODO: use value equal method instead
-	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
+	assertEqualValue(t, "reconciled value", expected, actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
 
 	instructions, ok := adjustments["1"]
@@ -133,8 +131,7 @@ func TestTombstoneNoOpReconciliation(t *testing.T) {
 	actual, ok := ractual.(*Tombstone)
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
-	// TODO: use value equal method instead
-	testing_helpers.AssertEqual(t, "reconciled value", *expected, *actual)
+	assertEqualValue(t, "reconciled value", expected, actual)
 	testing_helpers.AssertEqual(t, "adjustment size", 0, len(adjustments))
 }
 
