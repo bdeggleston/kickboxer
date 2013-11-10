@@ -15,6 +15,9 @@ type Value interface {
 
 	Serialize(buf *bufio.Writer) error
 	Deserialize(buf *bufio.Reader) error
+
+	// TODO: equal method:
+//	Equal(value Value)
 }
 
 type Instruction struct {
@@ -22,6 +25,18 @@ type Instruction struct {
 	Key string
 	Args []string
 	Timestamp time.Time
+}
+
+// instruction equality test
+func (i *Instruction) Equal(o *Instruction) bool {
+	if i.Cmd != o.Cmd { return false }
+	if i.Key != o.Key { return false }
+	if len(i.Args) != len(o.Args) { return false }
+	for n:=0;n<len(i.Args);n++ {
+		if i.Args[n] != o.Args[n] { return false}
+	}
+	if i.Timestamp != o.Timestamp { return false }
+	return true
 }
 
 type Store interface {
