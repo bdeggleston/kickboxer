@@ -16,8 +16,8 @@ type Value interface {
 	Serialize(buf *bufio.Writer) error
 	Deserialize(buf *bufio.Reader) error
 
-	// TODO: equal method:
-//	Equal(value Value)
+	// compares 2 Values
+	Equal(value Value) bool
 }
 
 type Instruction struct {
