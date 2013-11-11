@@ -12,10 +12,15 @@ import (
 	"time"
 )
 
+import (
+	"kvstore"
+)
+
 // ----------------- cluster setup -----------------
 
 func setupCluster() *Cluster {
 	c, err := NewCluster(
+		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
@@ -51,6 +56,7 @@ func setupRing() *Ring {
 // makes a ring of the given size, with the tokens evenly spaced
 func makeRing(size int, replicationFactor uint32) *Cluster {
 	c, err := NewCluster(
+		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,0,0,0}),
@@ -67,6 +73,35 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		n := newMockNode(
 			NewNodeId(),
 			Token([]byte{0,0,byte(i),0}),
+			fmt.Sprintf("N%v", i),
+		)
+		c.addNode(n)
+	}
+
+	return c
+}
+
+// makes a ring of the given size, with the tokens evenly spaced
+func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
+	partitioner := literalPartitioner{}
+	c, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.1:9999",
+		"Test Cluster",
+		Token([]byte{0,0,0,0}),
+		NewNodeId(),
+		replicationFactor,
+		partitioner,
+		nil,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
+	}
+
+	for i:=1; i<size; i++ {
+		n := newMockNode(
+			NewNodeId(),
+			partitioner.GetToken(fmt.Sprint(i * 1000)),
 			fmt.Sprintf("N%v", i),
 		)
 		c.addNode(n)

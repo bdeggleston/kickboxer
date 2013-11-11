@@ -6,6 +6,10 @@ import (
 	"testing_helpers"
 )
 
+import (
+	"kvstore"
+)
+
 var (
 	originalNewRemoteNode = newRemoteNode
 )
@@ -28,6 +32,7 @@ func TestClusterSetup(t *testing.T) {
 // factor returns an error
 func TestInvalidReplicationFactor(t *testing.T) {
 	c, err := NewCluster(
+		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
@@ -48,6 +53,7 @@ func TestInvalidReplicationFactor(t *testing.T) {
 
 func TestInvalidPartitioner(t *testing.T) {
 	c, err := NewCluster(
+		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
@@ -215,7 +221,17 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 	seeds := []string{"127.0.0.2:9999", "127.0.0.3:9999"}
 
 	token := Token([]byte{0,0,1,0})
-	cluster, err := NewCluster("127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), seeds)
+	cluster, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.1:9999",
+		"TestCluster",
+		token,
+		NewNodeId(),
+		3,
+		NewMD5Partitioner(),
+		seeds,
+	)
+
 	if err != nil {
 		t.Fatalf("Unexpected error in cluster creation: %v", err)
 	}
@@ -281,7 +297,16 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 	defer tearDownNewRemoteNode()
 
 	token := Token([]byte{0,0,0,0})
-	cluster, err := NewCluster("127.0.0.0:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
+	cluster, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.0:9999",
+		"TestCluster",
+		token,
+		NewNodeId(),
+		3,
+		NewMD5Partitioner(),
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("Unexpected error in cluster creation: %v", err)
 	}
@@ -381,7 +406,7 @@ func TestPeerDiscoverySeedFailure(t *testing.T) {
 	seeds := []string{"127.0.0.2:9999", "127.0.0.3:9999"}
 
 	token := Token([]byte{0,0,1,0})
-	cluster, err := NewCluster("127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), seeds)
+	cluster, err := NewCluster(kvstore.NewKVStore(), "127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), seeds)
 	if err != nil {
 		t.Fatalf("Unexpected error in cluster creation: %v", err)
 	}
@@ -403,7 +428,7 @@ func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 	defer tearDownNewRemoteNode()
 
 	token := Token([]byte{0,0,0,0})
-	cluster, err := NewCluster("127.0.0.0:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
+	cluster, err := NewCluster(kvstore.NewKVStore(), "127.0.0.0:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
 	if err != nil {
 		t.Fatalf("Unexpected error in cluster creation: %v", err)
 	}

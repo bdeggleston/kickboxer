@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+import (
+	"store"
+)
+
 type Token []byte
 
 type ClusterStatus string
@@ -47,6 +51,9 @@ func (ns *nodeSorter) Swap(i, j int) {
 
 
 type Cluster struct {
+	// the local store
+	store store.Store
+
 	// nodes addressed to communicate with to
 	// discover the rest of the cluster
 	seeds []string
@@ -70,6 +77,8 @@ type Cluster struct {
 }
 
 func NewCluster(
+	// the local store
+	store store.Store,
 	// the address the peer server will be listening on
 	addr string,
 	// the name of this local node
@@ -88,6 +97,7 @@ func NewCluster(
 ) (*Cluster, error) {
 	//
 	c := &Cluster{}
+	c.store = store
 	c.status = CLUSTER_INITIALIZING
 	c.peerAddr = addr
 	c.name = name
@@ -287,7 +297,8 @@ func (c *Cluster) streamFromNode(n Node) error {
 	return nil
 }
 
-// streams the data to the given node
+// streams keys that are owned/replicated
+// by the given node to it
 func (c *Cluster) streamToNode(n Node) {
 	//
 }
@@ -322,7 +333,7 @@ func (c *Cluster) JoinCluster() error {
 		panic("node at index is not the local node")
 	}
 
-	stream_from := ring[idx % len(ring)]
+	stream_from := ring[(idx - 1) % len(ring)]
 	c.streamFromNode(stream_from)
 	return nil
 }
