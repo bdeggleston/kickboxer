@@ -24,6 +24,8 @@ const (
 	STREAM_RESPONSE = uint32(402)
 	STREAM_COMPLETE_REQUEST = uint32(403)
 	STREAM_COMPLETE_RESPONSE = uint32(404)
+	STREAM_DATA_REQUEST = uint32(405)
+	STREAM_DATA_RESPONSE = uint32(406)
 
 	//internal messages
 	close_connection = uint32(0xffffff01)
@@ -450,6 +452,17 @@ type StreamCompleteResponse struct { }
 func (m *StreamCompleteResponse) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamCompleteResponse) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamCompleteResponse) GetType() uint32 { return STREAM_COMPLETE_RESPONSE }
+
+type StreamData struct {
+	Key string
+	Data []byte
+}
+// sends arbitrary byte data from one
+type StreamDataRequest struct {
+	Data []StreamData
+}
+
+type StreamDataResponse struct {}
 
 // ----------- read / write functions -----------
 
