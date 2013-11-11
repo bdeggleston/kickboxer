@@ -103,7 +103,7 @@ func NewCluster(
 	c.name = name
 	c.token = token
 	c.nodeId = nodeId
-	c.localNode = NewLocalNode(c.nodeId, c.token, c.name)
+	c.localNode = NewLocalNode(c.nodeId, c.token, c.name, c.store)
 
 	c.peerServer = NewPeerServer(c, c.peerAddr)
 

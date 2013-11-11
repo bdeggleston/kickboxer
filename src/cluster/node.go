@@ -3,9 +3,12 @@ package cluster
 import (
 	"fmt"
 	"time"
-	"store"
 
 	"code.google.com/p/go-uuid/uuid"
+)
+
+import (
+	"store"
 )
 
 type NodeStatus string
@@ -84,12 +87,13 @@ type LocalNode struct {
 	isStarted bool
 }
 
-func NewLocalNode(id NodeId, token Token, name string) (*LocalNode) {
+func NewLocalNode(id NodeId, token Token, name string, store store.Store) (*LocalNode) {
 	//
 	n := &LocalNode{}
 	n.id = id
 	n.token = token
 	n.name = name
+	n.store = store
 	n.status = NODE_UP
 	return n
 }
