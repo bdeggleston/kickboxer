@@ -13,22 +13,6 @@ var (
 func tearDownNewRemoteNode() {
 	newRemoteNode = originalNewRemoteNode
 }
-
-func setupCluster() *Cluster {
-	c, err := NewCluster(
-		"127.0.0.1:9999",
-		"Test Cluster",
-		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
-		NewNodeId(),
-		3,
-		NewMD5Partitioner(),
-		nil,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
-	}
-	return c
-}
 // tests the cluster constructor works as expected
 // and all of it's basic methods return the proper
 // values
@@ -130,36 +114,9 @@ func TestSelfNodeIsNotReturned(t *testing.T) {
 
 /************** key routing tests **************/
 
-// makes a ring of the given size, with the tokens evenly spaced
-func makeRing(size int, replicationFactor uint32) *Cluster {
-	c, err := NewCluster(
-		"127.0.0.1:9999",
-		"Test Cluster",
-		Token([]byte{0,0,0,0}),
-		NewNodeId(),
-		replicationFactor,
-		NewMD5Partitioner(),
-		nil,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Unexpected error instantiating cluster: %v", err))
-	}
-
-	for i:=1; i<size; i++ {
-		n := newMockNode(
-			NewNodeId(),
-			Token([]byte{0,0,byte(i),0}),
-			fmt.Sprintf("N%v", i),
-		)
-		c.addNode(n)
-	}
-
-	return c
-}
-
 // tests that the number of nodes returned matches the replication factor
 func TestReplicationFactor(t *testing.T) {
-
+	t.Skipf("check number of nodes returned matches replication factor")
 }
 
 /************** startup tests **************/

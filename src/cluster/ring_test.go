@@ -9,22 +9,6 @@ import (
 	"testing_helpers"
 )
 
-// returns a ring with 10 nodes
-func setupRing() *Ring {
-	r := NewRing()
-
-	for i:=0; i<10; i++ {
-		n := newMockNode(
-			NewNodeId(),
-			Token([]byte{0,0,byte(i),0}),
-			fmt.Sprintf("N%v", i),
-		)
-		r.AddNode(n)
-	}
-
-	return r
-}
-
 /************** GetNode tests **************/
 
 func TestGetUnknownNode_(t *testing.T) {
@@ -100,7 +84,7 @@ func TestAddingExistingNodeToRing(t *testing.T) {
 	testing_helpers.AssertEqual(t, "ring size", 10, len(ring.tokenRing))
 }
 
-/************** AddNode tests **************/
+/************** AllNodes tests **************/
 
 func TestAllNodes(t *testing.T) {
 	ring := setupRing()
