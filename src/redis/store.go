@@ -126,7 +126,7 @@ func (s *Redis) Reconcile(key string, values map[string] store.Value) (store.Val
 		case TOMBSTONE_VALUE:
 			return reconcileTombstone(key, highValue.(*Tombstone), values)
 		default:
-			return nil, nil, fmt.Errorf("Unknown value type: %T", highValue)
+			return nil, make(map[string][]*store.Instruction), fmt.Errorf("Unknown value type: %T", highValue)
 		}
 	}
 	return nil, make(map[string][]*store.Instruction), nil
