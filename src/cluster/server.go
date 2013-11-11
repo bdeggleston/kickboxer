@@ -32,8 +32,22 @@ func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType 
 
 	case READ_REQUEST:
 		//
+
 	case WRITE_REQUEST:
 		//
+
+	case STREAM_REQUEST:
+		//
+		node, err := s.cluster.ring.GetNode(nodeId)
+		if err != nil {
+			return nil, err
+		}
+		go s.cluster.streamToNode(node)
+		return &StreamResponse{}, nil
+
+	case STREAM_COMPLETE_REQUEST:
+		//
+
 	default:
 		return nil, fmt.Errorf("unexpected message type: %T", request)
 	}

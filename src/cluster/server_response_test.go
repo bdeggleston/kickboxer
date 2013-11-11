@@ -27,4 +27,8 @@ func TestServerDiscoverPeersResponse(t *testing.T) {
 	testing_helpers.AssertEqual(t, "num peers", len(c.getPeerData()), len(peerResponse.Peers))
 }
 
+func TestStreamRequestResonse(t *testing.T) {
+
+}
+
 
