@@ -299,8 +299,43 @@ func (c *Cluster) streamFromNode(n Node) error {
 
 // streams keys that are owned/replicated
 // by the given node to it
-func (c *Cluster) streamToNode(n Node) {
+func (c *Cluster) streamToNode(n Node) error {
 	//
+	node := n.(*RemoteNode)
+
+	// determins if the given key is replicated by
+	// the destination node
+	replicates:= func(key string) bool {
+		for _, rnode := range c.GetNodesForKey(key) {
+			if rnode.GetId() == node.GetId() {
+				return true
+			}
+		}
+		return false
+	}
+
+	// iterate over the keys and send replicated k/v
+	for _, key := range c.store.GetKeys() {
+		if replicates(key) {
+			val, err := c.store.GetRawKey(key)
+			if err != nil { return err }
+			valBytes, err := c.store.SerializeValue(val)
+			if err != nil { return err }
+			sd := &StreamData{Key:key, Data:valBytes}
+			msg := &StreamDataRequest{Data:[]*StreamData{sd}}
+			response := node.sendMessage(msg)
+			if response.GetType() != STREAM_DATA_RESPONSE {
+				return fmt.Errorf("Expected StreamDataResponse, got %T", response)
+			}
+		}
+	}
+
+	// notify remote node that streaming is completed
+	response := node.sendMessage(&StreamCompleteRequest{})
+	if response.GetType() != STREAM_COMPLETE_RESPONSE {
+		return fmt.Errorf("Expected StreamCompleteRequest, got %T", response)
+	}
+	return nil
 }
 
 /************** node changes **************/
