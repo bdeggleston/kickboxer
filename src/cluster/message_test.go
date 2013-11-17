@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bytes"
+	"bufio"
 	"fmt"
 	"testing"
 	"time"
@@ -401,4 +402,23 @@ func TestStreamCompleteResponse(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected message type %T", msg)
 	}
+}
+
+func TestStreamDataStruct(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &StreamData{Key:"blake", Data:[]byte("eggleston")}
+	src.Serialize(bufio.NewWriter(buf))
+	dst := &StreamData{}
+	dst.Deserialize(bufio.NewReader(buf))
+
+	testing_helpers.AssertEqual(t, "Key", src.Key, dst.Key)
+	testing_helpers.AssertSliceEqual(t, "Data", src.Data, dst.Data)
+}
+
+func TestStreamDataRequest(t *testing.T) {
+
+}
+
+func TestStreamDataResponse(t *testing.T) {
+
 }

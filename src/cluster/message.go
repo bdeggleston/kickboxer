@@ -457,6 +457,24 @@ type StreamData struct {
 	Key string
 	Data []byte
 }
+
+func (m *StreamData) Serialize(buf *bufio.Writer) error {
+	if err := writeFieldBytes(buf, []byte(m.Key)); err != nil { return err }
+	if err := writeFieldBytes(buf, m.Data); err != nil { return err }
+	if err := buf.Flush(); err != nil { return err }
+	return nil
+}
+
+func (m *StreamData) Deserialize(buf *bufio.Reader) error {
+	if b, err := readFieldBytes(buf); err != nil { return err } else {
+		m.Key = string(b)
+	}
+	if b, err := readFieldBytes(buf); err != nil { return err } else {
+		m.Data = b
+	}
+	return nil
+}
+
 // sends arbitrary byte data from one
 type StreamDataRequest struct {
 	Data []StreamData
