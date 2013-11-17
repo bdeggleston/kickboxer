@@ -99,11 +99,8 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 	}
 
 	for i:=1; i<size; i++ {
-		n := newMockNode(
-			NewNodeId(),
-			partitioner.GetToken(fmt.Sprint(i * 1000)),
-			fmt.Sprintf("N%v", i),
-		)
+		n := NewRemoteNode(fmt.Sprint("127.0.0.%v", i+2), c)
+		n.isStarted = true
 		c.addNode(n)
 	}
 
@@ -310,10 +307,10 @@ func newBiConn(numIn, numOut int) *biConn {
 	for i:=0;i<numIn;i++ {
 		c.input[i] = &bytes.Buffer{}
 }
-for i:=0;i<numOut;i++ {
-c.output[i] = &bytes.Buffer{}
-}
-return c
+	for i:=0;i<numOut;i++ {
+		c.output[i] = &bytes.Buffer{}
+	}
+	return c
 }
 
 func (c *biConn) Read(b []byte) (int, error) {
@@ -327,4 +324,65 @@ func (c *biConn) Write(b []byte) (int, error) {
 	c.outIdx++
 	return num, err
 }
+
+// successor to the bi conn. a bit easier to work with
+type pgmConn struct {
+	fakeConn
+	incoming []Message
+	outgoing []Message
+	outputFactory func(*pgmConn) Message
+}
+
+func newPgmConn() *pgmConn {
+	p := &pgmConn{}
+	p.incoming = make([]Message, 0, 10)
+	p.outgoing = make([]Message, 0, 10)
+	return p
+}
+
+// reads outgoing messages to the receiver
+func (c *pgmConn) Read(b []byte) (int, error) {
+	var msg Message
+	if c.outputFactory != nil {
+		msg = c.outputFactory(c)
+	} else {
+		msg = c.outgoing[0]
+		c.outgoing = c.outgoing[1:]
+	}
+
+	buf := &bytes.Buffer{}
+	if err := WriteMessage(buf, msg); err != nil { panic(err) }
+
+	num, err := buf.Read(b)
+	return num, err
+}
+
+// writes incoming messages
+func (c *pgmConn) Write(b []byte) (int, error) {
+	buf := &bytes.Buffer{}
+	num, err := buf.Write(b)
+	msg, _, err := ReadMessage(buf)
+	if err != nil { panic(err) }
+
+	if c.incoming == nil {
+		c.incoming = make([]Message, 0, 10)
+	}
+	c.incoming = append(c.incoming, msg)
+	return num, err
+}
+
+func (c *pgmConn) getIncomingMessages() []Message {
+	msgs := c.incoming
+	c.incoming = make([]Message, 9, 10)
+	return msgs
+}
+
+func (c *pgmConn) addOutgoingMessage(m Message) {
+	if c.outgoing == nil {
+		c.outgoing = make([]Message, 0, 10)
+	}
+	c.outgoing = append(c.outgoing, m)
+}
+
+
 
