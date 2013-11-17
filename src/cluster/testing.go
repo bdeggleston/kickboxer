@@ -195,12 +195,12 @@ func (p literalPartitioner) GetToken(key string) Token {
 		panic(fmt.Sprintf("The given key is a negative number: %v", key))
 	}
 	uval := uint64(val)
-	b := make([]byte, 8)
-	buf := bytes.NewBuffer(b)
+	buf := &bytes.Buffer{}
 
 	if err := binary.Write(buf, binary.LittleEndian, &uval); err != nil {
 		panic(fmt.Sprintf("There was an error encoding the token: %v", err))
 	}
+	b := buf.Bytes()
 	if len(b) != 8 {
 		panic(fmt.Sprintf("Expected token length of 8, got: %v", len(b)))
 	}
