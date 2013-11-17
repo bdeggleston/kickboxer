@@ -477,10 +477,37 @@ func (m *StreamData) Deserialize(buf *bufio.Reader) error {
 
 // sends arbitrary byte data from one
 type StreamDataRequest struct {
-	Data []StreamData
+	Data []*StreamData
 }
 
+func (m *StreamDataRequest) Serialize(buf *bufio.Writer) error {
+	size := uint32(len(m.Data))
+	if err := binary.Write(buf, binary.LittleEndian, &size); err != nil { return err }
+	for i:=0;i<int(size);i++ {
+		if err := m.Data[i].Serialize(buf); err != nil { return err }
+	}
+	buf.Flush()
+	return nil
+}
+
+func (m *StreamDataRequest) Deserialize(buf *bufio.Reader) error {
+	var size uint32
+	if err := binary.Read(buf, binary.LittleEndian, &size); err != nil { return err }
+
+	m.Data = make([]*StreamData, size)
+	for i:=0;i<int(size);i++ {
+		m.Data[i] = &StreamData{}
+		if err := m.Data[i].Deserialize(buf); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *StreamDataRequest) GetType() uint32 { return STREAM_DATA_REQUEST }
+
 type StreamDataResponse struct {}
+func (m *StreamDataResponse) Serialize(*bufio.Writer) error { return nil }
+func (m *StreamDataResponse) Deserialize(*bufio.Reader) error { return nil }
+func (m *StreamDataResponse) GetType() uint32 { return STREAM_DATA_RESPONSE }
 
 // ----------- read / write functions -----------
 
@@ -528,6 +555,10 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &StreamCompleteRequest{}
 	case STREAM_COMPLETE_RESPONSE:
 		msg = &StreamCompleteResponse{}
+	case STREAM_DATA_REQUEST:
+		msg = &StreamDataRequest{}
+	case STREAM_DATA_RESPONSE:
+		msg = &StreamDataResponse{}
 	case close_connection:
 		msg = &closeConnection{}
 	default:

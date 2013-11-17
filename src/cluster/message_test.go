@@ -416,9 +416,59 @@ func TestStreamDataStruct(t *testing.T) {
 }
 
 func TestStreamDataRequest(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &StreamDataRequest{Data:[]*StreamData{
+		&StreamData{Key:"blake", Data:[]byte("eggleston")},
+		&StreamData{Key:"travis", Data:[]byte("eggleston")},
+		&StreamData{Key:"cameron", Data:[]byte("eggleston")},
+	}}
+	// interface check
+	messageInterfaceCheck(src)
+
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != STREAM_DATA_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	dst, ok := msg.(*StreamDataRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
+	testing_helpers.AssertEqual(t, "data len" , len(src.Data), len(dst.Data))
+	for i:=0; i<3; i++ {
+		testing_helpers.AssertEqual(t, "Key", src.Data[i].Key, dst.Data[i].Key)
+		testing_helpers.AssertSliceEqual(t, "Data", src.Data[i].Data, dst.Data[i].Data)
+	}
 
 }
 
 func TestStreamDataResponse(t *testing.T) {
+	buf := &bytes.Buffer{}
+	src := &StreamDataResponse{}
+
+	// interface check
+	messageInterfaceCheck(src)
+
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != STREAM_DATA_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	_, ok := msg.(*StreamDataResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
 
 }
