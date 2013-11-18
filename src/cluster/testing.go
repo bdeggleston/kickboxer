@@ -99,7 +99,14 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 	}
 
 	for i:=1; i<size; i++ {
-		n := NewRemoteNode(fmt.Sprint("127.0.0.%v", i+2), c)
+		token := partitioner.GetToken(fmt.Sprintf("%v", i * 1000))
+		n := NewRemoteNodeInfo(
+			NewNodeId(),
+			token,
+			fmt.Sprintf("N%v", i),
+			fmt.Sprint("127.0.0.%v", i+2),
+			c,
+		)
 		n.isStarted = true
 		c.addNode(n)
 	}
