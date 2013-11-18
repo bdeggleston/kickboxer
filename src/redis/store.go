@@ -94,7 +94,7 @@ func (s *Redis) ExecuteWrite(cmd string, key string, args []string, timestamp ti
 		if err := s.validateDel(key, args, timestamp); err != nil { return nil, err }
 		return s.del(key, timestamp)
 	default:
-		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
+		return nil, fmt.Errorf("Unrecognized write command: %v", cmd)
 	}
 	return nil, nil
 }
