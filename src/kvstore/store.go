@@ -94,7 +94,7 @@ func (s *KVStore) ExecuteWrite(cmd string, key string, args []string, timestamp 
 		if err := s.validateDel(key, args, timestamp); err != nil { return nil, err }
 		return s.del(key, timestamp)
 	default:
-		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
+		return nil, fmt.Errorf("Unrecognized write command: %v", cmd)
 	}
 	return nil, nil
 }
@@ -169,11 +169,9 @@ func (s *KVStore) SetRawKey(key string, val store.Value) error {
 // returns all of the keys held by the store, including keys containing
 // tombstones
 func (s *KVStore) GetKeys() []string {
-	var i int
-	keys := make([]string, len(s.data))
-	for key, _ := range s.data {
-		keys[i] = key
-		i ++
+	keys := make([]string, 0, len(s.data))
+	for key := range s.data {
+		keys = append(keys, key)
 	}
 	return keys
 }
