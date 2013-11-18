@@ -88,7 +88,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,0,0,0}),
+		partitioner.GetToken("0000"),
 		NewNodeId(),
 		replicationFactor,
 		partitioner,
@@ -99,12 +99,13 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 	}
 
 	for i:=1; i<size; i++ {
-		token := partitioner.GetToken(fmt.Sprintf("%v", i * 1000))
+		tkey := fmt.Sprintf("%04v", i * 1000)
+		token := partitioner.GetToken(tkey)
 		n := NewRemoteNodeInfo(
 			NewNodeId(),
 			token,
 			fmt.Sprintf("N%v", i),
-			fmt.Sprint("127.0.0.%v", i+2),
+			fmt.Sprintf("127.0.0.%v:9999", i+2),
 			c,
 		)
 		n.isStarted = true
@@ -204,7 +205,7 @@ func (p literalPartitioner) GetToken(key string) Token {
 	uval := uint64(val)
 	buf := &bytes.Buffer{}
 
-	if err := binary.Write(buf, binary.LittleEndian, &uval); err != nil {
+	if err := binary.Write(buf, binary.BigEndian, &uval); err != nil {
 		panic(fmt.Sprintf("There was an error encoding the token: %v", err))
 	}
 	b := buf.Bytes()
@@ -379,9 +380,7 @@ func (c *pgmConn) Write(b []byte) (int, error) {
 }
 
 func (c *pgmConn) getIncomingMessages() []Message {
-	msgs := c.incoming
-	c.incoming = make([]Message, 9, 10)
-	return msgs
+	return c.incoming
 }
 
 func (c *pgmConn) addOutgoingMessage(m Message) {
