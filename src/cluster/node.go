@@ -165,9 +165,7 @@ func NewRemoteNodeInfo(id NodeId, token Token, name string, addr string, cluster
 func (n *RemoteNode) Start() error {
 	// connect to the node and get it's info
 	conn, err := n.getConnection()
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 	n.pool.Put(conn)
 	n.status = NODE_UP
 	n.isStarted = true
@@ -244,11 +242,13 @@ func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
 	// receive the message
 	response, messageType, err := ReadMessage(conn)
 	if err != nil {
+		conn.Close()
 		n.status = NODE_DOWN
 		return nil, 0, err
 	}
 
 	n.status = NODE_UP
+	n.pool.Put(conn)
 	return response, messageType, nil
 }
 
