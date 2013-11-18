@@ -303,10 +303,11 @@ func (c *Cluster) streamToNode(n Node) error {
 	//
 	node := n.(*RemoteNode)
 
-	// determins if the given key is replicated by
+	// determines if the given key is replicated by
 	// the destination node
 	replicates:= func(key string) bool {
-		for _, rnode := range c.GetNodesForKey(key) {
+		nodes := c.GetNodesForKey(key)
+		for _, rnode := range nodes {
 			if rnode.GetId() == node.GetId() {
 				return true
 			}
@@ -315,7 +316,8 @@ func (c *Cluster) streamToNode(n Node) error {
 	}
 
 	// iterate over the keys and send replicated k/v
-	for _, key := range c.store.GetKeys() {
+	keys := c.store.GetKeys()
+	for _, key := range keys {
 		if replicates(key) {
 			val, err := c.store.GetRawKey(key)
 			if err != nil { return err }
@@ -323,7 +325,8 @@ func (c *Cluster) streamToNode(n Node) error {
 			if err != nil { return err }
 			sd := &StreamData{Key:key, Data:valBytes}
 			msg := &StreamDataRequest{Data:[]*StreamData{sd}}
-			response := node.sendMessage(msg)
+			response , _, err := node.sendMessage(msg)
+			if err != nil { return err }
 			if response.GetType() != STREAM_DATA_RESPONSE {
 				return fmt.Errorf("Expected StreamDataResponse, got %T", response)
 			}
@@ -331,7 +334,8 @@ func (c *Cluster) streamToNode(n Node) error {
 	}
 
 	// notify remote node that streaming is completed
-	response := node.sendMessage(&StreamCompleteRequest{})
+	response, _, err := node.sendMessage(&StreamCompleteRequest{})
+	if err != nil { return err }
 	if response.GetType() != STREAM_COMPLETE_RESPONSE {
 		return fmt.Errorf("Expected StreamCompleteRequest, got %T", response)
 	}

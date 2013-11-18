@@ -106,6 +106,7 @@ func (r *Ring) AllNodes() []Node {
 //
 // to simplify the binary search logic, a token belongs the first
 // node with a token greater than or equal to it
+// values are replicated forward in the ring
 func (r *Ring) GetNodesForToken(t Token, replicationFactor uint32) []Node {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
