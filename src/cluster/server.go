@@ -23,8 +23,7 @@ func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
 }
 
 // executes a request and returns a response message
-func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType uint32) (Message, error) {
-	_ = nodeId
+func (s *PeerServer) executeRequest(node Node, request Message, requestType uint32) (Message, error) {
 	switch requestType {
 	case DISCOVER_PEERS_REQUEST:
 		peerData := s.cluster.getPeerData()
@@ -38,10 +37,6 @@ func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType 
 
 	case STREAM_REQUEST:
 		//
-		node, err := s.cluster.ring.GetNode(nodeId)
-		if err != nil {
-			return nil, err
-		}
 		go s.cluster.streamToNode(node)
 		return &StreamResponse{}, nil
 
@@ -102,8 +97,6 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 	)
 	s.cluster.addNode(node)
 
-	nodeId := connectionRequest.NodeId
-
 	for {
 		// get the request
 		request, requestType, err := ReadMessage(conn)
@@ -121,7 +114,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		}
 
 		// get the response
-		response, err := s.executeRequest(nodeId, request, requestType)
+		response, err := s.executeRequest(node, request, requestType)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error executing request: %v", err)
 			fmt.Println(errMsg)

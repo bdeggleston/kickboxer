@@ -169,7 +169,7 @@ func TestServerStreamRequest(t *testing.T) {
 
 	// process message and check response
 	server := &PeerServer{cluster:cluster}
-	resp, err := server.executeRequest(node.GetId(), &StreamRequest{}, STREAM_REQUEST)
+	resp, err := server.executeRequest(node, &StreamRequest{}, STREAM_REQUEST)
 	if err != nil {
 		t.Fatalf("Unexpected error executing StreamRequest: %v", err)
 	}
