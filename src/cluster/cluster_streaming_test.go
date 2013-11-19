@@ -15,10 +15,38 @@ import (
 
 // tests streamFromNode method
 func TestStreamFromNodeMethod(t *testing.T) {
-	// TODO: test StreamRequest is sent
+	cluster := makeLiteralRing(10, 3)
 
-	// TODO: test status is set to CLUSTER_STREAMING
+	// get target node
+	targetToken := literalPartitioner{}.GetToken("5000")
+	requestToken := literalPartitioner{}.GetToken("5000")
+	node := cluster.ring.GetNodesForToken(requestToken, 1)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
 
+	// setup mock socket
+	sock := newPgmConn()
+	sock.outputFactory = func(_ *pgmConn) Message {
+		return &StreamResponse{}
+	}
+	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+
+	if err := cluster.streamFromNode(node); err != nil {
+		t.Errorf("Unexpected error requesting stream: %v", err)
+	}
+
+	// test StreamRequest is sent
+	if len(sock.incoming) != 1 {
+		t.Errorf("Unexpected num messages received. 1 expected, got: %v", len(sock.incoming))
+	}
+
+	msg := sock.incoming[0]
+	_, ok := msg.(*StreamRequest)
+	if !ok {
+		t.Fatalf("Expected StreamResponse, got %T", msg)
+	}
+
+	// test status is set to CLUSTER_STREAMING
+	testing_helpers.AssertEqual(t, "cluster status", CLUSTER_STREAMING, cluster.status)
 }
 
 // tests that method panics if the given node is not a remote node
@@ -51,6 +79,7 @@ func TestStreamToNode(t *testing.T) {
 	}
 	testing_helpers.AssertEqual(t, "store size", numKeys, len(store.GetKeys()))
 
+	// setup mock socket for node
 	sock := newPgmConn()
 	sock.outputFactory = func(p *pgmConn) Message {
 		if _, ok := p.incoming[len(p.incoming) - 1].(*StreamCompleteRequest); ok {
@@ -103,6 +132,12 @@ func TestStreamToNode(t *testing.T) {
 			t.Errorf("Key [%v] not streamed to node", key)
 		}
 	}
+}
+
+// tests that streaming is resumed if streaming is
+// interrupted
+func TestRestartStreamToNode(t *testing.T) {
+	t.Skip("not implemented yet")
 }
 
 
