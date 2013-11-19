@@ -99,8 +99,8 @@ func TestStreamToNode(t *testing.T) {
 		t.Errorf("Unexpected error while streaming: %v", err)
 	}
 
-	// 61 messages should have been sent, 1 for the 60
-	// keys, and the final one indicating streaming was complete
+	// 61 messages should have been sent, 1 for each of the 60
+	// keys, and a final one indicating streaming was complete
 	if len(sock.incoming) != len(expected) + 1 {
 		t.Errorf("Unexpected num messages received. 61 expected, got: %v", len(sock.incoming))
 	}
@@ -153,5 +153,19 @@ func TestStreamingReadRouting(t *testing.T) {
 
 }
 
-/************** streaming data tests **************/
+/************** streaming server tests **************/
 
+// tests that the peer server handles a StreamRequest message properly
+func TestServerStreamRequest(t *testing.T) {
+
+}
+
+// tests that the peer server handles a StreamDataRequest message properly
+func TestServerStreamDataRequest(t *testing.T) {
+
+}
+
+// tests that the peer server handles a StreamCompleteRequest message properly
+func TestServerStreamCompleteRequest(t *testing.T) {
+
+}
