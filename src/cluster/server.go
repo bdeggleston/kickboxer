@@ -45,6 +45,9 @@ func (s *PeerServer) executeRequest(nodeId NodeId, request Message, requestType 
 		go s.cluster.streamToNode(node)
 		return &StreamResponse{}, nil
 
+	case STREAM_DATA_REQUEST:
+		//
+
 	case STREAM_COMPLETE_REQUEST:
 		//
 

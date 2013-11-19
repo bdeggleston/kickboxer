@@ -19,8 +19,7 @@ func TestStreamFromNodeMethod(t *testing.T) {
 
 	// get target node
 	targetToken := literalPartitioner{}.GetToken("5000")
-	requestToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(requestToken, 1)[0].(*RemoteNode)
+	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
 	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
 
 	// setup mock socket
@@ -88,8 +87,7 @@ func TestStreamToNode(t *testing.T) {
 		return &StreamDataResponse{}
 	}
 	targetToken := literalPartitioner{}.GetToken("5000")
-	requestToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(requestToken, 1)[0].(*RemoteNode)
+	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
 	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
 
 	testing_helpers.AssertEqual(t, "pool size", uint(0), node.pool.size)
@@ -157,6 +155,43 @@ func TestStreamingReadRouting(t *testing.T) {
 
 // tests that the peer server handles a StreamRequest message properly
 func TestServerStreamRequest(t *testing.T) {
+	cluster := makeLiteralRing(10, 3)
+
+	// get target node
+	targetToken := literalPartitioner{}.GetToken("5000")
+	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+
+	// setup mock socket
+	sock := newPgmConn()
+	sock.outputFactory = func(_ *pgmConn) Message { return &StreamCompleteResponse{} }
+	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+
+	// process message and check response
+	server := &PeerServer{cluster:cluster}
+	resp, err := server.executeRequest(node.GetId(), &StreamRequest{}, STREAM_REQUEST)
+	if err != nil {
+		t.Fatalf("Unexpected error executing StreamRequest: %v", err)
+	}
+	// block, allow streaming goroutine to run
+	time.Sleep(1)
+
+	var ok bool
+	_, ok = resp.(*StreamResponse)
+	if !ok {
+		t.Errorf("Expected StreamResponse, got %T", resp)
+	}
+
+	// check that the socket got a StreamCompleteResponse (there wasn't any data to stream)
+	if len(sock.incoming) != 1 {
+		t.Fatalf("Unexpected num messages received. 1 expected, got: %v", len(sock.incoming))
+	}
+
+	msg := sock.incoming[0]
+	_, ok = msg.(*StreamCompleteRequest)
+	if !ok {
+		t.Fatalf("Expected StreamCompleteRequest, got %T", msg)
+	}
 
 }
 
