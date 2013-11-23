@@ -175,3 +175,8 @@ func (s *KVStore) GetKeys() []string {
 	}
 	return keys
 }
+
+func (s *KVStore) KeyExists(key string) bool {
+	_, ok := s.data[key]
+	return ok
+}
