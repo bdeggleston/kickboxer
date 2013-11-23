@@ -111,6 +111,15 @@ func TestGetKeys(t *testing.T) {
 	}
 }
 
+func TestKeyExists(t *testing.T) {
+	r := setupRedis()
+	val := NewBoolean(true, time.Now())
+	r.SetRawKey("x", val)
+
+	testing_helpers.AssertEqual(t, "existing key", true, r.KeyExists("x"))
+	testing_helpers.AssertEqual(t, "existing key", false, r.KeyExists("y"))
+}
+
 // tests that attempting to reconcile an empty map
 // returns an error
 func TestReconcilingEmptyMap(t *testing.T) {

@@ -177,3 +177,8 @@ func (s *Redis) GetKeys() []string {
 	}
 	return keys
 }
+
+func (s *Redis) KeyExists(key string) bool {
+	_, ok := s.data[key]
+	return ok
+}
