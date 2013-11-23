@@ -342,6 +342,16 @@ func (c *Cluster) streamToNode(n Node) error {
 	return nil
 }
 
+// receives streaming requests from other nodes
+//
+// if the key exists on this node, the incoming value
+// should be compared against the local value, and if
+// there are differences, a reconciliation of the key
+// should be performed
+func receiveStreamedData([]*StreamData) error {
+	return nil
+}
+
 /************** node changes **************/
 
 // called when a node is first added to the cluster

@@ -11,6 +11,8 @@ import (
 	"kvstore"
 )
 
+// TODO: values need to be reconciled on cluster join
+
 /************** test stream from node **************/
 
 // tests streamFromNode method
@@ -136,6 +138,20 @@ func TestStreamToNode(t *testing.T) {
 // interrupted
 func TestRestartStreamToNode(t *testing.T) {
 	t.Skip("not implemented yet")
+}
+
+
+/************** query behavior tests **************/
+
+func TestBasicStreamReceive(t *testing.T) {
+
+}
+
+// test that reconciliation is performed if the
+// received value doesn't match the value on this
+// node
+func TestMismatchedStreamReceive(t *testing.T) {
+
 }
 
 
