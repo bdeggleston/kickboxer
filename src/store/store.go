@@ -75,5 +75,8 @@ type Store interface {
 
 	// returns all of the keys held by the store
 	GetKeys() []string
+
+	// checks if a key exists in the store
+	KeyExists(key string) bool
 }
 
