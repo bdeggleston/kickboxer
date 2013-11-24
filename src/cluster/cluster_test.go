@@ -84,6 +84,14 @@ func TestAddingNewNodeToStartedCluster(t *testing.T) {
 	t.Skip("Cluster starting not implemented yet")
 }
 
+func TestAddingNode(t *testing.T) {
+	t.Fail()
+}
+
+func TestAddOtherDCNode(t *testing.T) {
+	t.Fail()
+}
+
 /************** getPeerData tests **************/
 
 func TestExpectedPeerDataIsReturned(t *testing.T) {
@@ -300,7 +308,7 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 
 // tests that discovering peers from a list of seed addresses
 // that belong to different DCs works properly
-func TestMultiDCPeerDiscoveryFromSeedAddresses(t *testing.T) {
+func TestOtherDCPeerDiscoveryFromSeedAddresses(t *testing.T) {
 	t.Fail()
 }
 
