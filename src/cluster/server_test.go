@@ -137,6 +137,7 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 	// write input messages
 	connectMessage := &ConnectionRequest{PeerData{
 		NodeId:NewNodeId(),
+		DCId:"DC1",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),

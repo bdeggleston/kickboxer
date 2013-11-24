@@ -324,7 +324,7 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 		"TestCluster",
 		token,
 		NewNodeId(),
-		DatacenterId("DC1234"),
+		DatacenterId("DC5000"),
 		3,
 		NewMD5Partitioner(),
 		nil,

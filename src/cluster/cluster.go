@@ -64,6 +64,7 @@ type Cluster struct {
 	localNode *LocalNode
 
 	ring *Ring
+	dcContainer *DatacenterContainer
 
 	name string
 	token Token
@@ -127,6 +128,7 @@ func NewCluster(
 
 	c.ring = NewRing()
 	c.ring.AddNode(c.localNode)
+	c.dcContainer = NewDatacenterContainer()
 
 	return c, nil
 }
@@ -143,10 +145,15 @@ func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
 // has been started
 func (c *Cluster) addNode(node Node) error {
 	// add to ring, and start if it hasn't been seen before
-	if err := c.ring.AddNode(node); err == nil {
-		if c.status != CLUSTER_INITIALIZING {
-			if err := node.Start(); err != nil { return err }
-		}
+	var err error
+	if node.GetDatacenterId() == c.GetDatacenterId() {
+		err = c.ring.AddNode(node)
+	} else {
+		err = c.dcContainer.AddNode(node)
+	}
+	if err != nil { return err }
+	if c.status != CLUSTER_INITIALIZING {
+		if err := node.Start(); err != nil { return err }
 	}
 	return nil
 }
