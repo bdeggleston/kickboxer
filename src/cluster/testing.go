@@ -25,6 +25,7 @@ func setupCluster() *Cluster {
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		NewNodeId(),
+		DatacenterId("DC5000"),
 		3,
 		NewMD5Partitioner(),
 		nil,
@@ -44,6 +45,7 @@ func setupRing() *Ring {
 	for i:=0; i<10; i++ {
 		n := newMockNode(
 			NewNodeId(),
+			DatacenterId("DC5000"),
 			Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
@@ -61,6 +63,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		"Test Cluster",
 		Token([]byte{0,0,0,0}),
 		NewNodeId(),
+		DatacenterId("DC5000"),
 		replicationFactor,
 		NewMD5Partitioner(),
 		nil,
@@ -72,6 +75,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 	for i:=1; i<size; i++ {
 		n := newMockNode(
 			NewNodeId(),
+			DatacenterId("DC5000"),
 			Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
@@ -90,6 +94,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		"Test Cluster",
 		partitioner.GetToken("0000"),
 		NewNodeId(),
+		DatacenterId("DC5000"),
 		replicationFactor,
 		partitioner,
 		nil,
@@ -103,6 +108,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		token := partitioner.GetToken(tkey)
 		n := NewRemoteNodeInfo(
 			NewNodeId(),
+			DatacenterId("DC5000"),
 			token,
 			fmt.Sprintf("N%v", i),
 			fmt.Sprintf("127.0.0.%v:9999", i+2),
@@ -134,6 +140,7 @@ type mockNode struct {
 	name string
 	token Token
 	id NodeId
+	dcid DatacenterId
 	status NodeStatus
 	addr string
 
@@ -142,8 +149,8 @@ type mockNode struct {
 	writes []writeCall
 }
 
-func newMockNode(id NodeId, token Token, name string) (*mockNode) {
-	n := &mockNode{id:id, token:token, name:name}
+func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
+	n := &mockNode{id:id, dcid:dcid, token:token, name:name}
 	n.status = NODE_UP
 	n.reads = make([]readCall, 0, 5)
 	n.writes = make([]writeCall, 0, 5)
@@ -159,6 +166,8 @@ func (n *mockNode) GetToken() Token { return n.token }
 func (n *mockNode) GetStatus() NodeStatus { return n.status }
 
 func (n *mockNode) GetId() NodeId { return n.id }
+
+func (n *mockNode) GetDatacenterId() DatacenterId { return n.dcid }
 
 func (n *mockNode) Start() error {
 	n.isStarted = true

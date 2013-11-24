@@ -21,6 +21,7 @@ func TestConnectionRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionRequest{PeerData{
 		NodeId:NewNodeId(),
+		DCId:"DC5000",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
@@ -48,6 +49,7 @@ func TestConnectionRequest(t *testing.T) {
 	// check values
 	testing_helpers.AssertEqual(t, "Type", CONNECTION_REQUEST, dst.GetType())
 	testing_helpers.AssertEqual(t, "NodeId", src.NodeId, dst.NodeId)
+	testing_helpers.AssertEqual(t, "DCId", src.DCId, dst.DCId)
 	testing_helpers.AssertEqual(t, "Addr", src.Addr, dst.Addr)
 	testing_helpers.AssertEqual(t, "Name", src.Name, dst.Name)
 	testing_helpers.AssertSliceEqual(t, "Token", src.Token, dst.Token)
@@ -59,6 +61,7 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionAcceptedResponse{
 		NodeId:NewNodeId(),
+		DCId:"DC5000",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}
@@ -85,6 +88,7 @@ func TestConnectionAcceptedResponse(t *testing.T) {
 	// check value
 	testing_helpers.AssertEqual(t, "Type", CONNECTION_ACCEPTED_RESPONSE, dst.GetType())
 	testing_helpers.AssertEqual(t, "NodeId", src.NodeId, dst.NodeId)
+	testing_helpers.AssertEqual(t, "DCId", src.DCId, dst.DCId)
 	testing_helpers.AssertEqual(t, "Name", src.Name, dst.Name)
 	testing_helpers.AssertSliceEqual(t, "Token", src.Token, dst.Token)
 }
@@ -153,12 +157,14 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		Peers: []*PeerData{
 			&PeerData{
 				NodeId:NewNodeId(),
+				DCId:DatacenterId("DC5000"),
 				Addr:"127.0.0.1:9998",
 				Name:"Test Node1",
 				Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 			},
 			&PeerData{
 				NodeId:NewNodeId(),
+				DCId:DatacenterId("DC2000"),
 				Addr:"127.0.0.1:9999",
 				Name:"Test Node2",
 				Token:Token([]byte{1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0}),
@@ -191,6 +197,7 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		d := dst.Peers[i]
 
 		testing_helpers.AssertEqual(t, fmt.Sprintf("NodeId:%v", i), s.NodeId, d.NodeId)
+		testing_helpers.AssertEqual(t, fmt.Sprintf("DCId:%v", i), s.DCId, d.DCId)
 		testing_helpers.AssertEqual(t, fmt.Sprintf("Addr:%v", i), s.Addr, d.Addr)
 		testing_helpers.AssertEqual(t, fmt.Sprintf("Name:%v", i), s.Name, d.Name)
 		testing_helpers.AssertSliceEqual(t, fmt.Sprintf("Token:%v", i), s.Token, d.Token)

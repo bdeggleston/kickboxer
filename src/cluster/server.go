@@ -90,6 +90,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 	// register node with cluster
 	node := NewRemoteNodeInfo(
 		connectionRequest.NodeId,
+		connectionRequest.DCId,
 		connectionRequest.Token,
 		connectionRequest.Name,
 		connectionRequest.Addr,
