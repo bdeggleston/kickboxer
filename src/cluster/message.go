@@ -109,8 +109,10 @@ func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 // ----------- startup and connection -----------
 
 type PeerData struct {
-	// the id of the requesting node
+	// the id of the peer
 	NodeId NodeId
+	// the name of the datacenter the peer belongs to
+	DCId DatacenterId
 	// the address of the requesting node
 	Addr string
 	// the name of the requesting node
@@ -128,6 +130,8 @@ func (m *PeerData) Serialize(buf *bufio.Writer) error {
 	// then the fields
 	// NodeId
 	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	// DCId
+	if err := writeFieldBytes(buf, []byte(m.DCId)); err != nil { return err }
 	// Addr
 	if err := writeFieldBytes(buf, []byte(m.Addr)); err != nil { return err }
 	// Name
@@ -155,6 +159,11 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	b, err = readFieldBytes(buf)
 	if err != nil { return err }
 	m.NodeId = NodeId(b)
+
+	// DCId
+	b, err = readFieldBytes(buf)
+	if err != nil { return err }
+	m.DCId = DatacenterId(b)
 
 	// Addr
 	b, err = readFieldBytes(buf)
@@ -187,6 +196,8 @@ func (m *ConnectionRequest) GetType() uint32 { return CONNECTION_REQUEST }
 type ConnectionAcceptedResponse struct {
 	// the id of the requesting node
 	NodeId NodeId
+	// the name of the datacenter the peer belongs to
+	DCId DatacenterId
 	// the name of the requesting node
 	Name string
 	// the token of the requesting node
@@ -202,6 +213,7 @@ func (m *ConnectionAcceptedResponse) Serialize(buf *bufio.Writer) error {
 
 	// then the fields
 	if err := writeFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	if err := writeFieldBytes(buf, []byte(m.DCId)); err != nil { return err }
 	if err := writeFieldBytes(buf, []byte(m.Name)); err != nil { return err }
 	if err := writeFieldBytes(buf, []byte(m.Token)); err != nil { return err }
 
@@ -224,6 +236,10 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
 	m.NodeId = NodeId(b)
+
+	b, err = readFieldBytes(buf)
+	if err != nil { return nil }
+	m.DCId = DatacenterId(b)
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }

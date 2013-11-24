@@ -47,6 +47,7 @@ type Node interface {
 	GetAddr() string
 	GetToken() Token
 	GetId() NodeId
+	GetDatacenterId() DatacenterId
 	GetStatus() NodeStatus
 
 	Start() error
@@ -67,6 +68,7 @@ type baseNode struct {
 	addr string
 	token Token
 	id NodeId
+	dcId DatacenterId
 	status NodeStatus
 }
 
@@ -78,6 +80,8 @@ func (n *baseNode) GetToken() Token { return n.token }
 
 func (n *baseNode) GetId() NodeId { return n.id }
 
+func (n *baseNode) GetDatacenterId() DatacenterId { return n.dcId }
+
 func (n *baseNode) GetStatus() NodeStatus { return n.status }
 
 // LocalNode provides access to the local store
@@ -87,10 +91,11 @@ type LocalNode struct {
 	isStarted bool
 }
 
-func NewLocalNode(id NodeId, token Token, name string, store store.Store) (*LocalNode) {
+func NewLocalNode(id NodeId, dcId DatacenterId, token Token, name string, store store.Store) (*LocalNode) {
 	//
 	n := &LocalNode{}
 	n.id = id
+	n.dcId = dcId
 	n.token = token
 	n.name = name
 	n.store = store
@@ -154,9 +159,10 @@ func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
 }
 
 // creates a new remote node from info provided from the node
-func NewRemoteNodeInfo(id NodeId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
+func NewRemoteNodeInfo(id NodeId, dcId DatacenterId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
 	n = NewRemoteNode(addr, cluster)
 	n.id = id
+	n.dcId = dcId
 	n.token = token
 	n.name = name
 	return n
@@ -191,6 +197,7 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 	if !conn.HandshakeCompleted() {
 		msg := &ConnectionRequest{PeerData{
 			NodeId:n.cluster.GetNodeId(),
+			DCId:n.cluster.GetDatacenterId(),
 			Addr:n.cluster.GetPeerAddr(),
 			Name:n.cluster.GetName(),
 			Token:n.cluster.GetToken(),
@@ -213,6 +220,7 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 		if n.status == NODE_INITIALIZING {
 			accept := response.(*ConnectionAcceptedResponse)
 			n.id = accept.NodeId
+			n.dcId = accept.DCId
 			n.name = accept.Name
 			n.token = accept.Token
 		}

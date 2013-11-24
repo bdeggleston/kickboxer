@@ -49,7 +49,6 @@ func (ns *nodeSorter) Swap(i, j int) {
 	ns.nodes[i], ns.nodes[j] = ns.nodes[j], ns.nodes[i]
 }
 
-
 type Cluster struct {
 	// the local store
 	store store.Store
@@ -69,6 +68,7 @@ type Cluster struct {
 	name string
 	token Token
 	nodeId NodeId
+	dcId DatacenterId
 	peerAddr string
 	peerServer *PeerServer
 	partitioner Partitioner
@@ -87,6 +87,8 @@ func NewCluster(
 	token Token,
 	// the id of this local node
 	nodeId NodeId,
+	// the name of the datacenter this node belongs to
+	dcId DatacenterId,
 	// the replication factor of the cluster
 	replicationFactor uint32,
 	// the partitioner used by the cluster
@@ -103,7 +105,8 @@ func NewCluster(
 	c.name = name
 	c.token = token
 	c.nodeId = nodeId
-	c.localNode = NewLocalNode(c.nodeId, c.token, c.name, c.store)
+	c.dcId = dcId
+	c.localNode = NewLocalNode(c.nodeId, c.dcId, c.token, c.name, c.store)
 
 	c.peerServer = NewPeerServer(c, c.peerAddr)
 
@@ -130,6 +133,7 @@ func NewCluster(
 
 // info getters
 func (c* Cluster) GetNodeId() NodeId { return c.nodeId }
+func (c* Cluster) GetDatacenterId() DatacenterId { return c.dcId }
 func (c* Cluster) GetToken() Token { return c.token }
 func (c* Cluster) GetName() string { return c.name }
 func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
@@ -219,7 +223,14 @@ func (c* Cluster) discoverPeers() error {
 			return fmt.Errorf("Unexpected message type. Expected *DiscoverPeerResponse, got %T", response)
 		}
 		for _, peer := range peerMessage.Peers {
-			n := NewRemoteNodeInfo(peer.NodeId, peer.Token, peer.Name, peer.Addr, c)
+			n := NewRemoteNodeInfo(
+				peer.NodeId,
+				peer.DCId,
+				peer.Token,
+				peer.Name,
+				peer.Addr,
+				c,
+			)
 			if err := c.ring.AddNode(n); err != nil {
 				return err
 			}
