@@ -32,7 +32,17 @@ func TestServerConnectionSuccessCase(t *testing.T) {
 
 	// create cluster and peer server
 	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
-	cluster, err := NewCluster(kvstore.NewKVStore(), "127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
+	cluster, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.1:9999",
+		"TestCluster",
+		token,
+		NewNodeId(),
+		"DC1",
+		3,
+		NewMD5Partitioner(),
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("Unexpected error creating mock cluster: %v", err)
 	}
@@ -80,7 +90,17 @@ func TestServerConnectionFailure(t *testing.T) {
 
 	// create cluster and peer server
 	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
-	cluster, err := NewCluster(kvstore.NewKVStore(), "127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
+	cluster, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.1:9999",
+		"TestCluster",
+		token,
+		NewNodeId(),
+		"DC1",
+		3,
+		NewMD5Partitioner(),
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("Unexpected error creating mock cluster: %v", err)
 	}
@@ -131,7 +151,17 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 
 	// create cluster and peer server
 	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
-	cluster, err := NewCluster(kvstore.NewKVStore(), "127.0.0.1:9999", "TestCluster", token, NewNodeId(), 3, NewMD5Partitioner(), nil)
+	cluster, err := NewCluster(
+		kvstore.NewKVStore(),
+		"127.0.0.1:9999",
+		"TestCluster",
+		token,
+		NewNodeId(),
+		"DC1",
+		3,
+		NewMD5Partitioner(),
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("Unexpected error creating mock cluster: %v", err)
 	}

@@ -14,6 +14,7 @@ func TestServerDiscoverPeersResponse(t *testing.T) {
 
 	node := NewRemoteNodeInfo(
 		NewNodeId(),
+		"DC1",
 		c.partitioner.GetToken("asdfghjkl"),
 		"New Node",
 		"127.0.0.5:9999",

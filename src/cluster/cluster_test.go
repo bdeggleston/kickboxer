@@ -328,10 +328,11 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 	// create existing remote node
 	rnode := NewRemoteNodeInfo(
 		NewNodeId(),
+		DatacenterId("DC5000"),
 		Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
-		cluster
+		cluster,
 	)
 
 	// mocked out responses

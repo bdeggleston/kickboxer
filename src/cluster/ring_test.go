@@ -53,7 +53,7 @@ func TestAddingNewNodeToRing(t *testing.T) {
 
 	// add a new node
 	token := Token([]byte{0,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6})
-	newNode := newMockNode(NewNodeId(), token, "N2")
+	newNode := newMockNode(NewNodeId(), "DC1", token, "N2")
 	err := ring.AddNode(newNode)
 	if err != nil {
 		t.Errorf("Expected nil error, got: %v", err)
@@ -111,6 +111,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 
 	n1 := newMockNode(
 		NewNodeId(),
+		"DC1",
 		Token([]byte{0,0,0,7}),
 		fmt.Sprintf("N1"),
 	)
@@ -118,6 +119,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 
 	n2 := newMockNode(
 		NewNodeId(),
+		"DC1",
 		Token([]byte{0,0,0,3}),
 		"N2",
 	)
@@ -128,6 +130,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 
 	n3 := newMockNode(
 		NewNodeId(),
+		"DC1",
 		Token([]byte{0,0,0,5}),
 		"N3",
 	)
@@ -139,6 +142,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 
 	n4 := newMockNode(
 		NewNodeId(),
+		"DC1",
 		Token([]byte{0,0,1,0}),
 		"N4",
 	)
