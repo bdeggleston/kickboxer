@@ -6,23 +6,6 @@ import (
 	"testing_helpers"
 )
 
-func setupDC() *DatacenterContainer {
-	dc := NewDatacenterContainer()
-
-	for _, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
-		for i:=0; i<10; i++ {
-			n := newMockNode(
-				NewNodeId(),
-				dcid,
-				Token([]byte{0,0,byte(i),0}),
-				fmt.Sprintf("N%v", i),
-			)
-			dc.AddNode(n)
-		}
-	}
-	return dc
-}
-
 // tests add node behavior
 func TestAddNode(t *testing.T) {
 	dc := setupDC()

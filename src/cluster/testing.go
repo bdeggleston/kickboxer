@@ -194,6 +194,24 @@ func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp
 	n.writes = append(n.writes, call)
 }
 
+// ----------------- datacenter setup / mocks -----------------
+
+func setupDC() *DatacenterContainer {
+	dc := NewDatacenterContainer()
+
+	for _, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
+		for i:=0; i<10; i++ {
+			n := newMockNode(
+				NewNodeId(),
+				dcid,
+				Token([]byte{0,0,byte(i),0}),
+				fmt.Sprintf("N%v", i),
+			)
+			dc.AddNode(n)
+		}
+	}
+	return dc
+}
 
 // ----------------- partitioner mocks -----------------
 
