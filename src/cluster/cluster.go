@@ -160,18 +160,26 @@ func (c *Cluster) addNode(node Node) error {
 
 // returns data on peer nodes
 func (c *Cluster) getPeerData() []*PeerData {
-	nodes := c.ring.AllNodes()
-	peers := make([]*PeerData, 0, len(nodes) - 1)
-	for _, node := range nodes {
-		if node.GetId() != c.GetNodeId() {
-			pd := &PeerData{
-				NodeId:node.GetId(),
-				Addr:node.GetAddr(),
-				Name:node.Name(),
-				Token:node.GetToken(),
-			}
-			peers = append(peers, pd)
+	localNodes := c.ring.AllNodes()
+	extNodes := c.dcContainer.AllNodes()
+	peers := make([]*PeerData, 0, len(localNodes) + len(extNodes) - 1)
+	node2PeerData := func(node Node) *PeerData {
+		return &PeerData{
+			NodeId:node.GetId(),
+			DCId:node.GetDatacenterId(),
+			Addr:node.GetAddr(),
+			Name:node.Name(),
+			Token:node.GetToken(),
 		}
+	}
+
+	for _, node := range localNodes {
+		if node.GetId() != c.GetNodeId() {
+			peers = append(peers, node2PeerData(node))
+		}
+	}
+	for _, node := range extNodes {
+		peers = append(peers, node2PeerData(node))
 	}
 	return peers
 }

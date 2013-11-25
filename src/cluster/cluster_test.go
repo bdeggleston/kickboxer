@@ -94,7 +94,7 @@ func TestAddOtherDCNode(t *testing.T) {
 
 /************** getPeerData tests **************/
 
-func TestExpectedPeerDataIsReturned(t *testing.T) {
+func TestGetPeerDataExpectedPeerDataIsReturned(t *testing.T) {
 	c := makeRing(5, 3)
 
 	var data []*PeerData
@@ -114,7 +114,43 @@ func TestExpectedPeerDataIsReturned(t *testing.T) {
 	}
 }
 
-func TestSelfNodeIsNotReturned(t *testing.T) {
+// tests that nodes in other dcs are returned
+func TestGetPeerDataOtherDCNodesAreReturned(t *testing.T) {
+	c := makeRing(3, 3)
+	c.dcContainer = setupDC(3, 3)
+
+	data := c.getPeerData()
+	expectedNumNodes := 3+3+3+3-1
+	if len(data) != expectedNumNodes {
+		t.Fatalf("Expected %v nodes, got %v", expectedNumNodes, len(data))
+	}
+
+	nodeMap := make(map[NodeId]Node)
+	for _, node := range c.ring.AllNodes() {
+		if node.GetId() == c.GetNodeId() { continue }
+		nodeMap[node.GetId()] = node
+	}
+	for _, node := range c.dcContainer.AllNodes() {
+		nodeMap[node.GetId()] = node
+	}
+
+	for _, pd := range data {
+		node, ok := nodeMap[pd.NodeId]
+		delete(nodeMap, pd.NodeId)
+		if !ok {
+			t.Errorf("peer data points to unknown node: %v", pd.NodeId)
+			continue
+		}
+		testing_helpers.AssertEqual(t, "Id", node.GetId(), pd.NodeId)
+		testing_helpers.AssertEqual(t, "DCName", node.GetDatacenterId(), pd.DCId)
+		testing_helpers.AssertEqual(t, "Name", node.Name(), pd.Name)
+		testing_helpers.AssertEqual(t, "Addr", node.GetAddr(), pd.Addr)
+		testing_helpers.AssertSliceEqual(t, "Token", node.GetToken(), pd.Token)
+	}
+	testing_helpers.AssertEqual(t, "Remaining Nodes", 0, len(nodeMap))
+}
+
+func TestGetPeerDataSelfNodeIsNotReturned(t *testing.T) {
 	c := makeRing(5, 3)
 
 	var data []*PeerData
@@ -431,6 +467,10 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
 	testing_helpers.AssertEqual(t, "n3 status", NODE_UP, n3.GetStatus())
 	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
+}
+
+func TestOtherDCPeerDiscoveryFromExistingPeers(t *testing.T) {
+
 }
 
 // tests that a node is skipped if it can't be connected
