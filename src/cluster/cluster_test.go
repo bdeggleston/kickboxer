@@ -552,12 +552,14 @@ func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 	discoveryResponse := &DiscoverPeerResponse{Peers:[]*PeerData{
 		&PeerData{
 			NodeId:n2Response.NodeId,
+			DCId:DatacenterId("DC1234"),
 			Name:n2Response.Name,
 			Token:n2Response.Token,
 			Addr:"127.0.0.2:9999",
 		},
 		&PeerData{
 			NodeId:n3Response.NodeId,
+			DCId:DatacenterId("DC1234"),
 			Name:n3Response.Name,
 			Token:n3Response.Token,
 			Addr:"127.0.0.3:9999",
