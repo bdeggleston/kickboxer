@@ -30,6 +30,10 @@ func NewRing() *Ring {
 	return r
 }
 
+func (r *Ring) Size() int {
+	return len(r.tokenRing)
+}
+
 func (r *Ring) getNode(nid NodeId) (Node, error) {
 	node, ok := r.nodeMap[nid]
 	if !ok {

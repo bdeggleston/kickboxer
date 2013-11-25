@@ -45,6 +45,25 @@ func (dc *DatacenterContainer) AddNode(node Node) error {
 	return dc.rings[dcId].AddNode(node)
 }
 
+func (dc *DatacenterContainer) Size() int {
+	num := 0
+	for _, ring := range dc.rings {
+		num += ring.Size()
+	}
+	return num
+}
+
+func (dc *DatacenterContainer) AllNodes() []Node {
+	dc.lock.RLock()
+	defer dc.lock.RUnlock()
+
+	nodes := make([]Node, 0, dc.Size())
+	for _, ring := range dc.rings {
+		nodes = append(nodes, ring.AllNodes()...)
+	}
+	return nodes
+}
+
 func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
@@ -62,9 +81,7 @@ func (dc *DatacenterContainer) GetNodesForToken(t Token, replicationFactor uint3
 
 	nodes := make([]Node, 0, int(replicationFactor) * len(dc.rings))
 	for _, ring := range dc.rings {
-		for _, node := range ring.GetNodesForToken(t, replicationFactor) {
-			nodes = append(nodes, node)
-		}
+		nodes = append(nodes, ring.GetNodesForToken(t, replicationFactor)...)
 	}
 
 	return nodes
