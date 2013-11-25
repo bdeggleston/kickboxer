@@ -8,7 +8,7 @@ import (
 
 // tests add node behavior
 func TestAddNode(t *testing.T) {
-	dc := setupDC()
+	dc := setupDC(3, 10)
 
 	testing_helpers.AssertEqual(t, "num dcs", 3, len(dc.rings))
 	for i, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
@@ -26,7 +26,7 @@ func TestAddNode(t *testing.T) {
 }
 
 func TestGetRing(t *testing.T) {
-	dc := setupDC()
+	dc := setupDC(3, 10)
 
 	ring, err := dc.GetRing("DC1")
 	if err != nil {
@@ -46,7 +46,7 @@ func TestGetRing(t *testing.T) {
 }
 
 func TestGetNodesForToken(t *testing.T) {
-	dc := setupDC()
+	dc := setupDC(3, 10)
 
 	var token Token
 

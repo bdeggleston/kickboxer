@@ -196,11 +196,13 @@ func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp
 
 // ----------------- datacenter setup / mocks -----------------
 
-func setupDC() *DatacenterContainer {
+func setupDC(numDCs int, numNodes int) *DatacenterContainer {
 	dc := NewDatacenterContainer()
 
-	for _, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
-		for i:=0; i<10; i++ {
+	for i:=0; i<numDCs; i++ {
+		dcNum := i+1
+		dcid := DatacenterId(fmt.Sprintf("DC%v", dcNum))
+		for i:=0; i<numNodes; i++ {
 			n := newMockNode(
 				NewNodeId(),
 				dcid,
