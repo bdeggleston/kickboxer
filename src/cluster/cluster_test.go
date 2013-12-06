@@ -259,12 +259,13 @@ func TestPeerDiscoveryResponse(t *testing.T) {
 
 }
 
-// tests that discovering peers from a list of seed addresses
-// works properly
-func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
-	defer tearDownNewRemoteNode()
-
-	seeds := []string{"127.0.0.2:9999", "127.0.0.3:9999"}
+// sets up seeded peer discovery with a map of addresses -> connection accepted responses
+// returns a cluster
+func setupSeedPeerDiscovery(t *testing.T, responses map[string]*ConnectionAcceptedResponse) *Cluster {
+	seeds := make([]string, 0, len(responses))
+	for k := range responses {
+		seeds = append(seeds, k)
+	}
 
 	token := Token([]byte{0,0,1,0})
 	cluster, err := NewCluster(
@@ -283,6 +284,39 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 		t.Fatalf("Unexpected error in cluster creation: %v", err)
 	}
 
+	// mock out remote node constructor
+	newRemoteNode = func(addr string, clstr *Cluster) (*RemoteNode) {
+		node := originalNewRemoteNode(addr, clstr)
+		sock := newPgmConn()
+		if response, exists := responses[addr]; !exists {
+			t.Fatalf("Unexpected address: %v", addr)
+		} else {
+			sock.addOutgoingMessage(response)
+		}
+		sock.addOutgoingMessage(&DiscoverPeerResponse{})
+		node.pool.Put(&Connection{socket:sock})
+		return node
+	}
+
+	return cluster
+}
+
+// compares a node to it's mocked ConnectionAcceptedResponse
+func compareNodeToConnectionResponse(t *testing.T, node Node, addr string, response *ConnectionAcceptedResponse){
+	fieldname := func(field string) string { return fmt.Sprintf("%v %v", node.Name(), field)}
+	testing_helpers.AssertEqual(t, fieldname("id"), node.GetId(), response.NodeId)
+	testing_helpers.AssertEqual(t, fieldname("dc id"), node.GetDatacenterId(), response.DCId)
+	testing_helpers.AssertEqual(t, fieldname("name"), node.Name(), response.Name)
+	testing_helpers.AssertEqual(t, fieldname("addr"), node.GetAddr(), addr)
+	testing_helpers.AssertEqual(t, fieldname("status"), NODE_UP, node.GetStatus())
+	testing_helpers.AssertSliceEqual(t, fieldname("token"), node.GetToken(), response.Token)
+}
+
+// tests that discovering peers from a list of seed addresses
+// works properly
+func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
+	defer tearDownNewRemoteNode()
+
 	// mocked out connections responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:NewNodeId(),
@@ -290,34 +324,18 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 		Name:"N2",
 		Token:Token([]byte{0,0,2,0}),
 	}
-	n3Response := &ConnectionAcceptedResponse{
+	n3Response  := &ConnectionAcceptedResponse{
 		NodeId:NewNodeId(),
 		DCId:DatacenterId("DC5000"),
 		Name:"N3",
 		Token:Token([]byte{0,0,3,0}),
 	}
-
-	// mock out remote node constructor
-	newRemoteNode = func(addr string, clstr *Cluster) (*RemoteNode) {
-		node := originalNewRemoteNode(addr, clstr)
-		var response *ConnectionAcceptedResponse
-		sock := newBiConn(2, 2)
-		switch addr {
-		case "127.0.0.2:9999":
-			response = n2Response
-		case "127.0.0.3:9999":
-			response = n3Response
-		default:
-			panic(fmt.Sprintf("Unexpected address: %v", addr))
-		}
-		WriteMessage(sock.input[0], response)
-		discResp := &DiscoverPeerResponse{}
-		WriteMessage(sock.input[1], discResp)
-		conn := &Connection{socket:sock}
-		node.pool.Put(conn)
-		return node
+	responses := map[string]*ConnectionAcceptedResponse{
+		"127.0.0.2:9999": n2Response,
+		"127.0.0.3:9999": n3Response,
 	}
 
+	cluster := setupSeedPeerDiscovery(t, responses)
 	if err := cluster.discoverPeers(); err != nil {
 		t.Fatalf("Unexpected error discovering peers: %v", err)
 	}
@@ -327,19 +345,8 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 	if err != nil { t.Fatalf("n2 was not found: %v", err) }
 	if err != nil { t.Fatalf("n3 was not found: %v", err) }
 
-	testing_helpers.AssertEqual(t, "n2 id", n2.GetId(), n2Response.NodeId)
-	testing_helpers.AssertEqual(t, "n2 id", n2.GetDatacenterId(), n2Response.DCId)
-	testing_helpers.AssertEqual(t, "n2 name", n2.Name(), n2Response.Name)
-	testing_helpers.AssertEqual(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
-	testing_helpers.AssertEqual(t, "n2 status", NODE_UP, n2.GetStatus())
-	testing_helpers.AssertSliceEqual(t, "n2 token", n2.GetToken(), n2Response.Token)
-
-	testing_helpers.AssertEqual(t, "n3 id", n3.GetId(), n3Response.NodeId)
-	testing_helpers.AssertEqual(t, "n3 id", n3.GetDatacenterId(), n3Response.DCId)
-	testing_helpers.AssertEqual(t, "n3 name", n3.Name(), n3Response.Name)
-	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
-	testing_helpers.AssertEqual(t, "n3 status", NODE_UP, n3.GetStatus())
-	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
+	compareNodeToConnectionResponse(t, n2, "127.0.0.2:9999", n2Response)
+	compareNodeToConnectionResponse(t, n3, "127.0.0.3:9999", n3Response)
 }
 
 // tests that discovering peers from a list of seed addresses
