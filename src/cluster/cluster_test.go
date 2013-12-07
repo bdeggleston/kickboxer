@@ -302,7 +302,7 @@ func setupSeedPeerDiscovery(t *testing.T, responses map[string]*ConnectionAccept
 }
 
 // compares a node to it's mocked ConnectionAcceptedResponse
-func compareNodeToConnectionResponse(t *testing.T, node Node, addr string, response *ConnectionAcceptedResponse){
+func compareNodeToConnectionResponse(t *testing.T, cluster *Cluster, node Node, addr string, response *ConnectionAcceptedResponse){
 	fieldname := func(field string) string { return fmt.Sprintf("%v %v", node.Name(), field)}
 	testing_helpers.AssertEqual(t, fieldname("id"), node.GetId(), response.NodeId)
 	testing_helpers.AssertEqual(t, fieldname("dc id"), node.GetDatacenterId(), response.DCId)
@@ -340,19 +340,64 @@ func TestPeerDiscoveryFromSeedAddresses(t *testing.T) {
 		t.Fatalf("Unexpected error discovering peers: %v", err)
 	}
 
-	n2, err := cluster.ring.GetNode(n2Response.NodeId)
-	n3, err := cluster.ring.GetNode(n3Response.NodeId)
-	if err != nil { t.Fatalf("n2 was not found: %v", err) }
-	if err != nil { t.Fatalf("n3 was not found: %v", err) }
-
-	compareNodeToConnectionResponse(t, n2, "127.0.0.2:9999", n2Response)
-	compareNodeToConnectionResponse(t, n3, "127.0.0.3:9999", n3Response)
+	getNode := func(nid NodeId) Node {
+		node, err := cluster.ring.GetNode(nid)
+		if err != nil {
+			t.Fatalf("Node not found in ring")
+		}
+		return node
+	}
+	n2 := getNode(n2Response.NodeId)
+	n3 := getNode(n3Response.NodeId)
+	compareNodeToConnectionResponse(t, cluster, n2, "127.0.0.2:9999", n2Response)
+	compareNodeToConnectionResponse(t, cluster, n3, "127.0.0.3:9999", n3Response)
 }
 
 // tests that discovering peers from a list of seed addresses
 // that belong to different DCs works properly
 func TestOtherDCPeerDiscoveryFromSeedAddresses(t *testing.T) {
-	t.Fail()
+	defer tearDownNewRemoteNode()
+
+	// mocked out connections responses
+	n2Response := &ConnectionAcceptedResponse{
+		NodeId:NewNodeId(),
+		DCId:DatacenterId("DC4000"),
+		Name:"N2",
+		Token:Token([]byte{0,0,2,0}),
+	}
+	n3Response  := &ConnectionAcceptedResponse{
+		NodeId:NewNodeId(),
+		DCId:DatacenterId("DC4000"),
+		Name:"N3",
+		Token:Token([]byte{0,0,3,0}),
+	}
+	responses := map[string]*ConnectionAcceptedResponse{
+		"127.0.0.2:9999": n2Response,
+		"127.0.0.3:9999": n3Response,
+	}
+
+	cluster := setupSeedPeerDiscovery(t, responses)
+	if err := cluster.discoverPeers(); err != nil {
+		t.Fatalf("Unexpected error discovering peers: %v", err)
+	}
+
+	getNode := func(nid NodeId) Node {
+		if ring, err := cluster.dcContainer.GetRing("DC4000"); err != nil {
+			t.Fatalf("Error getting dc ring: %v", err)
+		} else {
+			if node, err := ring.getNode(nid); err != nil {
+				t.Fatalf("Error getting node from DC: %v", err)
+			} else {
+				return node
+			}
+		}
+		return nil
+	}
+
+	n2 := getNode(n2Response.NodeId)
+	n3 := getNode(n3Response.NodeId)
+	compareNodeToConnectionResponse(t, cluster, n2, "127.0.0.2:9999", n2Response)
+	compareNodeToConnectionResponse(t, cluster, n3, "127.0.0.3:9999", n3Response)
 }
 
 // tests that discovering peers from existing peers
