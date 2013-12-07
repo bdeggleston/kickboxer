@@ -391,3 +391,72 @@ func (c *Cluster) JoinCluster() error {
 	c.streamFromNode(stream_from)
 	return nil
 }
+
+// Changes the given node's token and initiates streaming from new replica nodes
+//
+// When changing the token ring from this:
+// N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+// [00    ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// --> --> --> --> --> --> --> --> --> --> -->|
+// to this:
+// N0              N2      N3      N4      N5      N6  N1* N7      N8      N9
+// [00            ][20    ][30    ][40    ][50    ][60][65][70    ][80    ][90    ]
+// <-------|------|                        |--|->
+// |------|----------->
+//
+// N0 should now control N1's old tokens, and N1 should control half of N6's tokens
+//
+// After the token has been changed, each node should check if the node to it's left
+// has changed. If it has, it should stream data from the left. If the node to the right
+// has changed, then it should stream data from the right
+//
+// There is also
+//
+// If a node starts streaming in data as soon as it knows it's token space changes, there
+// will be a race condition that may prevent the correct data being streamed to the node
+// if the node doing the streaming is not aware of the token when it receives the request.
+func (c *Cluster) MoveNode(token Token) error {
+	panic("not implemented")
+	return nil
+}
+
+// removes the given node from the token ring
+//
+// there are 2 scenarios to deal with in regards to streaming data in:
+//
+// * if the removed node is still reachable, it should stream it's data
+// to it's previous left node
+//
+// removing N1
+// N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+// [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// |xxxxxx|
+// to this:
+// N0              N2      N3      N4      N5      N6      N7      N8      N9
+// [0             ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// ^^^^^^
+// [10xxxx]
+//
+//
+// * if the removed node is no longer reachable, the removed node's left node
+// should stream the removed node's right node
+//
+// removing N1
+// N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+// [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// |xxxxxx|
+// to this:
+// N0              N2      N3      N4      N5      N6      N7      N8      N9
+// [0             ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+// <------|------|
+//
+// N0 should now control N1's old tokens and  N0 should stream data from N2
+//
+// After the node is removed from the ring, each node should check if the node to
+// it's right has changed, if it has, it should stream data from it. If the node
+// to it's left has changed, it should not stream data from that node, since it
+// was already replicating the token space that the new node was responsible for
+func (c *Cluster) RemoveNode() error {
+	panic("not implemented")
+	return nil
+}
