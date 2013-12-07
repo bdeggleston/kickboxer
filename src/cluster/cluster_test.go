@@ -77,6 +77,7 @@ func TestInvalidPartitioner(t *testing.T) {
 
 /************** addNode tests **************/
 
+// TODO: this
 // tests that a node is added to the cluster if
 // the cluster has not seen it yet, and starts it
 // if the cluster has been started
@@ -204,6 +205,7 @@ func TestGetPeerDataSelfNodeIsNotReturned(t *testing.T) {
 	}
 }
 
+// TODO: this
 // 2 nodes added to the cluster at the same time
 // should find out about each other
 func TestSimultaneousNodeAdditions(t *testing.T) {
@@ -212,6 +214,7 @@ func TestSimultaneousNodeAdditions(t *testing.T) {
 
 /************** key routing tests **************/
 
+// TODO: this
 // tests that the number of nodes returned matches the replication factor
 func TestReplicationFactor(t *testing.T) {
 	t.Skipf("check number of nodes returned matches replication factor")
@@ -295,11 +298,13 @@ TODO:
 		flexible approach
  */
 
+// TODO: this
 // tests that all peers are discovered on startup
 func TestPeerDiscoveryOnStartup(t *testing.T) {
 
 }
 
+// TODO: this
 // tests that the discoverPeers function returns the proper data
 func TestPeerDiscoveryResponse(t *testing.T) {
 
@@ -768,7 +773,10 @@ func TestPeerDiscoveryNodeDataFailure(t *testing.T) {
 
 /************** shutdown tests **************/
 
+// TODO: this
+
 /************** query tests **************/
 
+// TODO: this
 
 
