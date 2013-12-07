@@ -85,11 +85,51 @@ func TestAddingNewNodeToStartedCluster(t *testing.T) {
 }
 
 func TestAddingNode(t *testing.T) {
-	t.Fail()
+	c := makeRing(5, 3)
+	rnode := NewRemoteNodeInfo(
+		NewNodeId(),
+		DatacenterId("DC5000"),
+		Token([]byte{0,0,1,0}),
+		"N1",
+		"127.0.0.1:9999",
+		c,
+	)
+	if err := c.addNode(rnode); err != nil {
+		t.Fatalf("Unexpected error adding node to cluster: %v", err)
+	}
+
+	node, err := c.ring.GetNode(rnode.GetId())
+	if err != nil {
+		t.Fatalf("Node not found in ring")
+	}
+	testing_helpers.AssertEqual(t, "node id", rnode.GetId(), node.GetId())
+
 }
 
 func TestAddOtherDCNode(t *testing.T) {
-	t.Fail()
+	c := makeRing(5, 3)
+	rnode := NewRemoteNodeInfo(
+		NewNodeId(),
+		DatacenterId("DC4000"),
+		Token([]byte{0,0,1,0}),
+		"N1",
+		"127.0.0.1:9999",
+		c,
+	)
+	if err := c.addNode(rnode); err != nil {
+		t.Fatalf("Unexpected error adding node to cluster: %v", err)
+	}
+
+	if ring, err := c.dcContainer.GetRing("DC4000"); err != nil {
+		t.Fatalf("Error getting dc ring: %v", err)
+	} else {
+		if node, err := ring.getNode(rnode.GetId()); err != nil {
+			t.Fatalf("Error getting node from DC: %v", err)
+		} else {
+			testing_helpers.AssertEqual(t, "node id", rnode.GetId(), node.GetId())
+		}
+	}
+
 }
 
 /************** getPeerData tests **************/
