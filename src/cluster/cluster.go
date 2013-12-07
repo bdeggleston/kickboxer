@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"bytes"
 	"fmt"
 )
 
@@ -26,28 +25,6 @@ const (
 	CONSISTENCY_QUORUM 	= ConsistencyLevel("QUORUM")
 	CONSISTENCY_ALL 	= ConsistencyLevel("ALL")
 )
-
-
-// TODO: move to cluster.Ring.go
-// implements sort.Interface
-type nodeSorter struct {
-	nodes []Node
-}
-
-func (ns *nodeSorter) Len() int {
-	return len(ns.nodes)
-}
-
-// returns true if the item at index i is less than
-// the item and index j
-func (ns *nodeSorter) Less(i, j int) bool {
-	return bytes.Compare(ns.nodes[i].GetToken(), ns.nodes[j].GetToken()) == -1
-}
-
-// switches the position of nodes at indices i & j
-func (ns *nodeSorter) Swap(i, j int) {
-	ns.nodes[i], ns.nodes[j] = ns.nodes[j], ns.nodes[i]
-}
 
 type Cluster struct {
 	// the local store
