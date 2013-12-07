@@ -522,7 +522,7 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 }
 
 func TestOtherDCPeerDiscoveryFromExistingPeers(t *testing.T) {
-
+	t.Fail()
 }
 
 // tests that a node is skipped if it can't be connected
