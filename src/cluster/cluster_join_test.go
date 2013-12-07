@@ -1,3 +1,6 @@
+/**
+ * Tests around nodes joining a cluster
+ */
 package cluster
 
 import (
