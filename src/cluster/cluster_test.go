@@ -518,7 +518,51 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 }
 
 func TestOtherDCPeerDiscoveryFromExistingPeers(t *testing.T) {
-	t.Fail()
+	defer tearDownNewRemoteNode()
+
+	// mocked out responses
+	n2Response := &ConnectionAcceptedResponse{
+		NodeId:NewNodeId(),
+		DCId:DatacenterId("DC4000"),
+		Name:"N2",
+		Token:Token([]byte{0,0,2,0}),
+	}
+	n3Response := &ConnectionAcceptedResponse{
+		NodeId:NewNodeId(),
+		DCId:DatacenterId("DC4000"),
+		Name:"N3",
+		Token:Token([]byte{0,0,3,0}),
+	}
+	responses := map[string]*ConnectionAcceptedResponse{
+		"127.0.0.2:9999": n2Response,
+		"127.0.0.3:9999": n3Response,
+	}
+
+	cluster := setupExistingPeerDiscovery(t, responses)
+
+	if err := cluster.discoverPeers(); err != nil {
+		t.Fatalf("Unexpected error discovering peers: %v", err)
+	}
+
+	getNode := func(nid NodeId) Node {
+		if ring, err := cluster.dcContainer.GetRing("DC4000"); err != nil {
+			t.Fatalf("Error getting dc ring: %v", err)
+		} else {
+			if node, err := ring.getNode(nid); err != nil {
+				t.Fatalf("Error getting node from DC: %v", err)
+			} else {
+				return node
+			}
+		}
+		return nil
+	}
+	n2 := getNode(n2Response.NodeId)
+	n3 := getNode(n3Response.NodeId)
+
+	n2.Start()
+	n3.Start()
+	compareNodeToConnectionResponse(t, cluster, n2, "127.0.0.2:9999", n2Response)
+	compareNodeToConnectionResponse(t, cluster, n3, "127.0.0.3:9999", n3Response)
 }
 
 // tests that a node is skipped if it can't be connected
