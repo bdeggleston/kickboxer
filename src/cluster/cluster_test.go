@@ -204,6 +204,12 @@ func TestGetPeerDataSelfNodeIsNotReturned(t *testing.T) {
 	}
 }
 
+// 2 nodes added to the cluster at the same time
+// should find out about each other
+func TestSimultaneousNodeAdditions(t *testing.T) {
+	t.Skip("TODO")
+}
+
 /************** key routing tests **************/
 
 // tests that the number of nodes returned matches the replication factor
