@@ -212,7 +212,7 @@ func (c* Cluster) discoverPeers() error {
 				fmt.Println(err)
 				continue
 			}
-			c.ring.AddNode(node)
+			c.addNode(node)
 		}
 	}
 
