@@ -191,6 +191,8 @@ func (c* Cluster) discoverPeers() error {
 
 	// checks the existing nodes for the given address
 	addrIsKnown := func(addr string) *RemoteNode {
+		nodes := c.ring.AllNodes()
+		nodes = append(nodes, c.dcContainer.AllNodes()...)
 		for _, v := range c.ring.AllNodes() {
 			if node, ok := v.(*RemoteNode); ok {
 				if node.addr == addr {
@@ -246,7 +248,7 @@ func (c* Cluster) discoverPeers() error {
 				peer.Addr,
 				c,
 			)
-			if err := c.ring.AddNode(n); err != nil {
+			if err := c.addNode(n); err != nil {
 				return err
 			}
 		}
