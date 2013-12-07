@@ -400,11 +400,10 @@ func TestOtherDCPeerDiscoveryFromSeedAddresses(t *testing.T) {
 	compareNodeToConnectionResponse(t, cluster, n3, "127.0.0.3:9999", n3Response)
 }
 
-// tests that discovering peers from existing peers
-// works properly
-func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
-	defer tearDownNewRemoteNode()
 
+// sets up seeded peer discovery with a map of addresses -> connection accepted responses
+// returns a cluster
+func setupExistingPeerDiscovery(t *testing.T, responses map[string]*ConnectionAcceptedResponse) *Cluster {
 	token := Token([]byte{0,0,0,0})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
@@ -431,6 +430,52 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 		cluster,
 	)
 
+	peerData := make([]*PeerData, 0, len(responses))
+	for addr, response := range responses {
+		data := &PeerData{
+			NodeId:response.NodeId,
+			DCId:response.DCId,
+			Name:response.Name,
+			Token:response.Token,
+			Addr:addr,
+		}
+		peerData = append(peerData, data)
+	}
+	discoveryResponse := &DiscoverPeerResponse{Peers:peerData}
+
+	// mock out existing node
+	sock := newPgmConn()
+	sock.addOutgoingMessage(discoveryResponse)
+	conn := &Connection{socket:sock}
+	conn.SetHandshakeCompleted()
+	rnode.pool.Put(conn)
+
+	// add to cluster
+	if err := cluster.addNode(rnode); err != nil {
+		t.Fatalf("Unexpected error adding node to cluster: %v", err)
+	}
+
+	// mock out remote node constructor
+	newRemoteNode = func(addr string, clstr *Cluster) (*RemoteNode) {
+		node := originalNewRemoteNode(addr, clstr)
+		sock := newPgmConn()
+		if response, exists := responses[addr]; !exists {
+			t.Fatalf("Unexpected address: %v", addr)
+		} else {
+			sock.addOutgoingMessage(response)
+		}
+		sock.addOutgoingMessage(&DiscoverPeerResponse{})
+		node.pool.Put(&Connection{socket:sock})
+		return node
+	}
+	return cluster
+}
+
+// tests that discovering peers from existing peers
+// works properly
+func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
+	defer tearDownNewRemoteNode()
+
 	// mocked out responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:NewNodeId(),
@@ -444,81 +489,32 @@ func TestPeerDiscoveryFromExistingPeers(t *testing.T) {
 		Name:"N3",
 		Token:Token([]byte{0,0,3,0}),
 	}
-	discoveryResponse := &DiscoverPeerResponse{Peers:[]*PeerData{
-		&PeerData{
-			NodeId:n2Response.NodeId,
-			DCId:n2Response.DCId,
-			Name:n2Response.Name,
-			Token:n2Response.Token,
-			Addr:"127.0.0.2:9999",
-		},
-		&PeerData{
-			NodeId:n3Response.NodeId,
-			DCId:n3Response.DCId,
-			Name:n3Response.Name,
-			Token:n3Response.Token,
-			Addr:"127.0.0.3:9999",
-		},
-	}}
-
-	// mock out existing node
-	sock := newBiConn(2, 2)
-	WriteMessage(sock.input[0], discoveryResponse)
-	conn := &Connection{socket:sock}
-	conn.SetHandshakeCompleted()
-	rnode.pool.Put(conn)
-
-	// add to cluster
-	if err := cluster.addNode(rnode); err != nil {
-		t.Fatalf("Unexpected error adding node to cluster: %v", err)
+	responses := map[string]*ConnectionAcceptedResponse{
+		"127.0.0.2:9999": n2Response,
+		"127.0.0.3:9999": n3Response,
 	}
 
-	// mock out remote node constructor
-	newRemoteNode = func(addr string, clstr *Cluster) (*RemoteNode) {
-		node := originalNewRemoteNode(addr, clstr)
-		var response *ConnectionAcceptedResponse
-		sock := newBiConn(2, 2)
-		switch addr {
-		case "127.0.0.2:9999":
-			response = n2Response
-		case "127.0.0.3:9999":
-			response = n3Response
-		default:
-			panic(fmt.Sprintf("Unexpected address: %v", addr))
-		}
-		WriteMessage(sock.input[0], response)
-		discResp := &DiscoverPeerResponse{}
-		WriteMessage(sock.input[1], discResp)
-		conn := &Connection{socket:sock}
-		node.pool.Put(conn)
-		return node
-	}
+	cluster := setupExistingPeerDiscovery(t, responses)
 
 	if err := cluster.discoverPeers(); err != nil {
 		t.Fatalf("Unexpected error discovering peers: %v", err)
 	}
 
-	n2, err := cluster.ring.GetNode(n2Response.NodeId)
-	n3, err := cluster.ring.GetNode(n3Response.NodeId)
-	if err != nil { t.Fatalf("n2 was not found: %v", err) }
-	if err != nil { t.Fatalf("n3 was not found: %v", err) }
+	getNode := func(nid NodeId) Node {
+		node, err := cluster.ring.GetNode(nid)
+		if err != nil {
+			t.Fatalf("Node not found in ring")
+		}
+		return node
+	}
+	n2 := getNode(n2Response.NodeId)
+	n3 := getNode(n3Response.NodeId)
 
 	n2.Start()
 	n3.Start()
+	compareNodeToConnectionResponse(t, cluster, n2, "127.0.0.2:9999", n2Response)
+	compareNodeToConnectionResponse(t, cluster, n3, "127.0.0.3:9999", n3Response)
 
-	testing_helpers.AssertEqual(t, "n2 id", n2.GetId(), n2Response.NodeId)
-	testing_helpers.AssertEqual(t, "n2 dcid", n2.GetDatacenterId(), n2Response.DCId)
-	testing_helpers.AssertEqual(t, "n2 name", n2.Name(), n2Response.Name)
-	testing_helpers.AssertEqual(t, "n2 addr", n2.GetAddr(), "127.0.0.2:9999")
-	testing_helpers.AssertEqual(t, "n2 status", NODE_UP, n2.GetStatus())
-	testing_helpers.AssertSliceEqual(t, "n2 token", n2.GetToken(), n2Response.Token)
-
-	testing_helpers.AssertEqual(t, "n3 id", n3.GetId(), n3Response.NodeId)
-	testing_helpers.AssertEqual(t, "n3 dcid", n3.GetDatacenterId(), n3Response.DCId)
-	testing_helpers.AssertEqual(t, "n3 name", n3.Name(), n3Response.Name)
-	testing_helpers.AssertEqual(t, "n3 addr", n3.GetAddr(), "127.0.0.3:9999")
-	testing_helpers.AssertEqual(t, "n3 status", NODE_UP, n3.GetStatus())
-	testing_helpers.AssertSliceEqual(t, "n3 token", n3.GetToken(), n3Response.Token)
 }
 
 func TestOtherDCPeerDiscoveryFromExistingPeers(t *testing.T) {
