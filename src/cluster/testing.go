@@ -137,7 +137,7 @@ type writeCall struct {
 	timestamp time.Time
 }
 
-type queryResponse struct {
+type mockQueryResponse struct {
 	val store.Value
 	err error
 }
@@ -147,8 +147,8 @@ type mockNode struct {
 	isStarted bool
 	reads []readCall
 	writes []writeCall
-	readResponses chan *queryResponse
-	writeResponses chan *queryResponse
+	readResponses chan *mockQueryResponse
+	writeResponses chan *mockQueryResponse
 }
 
 func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
@@ -160,8 +160,8 @@ func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockN
 	n.status = NODE_UP
 	n.reads = make([]readCall, 0, 5)
 	n.writes = make([]writeCall, 0, 5)
-	n.readResponses = make(chan *queryResponse, 100)
-	n.writeResponses = make(chan *queryResponse, 100)
+	n.readResponses = make(chan *mockQueryResponse, 100)
+	n.writeResponses = make(chan *mockQueryResponse, 100)
 	return n
 }
 
