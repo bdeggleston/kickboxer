@@ -1,8 +1,13 @@
 package cluster
 
 import (
+	"bufio"
 	"store"
 	"time"
+)
+
+import (
+	"serializer"
 )
 
 type reconcileCall struct {
@@ -92,3 +97,74 @@ func (s *mockStore) GetRawKey(key string) (store.Value, error) { return nil, nil
 func (s *mockStore) SetRawKey(key string, val store.Value) error { return nil }
 func (s *mockStore) GetKeys() []string { return []string{} }
 func (s *mockStore) KeyExists(key string) bool { return true }
+
+// values
+
+// a single value used for
+// key/val types
+type mockStringVal struct {
+	value string
+	time time.Time
+}
+
+// single value constructor
+func newMockString(value string, time time.Time) *mockStringVal {
+	v := &mockStringVal{
+		value:value,
+		time:time,
+	}
+	return v
+}
+
+func (v *mockStringVal) GetValue() string {
+	return v.value
+}
+
+func (v *mockStringVal) GetTimestamp() time.Time {
+	return v.time
+}
+
+func (v *mockStringVal) GetValueType() store.ValueType {
+	return "STRING"
+}
+func (v *mockStringVal) Equal(o store.Value) bool {
+	if !baseValueEqual(v, o) { return false }
+	other := o.(*mockStringVal)
+	if v.value != other.value { return false }
+	return true
+}
+
+func (v *mockStringVal) Serialize(buf *bufio.Writer) error {
+	if err := serializer.WriteFieldBytes(buf, []byte(v.value)); err != nil {
+		return err
+	}
+	if err := serializer.WriteTime(buf, v.time); err != nil {
+		return err
+	}
+	if err := buf.Flush(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *mockStringVal) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldBytes(buf); err != nil {
+		return err
+	} else {
+		v.value = string(val)
+	}
+
+	if t, err := serializer.ReadTime(buf); err != nil {
+		return err
+	} else {
+		v.time = t
+	}
+	return nil
+}
+
+func baseValueEqual(v0, v1 store.Value) bool {
+	if v0.GetValueType() != v1.GetValueType() { return false }
+	if v0.GetTimestamp() != v1.GetTimestamp() { return false }
+	return true
+}
+
