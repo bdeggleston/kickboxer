@@ -474,6 +474,8 @@ func (c *Cluster) ExecuteRead(
 	args []string,
 	// the consistency level to execute the query at
 	consistency ConsistencyLevel,
+	// query timeout
+	timeout time.Duration,
 	// if true, reconciliation should be performed before returning
 	syncronous bool,
 ) (store.Value, error) {
@@ -493,6 +495,8 @@ func (c *Cluster) ExecuteWrite(
 	// the consistency level to execute the query at
 	consistency ConsistencyLevel,
 	// if true, reconciliation should be performed before returning
+	// query timeout
+	timeout time.Duration,
 	syncronous bool,
 ) (store.Value, error) {
 	return nil, nil
