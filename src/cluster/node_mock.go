@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"store",
+	"store"
 	"time"
 )
 
