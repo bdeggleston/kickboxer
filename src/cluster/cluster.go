@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"time"
 )
 
 import (
@@ -460,3 +461,40 @@ func (c *Cluster) RemoveNode() error {
 	panic("not implemented")
 	return nil
 }
+
+/************** queries **************/
+
+// executes a read against the cluster
+func (c *Cluster) ExecuteRead(
+	// the read command to perform
+	cmd string,
+	// the key to read
+	key string,
+	// the command arts
+	args []string,
+	// the consistency level to execute the query at
+	consistency ConsistencyLevel,
+	// if true, reconciliation should be performed before returning
+	syncronous bool,
+) (store.Value, error) {
+	return nil, nil
+}
+
+// executes a write against the cluster
+func (c *Cluster) ExecuteWrite(
+	// the read command to perform
+	cmd string,
+	// the key to read
+	key string,
+	// the command arts
+	args []string,
+	// the timestamp to record on the write
+	timestamp time.Time,
+	// the consistency level to execute the query at
+	consistency ConsistencyLevel,
+	// if true, reconciliation should be performed before returning
+	syncronous bool,
+) (store.Value, error) {
+	return nil, nil
+}
+
