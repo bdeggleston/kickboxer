@@ -292,6 +292,14 @@ func (c *Cluster) GetLocalNodesForKey(k string) []Node {
 	return c.ring.GetNodesForToken(token, c.replicationFactor)
 }
 
+// returns a map of DC id -> nodes for the give key
+func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]Node {
+	token := c.partitioner.GetToken(k)
+	nm := c.dcContainer.GetNodesForToken(token)
+	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token)
+	return nm
+}
+
 /************** streaming **************/
 
 // initiates streaming tokens from the given node
