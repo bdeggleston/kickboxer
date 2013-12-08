@@ -523,7 +523,7 @@ func (c *Cluster) reconcileRead(
 	var response queryResponse
 
 	numReceived := 0
-	timeoutEvent := time.After(timeout)
+	timeoutEvent := time.After(timeout * time.Millisecond)
 	for numReceived < numNodes {
 		select {
 		case response = <-rchan:
@@ -644,7 +644,7 @@ func (c *Cluster) ExecuteRead(
 	}
 	values := make(map[string]store.Value)
 	var response queryResponse
-	timeoutEvent := time.After(timeout)
+	timeoutEvent := time.After(timeout * time.Millisecond)
 	for !consistencySatisfied() {
 		// too many errors received to satisfy consistency
 		if numTotalResponses >= numNodes {
