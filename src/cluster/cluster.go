@@ -22,9 +22,13 @@ const (
 type ConsistencyLevel string
 
 const (
-	CONSISTENCY_ONE 	= ConsistencyLevel("ONE")
-	CONSISTENCY_QUORUM 	= ConsistencyLevel("QUORUM")
-	CONSISTENCY_ALL 	= ConsistencyLevel("ALL")
+	CONSISTENCY_ONE 			= ConsistencyLevel("ONE")
+	CONSISTENCY_QUORUM			= ConsistencyLevel("QUORUM")
+	CONSISTENCY_QUORUM_LOCAL 	= ConsistencyLevel("QUORUM_LOCAL")
+	CONSISTENCY_ALL 			= ConsistencyLevel("ALL")
+	CONSISTENCY_ALL_LOCAL		= ConsistencyLevel("ALL_LOCAL")
+	CONSISTENCY_CONSENSUS		= ConsistencyLevel("CONSENSUS")
+	CONSISTENCY_CONSENSUS_LOCAL	= ConsistencyLevel("CONSENSUS_LOCAL")
 )
 
 type Cluster struct {
