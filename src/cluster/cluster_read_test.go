@@ -117,6 +117,15 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 		}
 	}
 
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		for _, rnode := range nodes {
+			node := rnode.(*mockNode)
+			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
+		}
+	}
+
 }
 
 // tests consistency ONE where consistency is satisfied
