@@ -468,9 +468,9 @@ func (c *Cluster) RemoveNode() error {
 func (c *Cluster) ExecuteRead(
 	// the read command to perform
 	cmd string,
-	// the key to read
+	// the key to read from
 	key string,
-	// the command arts
+	// the command args
 	args []string,
 	// the consistency level to execute the query at
 	consistency ConsistencyLevel,
@@ -486,9 +486,9 @@ func (c *Cluster) ExecuteRead(
 func (c *Cluster) ExecuteWrite(
 	// the read command to perform
 	cmd string,
-	// the key to read
+	// the key to write to
 	key string,
-	// the command arts
+	// the command args
 	args []string,
 	// the timestamp to record on the write
 	timestamp time.Time,
