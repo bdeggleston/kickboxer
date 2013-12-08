@@ -295,8 +295,8 @@ func (c *Cluster) GetLocalNodesForKey(k string) []Node {
 // returns a map of DC id -> nodes for the give key
 func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]Node {
 	token := c.partitioner.GetToken(k)
-	nm := c.dcContainer.GetNodesForToken(token)
-	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token)
+	nm := c.dcContainer.GetNodesForToken(token, c.replicationFactor)
+	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token, c.replicationFactor)
 	return nm
 }
 
@@ -476,6 +476,90 @@ func (c *Cluster) RemoveNode() error {
 
 /************** queries **************/
 
+// struct used to communicate query
+// results over channels
+type queryResponse struct {
+	nid NodeId
+	val store.Value
+	err error
+}
+
+// returns the total number of nodes in a node map
+func numMappedNodes(replicaMap map[DatacenterId][]Node) int {
+	num := 0
+	for _, nodes := range replicaMap {
+		num += len(nodes)
+	}
+	return num
+}
+
+// returns true if the consistency level only
+// requires talking to local nodes
+func readLocalOnly(cl ConsistencyLevel) bool {
+	switch cl {
+	case CONSISTENCY_ONE:
+		return true
+	case CONSISTENCY_QUORUM_LOCAL:
+		return true
+	case CONSISTENCY_ALL_LOCAL:
+		return true
+	case CONSISTENCY_CONSENSUS_LOCAL:
+		return true
+	default:
+		return false
+	}
+	return false
+}
+
+// reconciles values and issues repair statements to other nodes
+func (c *Cluster) reconcileRead(
+	key string,
+	nodeMap map[NodeId]Node,
+	rchan chan queryResponse,
+	timeout time.Duration,
+) {
+	numNodes := len(nodeMap)
+	values := make(map[string]store.Value, numNodes)
+	var response queryResponse
+
+	numReceived := 0
+	timeoutEvent := time.After(timeout)
+	for numReceived < numNodes {
+		select {
+		case response = <-rchan:
+			// do something
+			val := response.val
+			err := response.err
+			numReceived++
+			if err != nil {
+				// TODO: log the error?
+				continue
+			}
+			values[string(response.nid)] = val
+		case <-timeoutEvent:
+			break
+		}
+	}
+
+	_, instructions, err := c.store.Reconcile(key, values)
+	if err != nil {
+		//log something??
+	}
+
+	write := func(node Node, inst *store.Instruction) {
+		node.ExecuteWrite(inst.Cmd, inst.Key, inst.Args, inst.Timestamp)
+	}
+
+	for nid, instructionList := range instructions {
+		node := nodeMap[NodeId(nid)]
+		for _, inst := range instructionList {
+			go write(node, inst)
+		}
+	}
+
+}
+
+
 // executes a read against the cluster
 func (c *Cluster) ExecuteRead(
 	// the read command to perform
@@ -491,7 +575,110 @@ func (c *Cluster) ExecuteRead(
 	// if true, reconciliation should be performed before returning
 	synchronous bool,
 ) (store.Value, error) {
-	return nil, nil
+
+	// map of dcid -> []Node
+	replicaMap := c.GetNodesForKey(key)
+	// map of node ids-> node contacted, used for
+	// sending reconciliation corrections
+	nodeMap := make(map[NodeId]Node)
+	numNodes := numMappedNodes(replicaMap)
+	// used for constructing a response
+	responseChannel := make(chan queryResponse, numNodes)
+	// used for reconciling all responses
+	reconcileChannel := make(chan queryResponse, numNodes)
+
+	// executes the read against the cluster
+	execute := func(node Node) {
+		val, err := node.ExecuteRead(cmd, key, args)
+		response := queryResponse{nid:node.GetId() , val:val, err:err}
+		responseChannel <- response
+		reconcileChannel <- response
+	}
+
+	// determine if the read only needs to be executed against local nodes
+	localOnly := readLocalOnly(consistency)
+
+	// determine how many nodes we need a response from, per datacenter
+	// and start querying nodes
+	numRequiredResponses := make(map[DatacenterId] int, len(replicaMap))
+	for dcid, nodes := range replicaMap {
+		if dcid != c.GetDatacenterId() && localOnly {
+			numRequiredResponses[dcid] = 0
+			continue
+		} else {
+			switch consistency {
+			case CONSISTENCY_ONE:
+				numRequiredResponses[dcid] = 1
+			case CONSISTENCY_QUORUM, CONSISTENCY_QUORUM_LOCAL:
+				numRequiredResponses[dcid] = (len(nodes) / 2) + 1
+			case CONSISTENCY_ALL, CONSISTENCY_ALL_LOCAL:
+				numRequiredResponses[dcid] = len(nodes)
+			case CONSISTENCY_CONSENSUS, CONSISTENCY_CONSENSUS_LOCAL:
+				return nil, fmt.Errorf("CONSENSUS consistency not implemented yet")
+			default:
+				return nil, fmt.Errorf("Unknown consistency level: %v", consistency)
+			}
+		}
+
+		for _, node := range nodes {
+			nodeMap[node.GetId()] = node
+			go execute(node)
+		}
+	}
+
+	// wait for responses
+	numReceivedResponses := make(map[DatacenterId] int, len(replicaMap))
+	numTotalResponses := 0
+	// determines if the number of responses received satisfies the
+	// required consistency level
+	consistencySatisfied := func() bool {
+		for dcid, num := range numRequiredResponses {
+			if numReceivedResponses[dcid] < num {
+				return false
+			}
+		}
+		return true
+	}
+	values := make(map[string]store.Value)
+	var response queryResponse
+	timeoutEvent := time.After(timeout)
+	for !consistencySatisfied() {
+		// too many errors received to satisfy consistency
+		if numTotalResponses >= numNodes {
+			return nil, fmt.Errorf("Errors received from remote nodes, could not satisfy consistency")
+		}
+
+		select {
+		case response = <-responseChannel:
+			// do something
+			val := response.val
+			err := response.err
+			numTotalResponses++;
+			if err != nil {
+				// TODO: log the error?
+				continue
+			}
+			values[string(response.nid)] = val
+		case <-timeoutEvent:
+			return nil, fmt.Errorf("Read not completed before timeout")
+		}
+	}
+
+	// reconcile values into a result
+	val, _, err := c.store.Reconcile(key, values)
+	if err != nil {
+		return nil, fmt.Errorf("Error reconciling values: %v", err)
+	}
+
+	// repair discrepancies
+	repairResponseTimeout := timeout * 2
+	if synchronous {
+		c.reconcileRead(key, nodeMap, reconcileChannel, repairResponseTimeout)
+	} else {
+		go c.reconcileRead(key, nodeMap, reconcileChannel, repairResponseTimeout)
+	}
+
+	return val, nil
 }
 
 // executes a write against the cluster
