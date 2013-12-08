@@ -14,6 +14,7 @@ import (
 
 import (
 	"kvstore"
+	"store"
 )
 
 // ----------------- cluster setup -----------------
@@ -183,15 +184,17 @@ func (n *mockNode) IsStarted() bool {
 	return n.isStarted
 }
 
-func (n *mockNode) ExecuteRead(cmd string, key string, args []string) {
+func (n *mockNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	call := readCall{cmd:cmd, key:key, args:args}
 	n.reads = append(n.reads, call)
+	return nil, nil
 }
 
 // executes a write instruction against the node's store
-func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) {
+func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	call := writeCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
 	n.writes = append(n.writes, call)
+	return nil, nil
 }
 
 // ----------------- datacenter setup / mocks -----------------

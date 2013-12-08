@@ -55,10 +55,10 @@ type Node interface {
 	IsStarted() bool
 
 	// executes a read instruction against the node's store
-	ExecuteRead(cmd string, key string, args []string)
+	ExecuteRead(cmd string, key string, args []string) (store.Value, error)
 
 	// executes a write instruction against the node's store
-	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time)
+	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
 }
 
 // the baseNode defines all of the properties
@@ -119,20 +119,22 @@ func (n *LocalNode) IsStarted() bool {
 }
 
 // executes a read instruction against the node's store
-func (n *LocalNode) ExecuteRead(cmd string, key string, args []string) {
+func (n *LocalNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
 
+	return nil, nil
 }
 
 // executes a write instruction against the node's store
-func (n *LocalNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) {
+func (n *LocalNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
 	_ = timestamp
 
+	return nil, nil
 }
 
 // RemoteNode communicates with other nodes in the cluster
@@ -261,19 +263,19 @@ func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
 }
 
 // executes a read instruction against the node's store
-func (n *RemoteNode) ExecuteRead(cmd string, key string, args []string) {
+func (n *RemoteNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
-
+	return nil, nil
 }
 
 // executes a write instruction against the node's store
-func (n *RemoteNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) {
+func (n *RemoteNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
 	_ = timestamp
-
+	return nil, nil
 }
 
