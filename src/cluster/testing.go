@@ -14,7 +14,6 @@ import (
 
 import (
 	"kvstore"
-	"store"
 )
 
 // ----------------- cluster setup -----------------
