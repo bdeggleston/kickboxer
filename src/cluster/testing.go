@@ -137,11 +137,18 @@ type writeCall struct {
 	timestamp time.Time
 }
 
+type queryResponse struct {
+	val store.Value
+	err error
+}
+
 type mockNode struct {
 	baseNode
 	isStarted bool
 	reads []readCall
 	writes []writeCall
+	readResponses chan *queryResponse
+	writeResponses chan *queryResponse
 }
 
 func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
@@ -153,6 +160,8 @@ func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockN
 	n.status = NODE_UP
 	n.reads = make([]readCall, 0, 5)
 	n.writes = make([]writeCall, 0, 5)
+	n.readResponses = make(chan *queryResponse, 100)
+	n.writeResponses = make(chan *queryResponse, 100)
 	return n
 }
 
@@ -173,14 +182,18 @@ func (n *mockNode) IsStarted() bool {
 func (n *mockNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
 	call := readCall{cmd:cmd, key:key, args:args}
 	n.reads = append(n.reads, call)
-	return nil, nil
+
+	response := <- n.readResponses
+	return response.val, response.err
 }
 
 // executes a write instruction against the node's store
 func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	call := writeCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
 	n.writes = append(n.writes, call)
-	return nil, nil
+
+	response := <- n.writeResponses
+	return response.val, response.err
 }
 
 // ----------------- datacenter setup / mocks -----------------
