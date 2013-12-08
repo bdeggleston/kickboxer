@@ -661,6 +661,8 @@ func (c *Cluster) ExecuteRead(
 				// TODO: log the error?
 				continue
 			}
+			// increment number of responses for responding datacenter
+			numReceivedResponses[nodeMap[response.nid].GetDatacenterId()]++
 			values[string(response.nid)] = val
 		case <-timeoutEvent:
 			return nil, fmt.Errorf("Read not completed before timeout")
