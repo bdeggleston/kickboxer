@@ -138,37 +138,23 @@ type writeCall struct {
 }
 
 type mockNode struct {
-	name string
-	token Token
-	id NodeId
-	dcid DatacenterId
-	status NodeStatus
-	addr string
-
+	baseNode
 	isStarted bool
 	reads []readCall
 	writes []writeCall
 }
 
 func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
-	n := &mockNode{id:id, dcid:dcid, token:token, name:name}
+	n := &mockNode{}
+	n.id = id
+	n.dcId = dcid
+	n.token = token
+	n.name = name
 	n.status = NODE_UP
 	n.reads = make([]readCall, 0, 5)
 	n.writes = make([]writeCall, 0, 5)
 	return n
 }
-
-func (n *mockNode) Name() string { return n.name }
-
-func (n *mockNode) GetAddr() string { return n.addr }
-
-func (n *mockNode) GetToken() Token { return n.token }
-
-func (n *mockNode) GetStatus() NodeStatus { return n.status }
-
-func (n *mockNode) GetId() NodeId { return n.id }
-
-func (n *mockNode) GetDatacenterId() DatacenterId { return n.dcid }
 
 func (n *mockNode) Start() error {
 	n.isStarted = true
