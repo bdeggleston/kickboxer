@@ -559,7 +559,6 @@ func (c *Cluster) reconcileRead(
 
 }
 
-
 // executes a read against the cluster
 func (c *Cluster) ExecuteRead(
 	// the read command to perform
@@ -575,6 +574,10 @@ func (c *Cluster) ExecuteRead(
 	// if true, reconciliation should be performed before returning
 	synchronous bool,
 ) (store.Value, error) {
+
+	if !c.store.IsReadCommand(cmd) {
+		return nil, fmt.Errorf("Invalid read command: %v", cmd)
+	}
 
 	// map of dcid -> []Node
 	replicaMap := c.GetNodesForKey(key)
