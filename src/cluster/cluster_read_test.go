@@ -73,7 +73,8 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	// send responses to nodes
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
-	for _, nodes := range nodeMap {
+	for dcid, nodes := range nodeMap {
+		if dcid != tCluster.GetDatacenterId() { continue }
 		for _, node := range nodes {
 			mNode := node.(*mockNode)
 			mNode.addReadResponse(expectedVal, nil)
@@ -129,7 +130,7 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 }
 
 // tests consistency ONE where consistency is satisfied
-// but not all nodes are reached
+// but not all nodes return a response
 func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 
 }
