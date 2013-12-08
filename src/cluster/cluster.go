@@ -287,7 +287,7 @@ func (c* Cluster) Stop() error {
 
 // gets the token of the given key and returns the nodes
 // that it maps to
-func (c *Cluster) GetNodesForKey(k string) []Node {
+func (c *Cluster) GetLocalNodesForKey(k string) []Node {
 	token := c.partitioner.GetToken(k)
 	return c.ring.GetNodesForToken(token, c.replicationFactor)
 }
@@ -316,7 +316,7 @@ func (c *Cluster) streamToNode(n Node) error {
 	// determines if the given key is replicated by
 	// the destination node
 	replicates:= func(key string) bool {
-		nodes := c.GetNodesForKey(key)
+		nodes := c.GetLocalNodesForKey(key)
 		for _, rnode := range nodes {
 			if rnode.GetId() == node.GetId() {
 				return true
