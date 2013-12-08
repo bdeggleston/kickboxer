@@ -1,8 +1,13 @@
 package cluster
 
 import (
-	"store"
+	"fmt"
 	"time"
+	"testing"
+)
+
+import (
+	"store"
 )
 
 type readCall struct {
@@ -30,6 +35,9 @@ type mockNode struct {
 	writes []writeCall
 	readResponses chan *mockQueryResponse
 	writeResponses chan *mockQueryResponse
+
+	// for the logging
+	testPtr *testing.T
 }
 
 func newMockNode(id NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
@@ -64,7 +72,9 @@ func (n *mockNode) ExecuteRead(cmd string, key string, args []string) (store.Val
 	call := readCall{cmd:cmd, key:key, args:args}
 	n.reads = append(n.reads, call)
 
+	n.log(fmt.Sprintf("Read Requested: %v, %v, %v", cmd, key, args))
 	response := <- n.readResponses
+	n.log(fmt.Sprintf("Read Response: %v", response.val))
 	return response.val, response.err
 }
 
@@ -73,7 +83,25 @@ func (n *mockNode) ExecuteWrite(cmd string, key string, args []string, timestamp
 	call := writeCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
 	n.writes = append(n.writes, call)
 
+	n.log(fmt.Sprintf("Write Requested: %v, %v, %v, %v", cmd, key, args, timestamp))
 	response := <- n.writeResponses
+	n.log(fmt.Sprintf("Read Response: %v", response.val))
 	return response.val, response.err
 }
 
+// log to the test pointer, if it exists
+func (n *mockNode) log(msg string) {
+	if n.testPtr != nil {
+		n.testPtr.Logf("Node %v: %v\n", n.name, msg)
+	}
+}
+
+func (n *mockNode) addReadResponse(val store.Value, err error) {
+	n.log(fmt.Sprintf("Recieved read return val: %v, %v", val, err))
+	n.readResponses <- &mockQueryResponse{val:val, err:err}
+}
+
+func (n *mockNode) addWriteResponse(val store.Value, err error) {
+	n.log(fmt.Sprintf("Recieved write return val: %v, %v", val, err))
+	n.writeResponses <- &mockQueryResponse{val:val, err:err}
+}
