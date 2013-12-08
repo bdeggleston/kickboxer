@@ -75,13 +75,15 @@ func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
 	return ring, nil
 }
 
-func (dc *DatacenterContainer) GetNodesForToken(t Token, replicationFactor uint32) []Node {
+// returns a map of datacenter ids -> replica nodes
+func (dc *DatacenterContainer) GetNodesForToken(t Token, replicationFactor uint32) map[DatacenterId][]Node {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
-	nodes := make([]Node, 0, int(replicationFactor) * len(dc.rings))
-	for _, ring := range dc.rings {
-		nodes = append(nodes, ring.GetNodesForToken(t, replicationFactor)...)
+	// allocate an additional space for the local node when this is used in queries
+	nodes := make(map[DatacenterId][]Node, len(dc.rings) + 1)
+	for dcid, ring := range dc.rings {
+		nodes[dcid] = ring.GetNodesForToken(t, replicationFactor)
 	}
 
 	return nodes

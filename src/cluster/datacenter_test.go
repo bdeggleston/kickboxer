@@ -53,13 +53,11 @@ func TestGetNodesForToken(t *testing.T) {
 	token = Token([]byte{0,0,4,5})
 	nodes := dc.GetNodesForToken(token, 3)
 
-	if len(nodes) != 9 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	for i:=0; i<3; i++ {
-		baseIdx := i * 3
-		dcid := nodes[baseIdx].GetDatacenterId()
-		testing_helpers.AssertEqual(t, "node[0]", dc.rings[dcid].tokenRing[5].GetId(), nodes[baseIdx + 0].GetId())
-		testing_helpers.AssertEqual(t, "node[1]", dc.rings[dcid].tokenRing[6].GetId(), nodes[baseIdx + 1].GetId())
-		testing_helpers.AssertEqual(t, "node[2]", dc.rings[dcid].tokenRing[7].GetId(), nodes[baseIdx + 2].GetId())
+	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	for dcid, replicas := range nodes {
+		testing_helpers.AssertEqual(t, "node[0]", dc.rings[dcid].tokenRing[5].GetId(), replicas[0].GetId())
+		testing_helpers.AssertEqual(t, "node[1]", dc.rings[dcid].tokenRing[6].GetId(), replicas[1].GetId())
+		testing_helpers.AssertEqual(t, "node[2]", dc.rings[dcid].tokenRing[7].GetId(), replicas[2].GetId())
 	}
 }
 
