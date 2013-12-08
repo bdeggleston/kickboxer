@@ -524,22 +524,24 @@ func (c *Cluster) reconcileRead(
 
 	numReceived := 0
 	timeoutEvent := time.After(timeout * time.Millisecond)
-	for numReceived < numNodes {
-		select {
-		case response = <-rchan:
-			// do something
-			val := response.val
-			err := response.err
-			numReceived++
-			if err != nil {
-				// TODO: log the error?
-				continue
+	receive:
+		for numReceived < numNodes {
+			fmt.Println("reconcile pass")
+			select {
+			case response = <-rchan:
+				// do something
+				val := response.val
+				err := response.err
+				numReceived++
+				if err != nil {
+					// TODO: log the error?
+					continue
+				}
+				values[string(response.nid)] = val
+			case <-timeoutEvent:
+				break receive
 			}
-			values[string(response.nid)] = val
-		case <-timeoutEvent:
-			break
 		}
-	}
 
 	_, instructions, err := c.store.Reconcile(key, values)
 	if err != nil {
