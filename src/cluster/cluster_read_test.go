@@ -49,6 +49,45 @@ func setupReadTestCluster(t *testing.T, s store.Store) *Cluster {
 	return c
 }
 
+// checks that the read calls in a list of nodes match the expected
+// calls provided by the caller
+func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []Node) {
+	for _, rnode := range nodes {
+		node := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+		if testing_helpers.AssertEqual(t, nodefmt("read size"), len(reads), len(node.reads)) {
+			for i:=0; i<len(reads); i++ {
+				expected := reads[i]
+				actual := node.reads[i]
+				readfmt := func(s string) string { return fmt.Sprintln("Read %v: %v", i, s) }
+				testing_helpers.AssertEqual(t, readfmt("cmd"), expected.cmd, actual.cmd)
+				testing_helpers.AssertEqual(t, readfmt("key"), expected.key, actual.key)
+				testing_helpers.AssertStringArrayEqual(t, readfmt("args"), expected.args, actual.args)
+			}
+		}
+	}
+}
+
+// checks that the write calls in a list of nodes match the expected
+// calls provided by the caller
+func assertWriteCallsReceived(t *testing.T, writes []*writeCall, nodes []Node) {
+	for _, rnode := range nodes {
+		node := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+		if testing_helpers.AssertEqual(t, nodefmt("write size"), len(writes), len(node.writes)) {
+			for i:=0; i<len(writes); i++ {
+				expected := writes[i]
+				actual := node.writes[i]
+				readfmt := func(s string) string { return fmt.Sprintln("Read %v: %v", i, s) }
+				testing_helpers.AssertEqual(t, readfmt("cmd"), expected.cmd, actual.cmd)
+				testing_helpers.AssertEqual(t, readfmt("key"), expected.key, actual.key)
+				testing_helpers.AssertStringArrayEqual(t, readfmt("args"), expected.args, actual.args)
+				testing_helpers.AssertEqual(t, readfmt("timestamp"), expected.timestamp, actual.timestamp)
+			}
+		}
+	}
+}
+
 // tests that an invalid read command passed
 // into execute read returns an error
 func TestInvalidReadCommand(t *testing.T) {
@@ -104,16 +143,8 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	}
 
 	// check that local nodes were queried properly
-	for _, rnode := range nodeMap[tCluster.GetDatacenterId()] {
-		node := rnode.(*mockNode)
-		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		testing_helpers.AssertEqual(t, nodefmt("read size"), 1, len(node.reads))
-		read := node.reads[0]
-		testing_helpers.AssertEqual(t, nodefmt("cmd"), "GET", read.cmd)
-		testing_helpers.AssertEqual(t, nodefmt("key"), key, read.key)
-		testing_helpers.AssertEqual(t, nodefmt("num args"), 0, len(read.args))
-
-	}
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
@@ -121,20 +152,12 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 		if dcid == tCluster.GetDatacenterId() {
 			continue
 		}
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("read size"), 0, len(node.reads))
-		}
+		assertReadCallsReceived(t, []*readCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
-		}
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -208,7 +231,7 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 		}
 	}
 
-	// check that no writes (reconciliations) were issued against the nodes
+	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
 		for _, rnode := range nodes {
 			node := rnode.(*mockNode)
@@ -226,7 +249,63 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 
 // tests consistency ONE where no nodes can be reached
 func TestReadFailureCaseCLONE(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
+	nodeMap := tCluster.GetNodesForKey(key)
 
+	// ...don't setup any response fixtures
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, true)
+	if err == nil {
+		t.Errorf("Expecting error executing read")
+	} else {
+		_, ok := err.(nodeTimeoutError)
+		if !ok {
+			t.Errorf("Expecting error of type nodeTimeoutError, got: %T", err)
+		}
+	}
+
+	if val != nil {
+		t.Errorf("Expected nil value, got: %v", val)
+	}
+
+	// check that local node's received a read call
+	for _, rnode := range nodeMap[tCluster.GetDatacenterId()] {
+		node := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+		testing_helpers.AssertEqual(t, nodefmt("read size"), 1, len(node.reads))
+		read := node.reads[0]
+		testing_helpers.AssertEqual(t, nodefmt("cmd"), "GET", read.cmd)
+		testing_helpers.AssertEqual(t, nodefmt("key"), key, read.key)
+		testing_helpers.AssertEqual(t, nodefmt("num args"), 0, len(read.args))
+	}
+
+	// check that remote nodes were not queried
+	for dcid, nodes := range nodeMap {
+		// skip local cluster
+		if dcid == tCluster.GetDatacenterId() {
+			continue
+		}
+		for _, rnode := range nodes {
+			node := rnode.(*mockNode)
+			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+			testing_helpers.AssertEqual(t, nodefmt("read size"), 0, len(node.reads))
+		}
+	}
+
+	// check that no writes (reconciliations) were issued against any nodes
+	for _, nodes := range nodeMap {
+		for _, rnode := range nodes {
+			node := rnode.(*mockNode)
+			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
+		}
+	}
+
+	// check that no reconciliations were attempted
+	testing_helpers.AssertEqual(t, "reconcile calls", 0, len(mStore.reconcileCalls))
 }
 
 // tests consistency QUORUM where consistency cannot be satisfied
