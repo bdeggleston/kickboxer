@@ -149,9 +149,7 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
-		if dcid == tCluster.GetDatacenterId() {
-			continue
-		}
+		if dcid == tCluster.GetDatacenterId() { continue }
 		assertReadCallsReceived(t, []*readCall{}, nodes)
 	}
 
@@ -207,37 +205,19 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 	}
 
 	// check that local nodes were queried properly
-	for _, rnode := range nodeMap[tCluster.GetDatacenterId()] {
-		node := rnode.(*mockNode)
-		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		testing_helpers.AssertEqual(t, nodefmt("read size"), 1, len(node.reads))
-		read := node.reads[0]
-		testing_helpers.AssertEqual(t, nodefmt("cmd"), "GET", read.cmd)
-		testing_helpers.AssertEqual(t, nodefmt("key"), key, read.key)
-		testing_helpers.AssertEqual(t, nodefmt("num args"), 0, len(read.args))
-
-	}
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
-		if dcid == tCluster.GetDatacenterId() {
-			continue
-		}
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("read size"), 0, len(node.reads))
-		}
+		if dcid == tCluster.GetDatacenterId() { continue }
+		assertReadCallsReceived(t, []*readCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
-		}
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
 	}
 
 	// check that only one value was received for reconciliation
@@ -272,36 +252,19 @@ func TestReadFailureCaseCLONE(t *testing.T) {
 	}
 
 	// check that local node's received a read call
-	for _, rnode := range nodeMap[tCluster.GetDatacenterId()] {
-		node := rnode.(*mockNode)
-		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		testing_helpers.AssertEqual(t, nodefmt("read size"), 1, len(node.reads))
-		read := node.reads[0]
-		testing_helpers.AssertEqual(t, nodefmt("cmd"), "GET", read.cmd)
-		testing_helpers.AssertEqual(t, nodefmt("key"), key, read.key)
-		testing_helpers.AssertEqual(t, nodefmt("num args"), 0, len(read.args))
-	}
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
-		if dcid == tCluster.GetDatacenterId() {
-			continue
-		}
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("read size"), 0, len(node.reads))
-		}
+		if dcid == tCluster.GetDatacenterId() { continue }
+		assertReadCallsReceived(t, []*readCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
-		for _, rnode := range nodes {
-			node := rnode.(*mockNode)
-			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
-		}
+		assertReadCallsReceived(t, []*readCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
