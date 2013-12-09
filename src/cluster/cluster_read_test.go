@@ -741,12 +741,120 @@ func TestReadFailureCaseCLALL(t *testing.T) {
 
 // tests consistency ALL_LOCAL where all nodes respond
 func TestReadSuccessCaseCLALL_LOCAL(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for dcid, nodes := range nodeMap {
+		// local nodes only
+		if dcid != tCluster.GetDatacenterId() { continue }
+		for _, node := range nodes {
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL_LOCAL, timeout, false)
+	if err != nil {
+		t.Errorf("Unexpected error executing read: %v", err)
+	}
+
+	// wait for reconciliation to finish
+	start := time.Now()
+	for len(mStore.reconcileCalls) < 2 {
+		time.Sleep(time.Duration(1 * time.Millisecond))
+		if (time.Now().After(start.Add(timeout * time.Millisecond * 3))){
+			break
+		}
+	}
+
+	if val == nil || !expectedVal.Equal(val) {
+		t.Errorf("expected and actual value are not equal. Expected: %v, Actual %v", expectedVal, val)
+	}
+
+	// check that all nodes were queried properly
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	for dcid, nodes := range nodeMap {
+		if dcid == tCluster.GetDatacenterId() {
+			assertReadCallsReceived(t, expectedCalls, nodes)
+		} else {
+			assertReadCallsReceived(t, []*readCall{}, nodes)
+		}
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+	}
+
+	// check that reconcile was called twice
+	testing_helpers.AssertEqual(t, "reconcile calls", 2, len(mStore.reconcileCalls))
+	testing_helpers.AssertEqual(t, "reconciled values", 3, len(mStore.reconcileCalls[0].values))
+	testing_helpers.AssertEqual(t, "reconciled values", 3, len(mStore.reconcileCalls[1].values))
 }
 
 // tests consistency ALL_LOCAL where no nodes can be reached
 func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for dcid, nodes := range nodeMap {
+		// local nodes only
+		if dcid != tCluster.GetDatacenterId() { continue }
+		for i, node := range nodes {
+			// first two nodes only
+			if i > 1 { continue }
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL_LOCAL, timeout, false)
+	if err == nil {
+		t.Errorf("Expecting error executing read")
+	} else {
+		_, ok := err.(nodeTimeoutError)
+		if !ok {
+			t.Errorf("Expecting error of type nodeTimeoutError, got: %T", err)
+		}
+	}
+
+	if val != nil {
+		t.Errorf("Expected nil value, got: %v", val)
+	}
+
+	// check that all nodes were queried properly
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	for dcid, nodes := range nodeMap {
+		if dcid == tCluster.GetDatacenterId() {
+			assertReadCallsReceived(t, expectedCalls, nodes)
+		} else {
+			assertReadCallsReceived(t, []*readCall{}, nodes)
+		}
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+	}
+
+	// check that no reconciliations were attempted
+	testing_helpers.AssertEqual(t, "reconcile calls", 0, len(mStore.reconcileCalls))
 }
 
 // tests consistency CONSENSUS where all nodes respond
