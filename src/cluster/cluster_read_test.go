@@ -340,12 +340,111 @@ func TestReadSuccessCaseCLQUORUM(t *testing.T) {
 // but not all nodes are reached
 func TestReadPartialSuccessCaseCLQUORUM(t *testing.T) {
 	// TODO: test with single and multi dc configs
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for _, nodes := range nodeMap {
+		for i, node := range nodes {
+			// first 2 nodes only
+			if i > 1 { continue }
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
+	if err != nil {
+		t.Errorf("Unexpected error executing read: %v", err)
+	}
+
+	// wait for reconciliation to finish
+	start := time.Now()
+	for len(mStore.reconcileCalls) < 2 {
+		time.Sleep(time.Duration(1 * time.Millisecond))
+		if (time.Now().After(start.Add(timeout * time.Millisecond * 3))){
+			break
+		}
+	}
+
+	if val == nil || !expectedVal.Equal(val) {
+		t.Errorf("expected and actual value are not equal. Expected: %v, Actual %v", expectedVal, val)
+	}
+
+	// check that all nodes were queried properly
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	for _, nodes := range nodeMap {
+		assertReadCallsReceived(t, expectedCalls, nodes)
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+	}
+
+	// check that reconcile was called twice
+	testing_helpers.AssertEqual(t, "reconcile calls", 2, len(mStore.reconcileCalls))
+	// exactly 8 values should be reconciled, 2 per dc x 4 dc
+	testing_helpers.AssertEqual(t, "reconciled values", 8, len(mStore.reconcileCalls[0].values))
+	testing_helpers.AssertEqual(t, "reconciled values", 8, len(mStore.reconcileCalls[1].values))
 }
 
 // tests consistency QUORUM where consistency cannot be satisfied
 func TestReadFailureCaseCLQUORUM(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for _, nodes := range nodeMap {
+		for i, node := range nodes {
+			// first node only
+			if i > 0 { continue }
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
+	if err == nil {
+		t.Errorf("Expecting error executing read")
+	} else {
+		_, ok := err.(nodeTimeoutError)
+		if !ok {
+			t.Errorf("Expecting error of type nodeTimeoutError, got: %T", err)
+		}
+	}
+
+	if val != nil {
+		t.Errorf("Expected nil value, got: %v", val)
+	}
+
+	// check that all nodes were queried properly
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	for _, nodes := range nodeMap {
+		assertReadCallsReceived(t, expectedCalls, nodes)
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+	}
+
+	// check that no reconciliations were attempted
+	testing_helpers.AssertEqual(t, "reconcile calls", 0, len(mStore.reconcileCalls))
 }
 
 // tests consistency QUORUM_LOCAL where all nodes respond
