@@ -55,11 +55,11 @@ func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []Node) {
 	for _, rnode := range nodes {
 		node := rnode.(*mockNode)
 		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		if testing_helpers.AssertEqual(t, nodefmt("read size"), len(reads), len(node.reads)) {
+		if testing_helpers.AssertEqual(t, nodefmt("read count"), len(reads), len(node.reads)) {
 			for i:=0; i<len(reads); i++ {
 				expected := reads[i]
 				actual := node.reads[i]
-				readfmt := func(s string) string { return fmt.Sprintln("Read %v: %v", i, s) }
+				readfmt := func(s string) string { return fmt.Sprintf("Read %v: %v", i, s) }
 				testing_helpers.AssertEqual(t, readfmt("cmd"), expected.cmd, actual.cmd)
 				testing_helpers.AssertEqual(t, readfmt("key"), expected.key, actual.key)
 				testing_helpers.AssertStringArrayEqual(t, readfmt("args"), expected.args, actual.args)
@@ -74,7 +74,7 @@ func assertWriteCallsReceived(t *testing.T, writes []*writeCall, nodes []Node) {
 	for _, rnode := range nodes {
 		node := rnode.(*mockNode)
 		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		if testing_helpers.AssertEqual(t, nodefmt("write size"), len(writes), len(node.writes)) {
+		if testing_helpers.AssertEqual(t, nodefmt("write count"), len(writes), len(node.writes)) {
 			for i:=0; i<len(writes); i++ {
 				expected := writes[i]
 				actual := node.writes[i]
@@ -101,6 +101,12 @@ func TestInvalidReadCommand(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	}
+}
+
+// tests values are reconciled, and corrections
+// sent to nodes with out of date info
+func TestReadRepair(t *testing.T) {
+
 }
 
 // tests consistency ONE where all nodes respond
@@ -264,16 +270,70 @@ func TestReadFailureCaseCLONE(t *testing.T) {
 
 	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
-		assertReadCallsReceived(t, []*readCall{}, nodes)
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
 	testing_helpers.AssertEqual(t, "reconcile calls", 0, len(mStore.reconcileCalls))
 }
 
-// tests consistency QUORUM where consistency cannot be satisfied
+// tests consistency QUORUM where all nodes responsd
 func TestReadSuccessCaseCLQUORUM(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for _, nodes := range nodeMap {
+		for _, node := range nodes {
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(1)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
+	if err != nil {
+		t.Errorf("Unexpected error executing read: %v", err)
+	}
+
+	// wait for reconciliation to finish
+	start := time.Now()
+	for len(mStore.reconcileCalls) < 2 {
+		time.Sleep(time.Duration(1 * time.Millisecond))
+		if (time.Now().After(start.Add(timeout * time.Millisecond * 3))){
+			break
+		}
+	}
+
+	if val == nil || !expectedVal.Equal(val) {
+		t.Errorf("expected and actual value are not equal. Expected: %v, Actual %v", expectedVal, val)
+	}
+
+	// check that all nodes were queried properly
+	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	for _, nodes := range nodeMap {
+		assertReadCallsReceived(t, expectedCalls, nodes)
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+	}
+
+	// check that reconcile was called twice
+	testing_helpers.AssertEqual(t, "reconcile calls", 2, len(mStore.reconcileCalls))
+	// should be between 8 & 12
+	firstReconcile := len(mStore.reconcileCalls[0].values)
+	if firstReconcile < 8 || firstReconcile > 12 {
+		t.Errorf("Initial reconcile should have been passed 8-12 values")
+	}
+	testing_helpers.AssertEqual(t, "reconciled values", 12, len(mStore.reconcileCalls[1].values))
 }
 
 // tests consistency QUORUM where consistency is satisfied
