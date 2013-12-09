@@ -84,9 +84,19 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 
-	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, time.Duration(100), false)
+	timeout := time.Duration(10)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, false)
 	if err != nil {
 		t.Errorf("Unexpected error executing read: %v", err)
+	}
+
+	// wait for reconciliation to finish
+	start := time.Now()
+	for len(mStore.reconcileCalls) < 2 {
+		time.Sleep(time.Duration(1 * time.Millisecond))
+		if (time.Now().After(start.Add(timeout * time.Millisecond * 2))){
+			break
+		}
 	}
 
 	if val == nil || !expectedVal.Equal(val) {
@@ -127,12 +137,91 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 		}
 	}
 
+	// check that reconcile was called twice
+	testing_helpers.AssertEqual(t, "reconcile calls", 2, len(mStore.reconcileCalls))
 }
 
 // tests consistency ONE where consistency is satisfied
 // but not all nodes return a response
 func TestReadPartialSuccessCaseCLONE(t *testing.T) {
+	mStore := newMockStore()
+	tCluster := setupReadTestCluster(t, mStore)
+	key := "a"
 
+	// send responses to nodes
+	expectedVal := newMockString("b", time.Now())
+	nodeMap := tCluster.GetNodesForKey(key)
+	for dcid, nodes := range nodeMap {
+		if dcid != tCluster.GetDatacenterId() { continue }
+		for idx, node := range nodes {
+			// we only want one node to respond
+			if idx != 0 { continue }
+			mNode := node.(*mockNode)
+			mNode.addReadResponse(expectedVal, nil)
+		}
+	}
+
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+
+	timeout := time.Duration(10)
+	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, true)
+	if err != nil {
+		t.Errorf("Unexpected error executing read: %v", err)
+	}
+
+	if val == nil || !expectedVal.Equal(val) {
+		t.Errorf("expected and actual value are not equal. Expected: %v, Actual %v", expectedVal, val)
+	}
+
+	// wait for reconciliation to finish
+	start := time.Now()
+	for len(mStore.reconcileCalls) < 2 {
+		time.Sleep(time.Duration(1 * time.Millisecond))
+		if (time.Now().After(start.Add(timeout * time.Millisecond * 2))){
+			break
+		}
+	}
+
+	// check that local nodes were queried properly
+	for _, rnode := range nodeMap[tCluster.GetDatacenterId()] {
+		node := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+		testing_helpers.AssertEqual(t, nodefmt("read size"), 1, len(node.reads))
+		read := node.reads[0]
+		testing_helpers.AssertEqual(t, nodefmt("cmd"), "GET", read.cmd)
+		testing_helpers.AssertEqual(t, nodefmt("key"), key, read.key)
+		testing_helpers.AssertEqual(t, nodefmt("num args"), 0, len(read.args))
+
+	}
+
+	// check that remote nodes were not queried
+	for dcid, nodes := range nodeMap {
+		// skip local cluster
+		if dcid == tCluster.GetDatacenterId() {
+			continue
+		}
+		for _, rnode := range nodes {
+			node := rnode.(*mockNode)
+			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+			testing_helpers.AssertEqual(t, nodefmt("read size"), 0, len(node.reads))
+		}
+	}
+
+	// check that no writes (reconciliations) were issued against the nodes
+	for _, nodes := range nodeMap {
+		for _, rnode := range nodes {
+			node := rnode.(*mockNode)
+			nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
+			testing_helpers.AssertEqual(t, nodefmt("write size"), 0, len(node.writes))
+		}
+	}
+
+	// check that only one value was received for reconciliation
+	testing_helpers.AssertEqual(t, "reconcile calls", 2, len(mStore.reconcileCalls))
+	for _, call := range mStore.reconcileCalls {
+		testing_helpers.AssertEqual(t, "reconciled values", 1, len(call.values))
+	}
 }
 
 // tests consistency ONE where no nodes can be reached
