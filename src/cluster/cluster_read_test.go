@@ -859,34 +859,34 @@ func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
 
 // tests consistency CONSENSUS where all nodes respond
 func TestReadSuccessCaseCLCONSENSUS(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 // tests consistency CONSENSUS where consistency is satisfied
 // but not all nodes are reached
 func TestReadPartialSuccessCaseCLCONSENSUS(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 // tests consistency CONSENSUS where no nodes can be reached
 func TestReadFailureCaseCLCONSENSUS(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 // tests consistency CONSENSUS_LOCAL where all nodes respond
 func TestReadSuccessCaseCLCONSENSUS_LOCAL(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 // tests consistency CONSENSUS_LOCAL where consistency is satisfied
 // but not all nodes are reached
 func TestReadPartialSuccessCaseCLCONSENSUS_LOCAL(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 // tests consistency CONSENSUS_LOCAL where no nodes can be reached
 func TestReadFailureCaseCLCONSENSUS_LOCAL(t *testing.T) {
-
+	t.Skip("not implemented yet")
 }
 
 
