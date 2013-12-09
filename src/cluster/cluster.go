@@ -511,6 +511,15 @@ func readLocalOnly(cl ConsistencyLevel) bool {
 	return false
 }
 
+type baseNodeError string
+func (ne baseNodeError) Error() string { return string(ne) }
+
+// error returned on node timeout
+type queryError baseNodeError
+func (ne queryError) Error() string { return string(ne) }
+type nodeTimeoutError queryError
+func (ne nodeTimeoutError) Error() string { return string(ne) }
+
 // reconciles values and issues repair statements to other nodes
 func (c *Cluster) reconcileRead(
 	key string,
@@ -526,7 +535,6 @@ func (c *Cluster) reconcileRead(
 	timeoutEvent := time.After(timeout * time.Millisecond)
 	receive:
 		for numReceived < numNodes {
-			fmt.Println("reconcile pass")
 			select {
 			case response = <-rchan:
 				// do something
@@ -667,7 +675,7 @@ func (c *Cluster) ExecuteRead(
 			numReceivedResponses[nodeMap[response.nid].GetDatacenterId()]++
 			values[string(response.nid)] = val
 		case <-timeoutEvent:
-			return nil, fmt.Errorf("Read not completed before timeout")
+			return nil, nodeTimeoutError(fmt.Sprintf("Read not completed before timeout"))
 		}
 	}
 
