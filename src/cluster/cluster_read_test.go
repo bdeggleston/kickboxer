@@ -84,7 +84,7 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 
-	timeout := time.Duration(10)
+	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, false)
 	if err != nil {
 		t.Errorf("Unexpected error executing read: %v", err)
@@ -164,7 +164,7 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
 
-	timeout := time.Duration(10)
+	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, true)
 	if err != nil {
 		t.Errorf("Unexpected error executing read: %v", err)
