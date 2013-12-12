@@ -47,6 +47,8 @@ func NewMessageEncodingError(reason string) *MessageEncodingError {
 	return &MessageEncodingError{MessageError{reason}}
 }
 
+// TODO: add a checksum to the head of the message
+
 // message wire protocol is as follow:
 // [type (4b)][num fields (4b)]...[field size (4b)][field data]
 // each message type can define the data
