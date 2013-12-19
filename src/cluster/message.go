@@ -48,6 +48,7 @@ func NewMessageEncodingError(reason string) *MessageEncodingError {
 }
 
 // TODO: add a checksum to the head of the message
+// TODO: gzip message contents
 
 // message wire protocol is as follow:
 // [type (4b)][num fields (4b)]...[field size (4b)][field data]
