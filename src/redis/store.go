@@ -148,6 +148,14 @@ func (s *Redis) IsWriteCommand(cmd string) bool {
 	return false
 }
 
+func (s *Redis) ReturnsValue(cmd string) bool {
+	switch strings.ToUpper(cmd) {
+	case GET:
+		return true
+	}
+	return false
+}
+
 // ----------- data import / export -----------
 
 
