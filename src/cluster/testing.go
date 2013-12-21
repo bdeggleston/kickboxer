@@ -231,26 +231,6 @@ func (c *dumbConn) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-
-// mock connection the reads out whatever was
-// last written into it
-type echoConn struct {
-	fakeConn
-	data []byte
-}
-
-func (c *echoConn) Read(b []byte) (int, error) {
-	//TODO: support smaller buffers
-	copy(c.data, b)
-	return len(c.data), nil
-}
-
-func (c *echoConn) Write(b []byte) (int, error) {
-	c.data = make([]byte, len(b))
-	copy(b, c.data)
-	return len(b), nil
-}
-
 // mock connection with 2 buffers, one for input,
 // one for output
 type biConn struct {
