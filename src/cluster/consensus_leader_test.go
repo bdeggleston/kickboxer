@@ -27,4 +27,10 @@ func TestFailedQuorumResponse(t *testing.T) {
 
 }
 
+// tests that if a node receives a consensus query for
+// keys it's not a replica of, it forwards the query
+// to a node that is
+func TestProposalsAreForwardedToReplica(t *testing.T) {
+
+}
 
