@@ -33,4 +33,3 @@ func TestFailedQuorumResponse(t *testing.T) {
 func TestProposalsAreForwardedToReplica(t *testing.T) {
 
 }
-

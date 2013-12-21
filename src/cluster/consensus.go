@@ -7,13 +7,16 @@ import (
 type CommandStatus byte
 
 const (
-	DS_NULL			= CommandStatus(iota)
+	DS_NULL = CommandStatus(iota)
 	DS_PRE_ACCEPT
 	DS_ACCEPTED
 	DS_REJECTED
 	DS_COMMITTED
 	DS_EXECUTED
 )
+
+// TODO: should consensus operations hijack the timestamp??
+// TODO: should reads and writes be collapsed into a single function? Let the store decide what to do?
 
 type Command struct {
 	// the node id of the command leader
@@ -37,14 +40,27 @@ type Command struct {
 // manager for interfering commands
 type Instance struct {
 	dependencies []Command
-	max_ballot uint64
-	scope string
+	max_ballot   uint64
 }
 
-func (c *Cluster) executeConsensusInstruction(instruction store.Instruction, execution_required bool) {
 
+func (c *Cluster) executeConsensusInstruction(instruction store.Instruction, consistency ConsistencyLevel) {
+
+	// check if this node can be the comamnd leader
+	localReplicas := c.GetLocalNodesForKey(instruction.Key)
+	eligibleLeader := false
+	for _, replica := range localReplicas {
+		if replica.GetId() == c.GetNodeId() {
+			eligibleLeader = true
+		}
+	}
+	if !eligibleLeader {
+		panic("Forward to key replica")
+	} else {
+
+	}
 }
 
-func (c *Cluster) handlePreAccept(scope string, cmd *Command) {
+func (c *Cluster) handlePreAccept(cmd *Command, dependencies []Command) {
 
 }
