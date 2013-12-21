@@ -56,8 +56,14 @@ type Store interface {
 	// the values on inaccurate nodes
 	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
 
+	// determins if the given command is a read command
 	IsReadCommand(cmd string) bool
+
+	// determins if the given command is a write command
 	IsWriteCommand(cmd string) bool
+
+	// determines if the given command returns a value
+	ReturnsValue(cmd string) bool
 
 	// ----------- data import / export -----------
 
