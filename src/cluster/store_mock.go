@@ -34,12 +34,14 @@ type mockStore struct {
 	// blanket responses to is read/write
 	isRead bool
 	isWrite bool
+	returnsValue bool
 }
 
 func newMockStore() *mockStore {
 	s := &mockStore{}
 	s.isRead = true
 	s.isWrite = true
+	s.returnsValue = true
 	s.readInstructions = make([]*readCall, 0, 10)
 	s.readResponses = make([]*mockQueryResponse, 0, 10)
 	s.writeInstructions = make([]*writeCall, 0, 10)
@@ -89,6 +91,7 @@ func (s *mockStore) Reconcile(key string, values map[string] store.Value) (store
 
 func (s *mockStore) IsReadCommand(cmd string) bool { return s.isRead }
 func (s *mockStore) IsWriteCommand(cmd string) bool { return s.isWrite }
+func (s *mockStore) ReturnsValue(cmd string) bool { return s.returnsValue }
 func (s *mockStore) Start() error { s.isStarted = true; return nil }
 func (s *mockStore) Stop() error { s.isStarted = true; return nil }
 func (s *mockStore) SerializeValue(v store.Value) ([]byte, error) { return []byte{}, nil }
