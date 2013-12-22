@@ -140,19 +140,135 @@ func TestPreAcceptResponse(t *testing.T) {
 }
 
 func TestCommitRequest(t *testing.T) {
+	src := &CommitRequest{
+		LeaderID: NewNodeId(),
+		Ballot: uint64(5000),
+	}
 
+	// interface check
+	_ = Message(src)
+
+	buf := &bytes.Buffer{}
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONSENSUS_COMMIT_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	dst, ok := msg.(*CommitRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
+
+	testing_helpers.AssertEqual(t, "LeaderID", src.LeaderID, dst.LeaderID)
+	testing_helpers.AssertEqual(t, "Ballot", src.Ballot, dst.Ballot)
 }
 
 func TestCommitResponse(t *testing.T) {
+	src := &CommitResponse{}
 
+	// interface check
+	_ = Message(src)
+
+	buf := &bytes.Buffer{}
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONSENSUS_COMMIT_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	_, ok := msg.(*CommitResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
 }
 
 func TestAcceptRequest(t *testing.T) {
+	src := &AcceptRequest{
+		Dependencies: []*Command{
+			&Command{
+				LeaderID: NewNodeId(),
+				Status: DS_ACCEPTED,
+				Cmd: "GET",
+				Key: "DEF",
+				Args: []string{"g", "h", "i"},
+				Timestamp: time.Now(),
+				Blocking: false,
+				Ballot: uint64(2001),
+			},
+			&Command{
+				LeaderID: NewNodeId(),
+				Status: DS_EXECUTED,
+				Cmd: "DEL",
+				Key: "ABCXYZ",
+				Args: []string{"d", "e", "f"},
+				Timestamp: time.Now(),
+				Blocking: true,
+				Ballot: uint64(2000),
+			},
+		},
+	}
+	// interface check
+	_ = Message(src)
+
+	buf := &bytes.Buffer{}
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONSENSUS_ACCEPT_REQUEST {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	dst, ok := msg.(*AcceptRequest)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
+
+	for i:=0;i<len(src.Dependencies);i++ {
+		s, d := src.Dependencies[i], dst.Dependencies[i]
+		if !s.Equal(d) {
+			t.Errorf("src Dependecy %v doesn't match dst command. Expected: %+v, got %+v", i, s, d)
+		}
+	}
 
 }
 
 func TestAcceptResponse(t *testing.T) {
+	src := &AcceptResponse{}
 
+	// interface check
+	_ = Message(src)
+
+	buf := &bytes.Buffer{}
+	// write, then read message
+	if err := WriteMessage(buf, src); err != nil {
+		t.Fatalf("unexpected Serialize error: %v", err)
+	}
+	msg, mtype, err := ReadMessage(buf)
+	if err != nil {
+		t.Fatalf("unexpected Deserialize error: %v", err)
+	}
+	if mtype != CONSENSUS_ACCEPT_RESPONSE {
+		t.Fatalf("unexpected message type enum: %v", mtype)
+	}
+	_, ok := msg.(*AcceptResponse)
+	if !ok {
+		t.Fatalf("unexpected message type %T", msg)
+	}
 }
 
 func TestCommandSerialization(t *testing.T) {

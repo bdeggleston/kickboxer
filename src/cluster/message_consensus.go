@@ -90,42 +90,56 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 func (m *PreAcceptResponse) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_RESPONSE }
 
 type CommitRequest struct {
-
+	LeaderID NodeId
+	Ballot uint64
 }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error {
+	if err := writeFieldString(buf, string(m.LeaderID)); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	return nil
 }
 
 func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
+	if str, err := readFieldString(buf); err != nil {
+		return err
+	} else {
+		m.LeaderID = NodeId(str)
+	}
+	if err := binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	return nil
 }
 
 func (m *CommitRequest) GetType() uint32 { return CONSENSUS_COMMIT_REQUEST }
 
-type CommitResponse struct {
-
-}
-
-func (m *CommitResponse) Serialize(buf *bufio.Writer) error {
-	return nil
-}
-
-func (m *CommitResponse) Deserialize(buf *bufio.Reader) error {
-	return nil
-}
-
+type CommitResponse struct { }
+func (m *CommitResponse) Serialize(buf *bufio.Writer) error { return nil }
+func (m *CommitResponse) Deserialize(buf *bufio.Reader) error { return nil }
 func (m *CommitResponse) GetType() uint32 { return CONSENSUS_COMMIT_RESPONSE }
 
 type AcceptRequest struct {
-
+	Dependencies []*Command
 }
 
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error {
+	var err error
+
+	numDeps := uint32(len(m.Dependencies))
+	if err = binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	for _, dep := range m.Dependencies {
+		if err := serializeCommand(dep, buf); err != nil { return err }
+	}
 	return nil
 }
 
 func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
+	var err error
+	var numDeps uint32
+	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	m.Dependencies = make([]*Command, int(numDeps))
+	for i:=0; i<int(numDeps); i++ {
+		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
+	}
 	return nil
 }
 
@@ -149,6 +163,7 @@ func (m *AcceptResponse) GetType() uint32 { return CONSENSUS_ACCEPT_RESPONSE }
 
 func serializeCommand(cmd *Command, buf *bufio.Writer) error {
 	if err := writeFieldString(buf, string(cmd.LeaderID)); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &cmd.Status); err != nil { return err }
 	if err := writeFieldString(buf, cmd.Cmd); err != nil { return err }
 	if err := writeFieldString(buf, cmd.Key); err != nil { return err }
@@ -164,7 +179,6 @@ func serializeCommand(cmd *Command, buf *bufio.Writer) error {
 	var blocking byte
 	if cmd.Blocking { blocking = 0x1 }
 	if err := binary.Write(buf, binary.LittleEndian, &blocking); err != nil { return err }
-	if err := binary.Write(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return err }
 
 	return nil
 }
@@ -177,6 +191,7 @@ func deserializeCommand(buf *bufio.Reader) (*Command, error) {
 	} else {
 		cmd.LeaderID = NodeId(str)
 	}
+	if err := binary.Read(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return nil, err }
 
 	if err = binary.Read(buf, binary.LittleEndian, &cmd.Status); err != nil { return nil, err }
 	if cmd.Cmd, err = readFieldString(buf); err != nil { return nil, err }
@@ -195,7 +210,6 @@ func deserializeCommand(buf *bufio.Reader) (*Command, error) {
 	var blocking byte
 	if err := binary.Read(buf, binary.LittleEndian, &blocking); err != nil { return nil, err }
 	cmd.Blocking = blocking != 0x00
-	if err := binary.Read(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return nil, err }
 
 	return cmd, nil
 }
