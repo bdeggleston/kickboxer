@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"time"
 )
 
 const (
@@ -90,6 +91,20 @@ func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 	return bytes, nil
 }
 
+func writeTime(buf *bufio.Writer, t time.Time) error {
+	bytes, err := t.GobEncode()
+	if err != nil { return err }
+	_, err = buf.Write(bytes)
+	return err
+}
+
+func readTime(buf *bufio.Reader) (time.Time, error) {
+	t := time.Time{}
+	bytes := make([]byte, 15)
+	if _, err := buf.Read(bytes); err != nil { return t, err }
+	if err := t.GobDecode(bytes); err != nil { return t, err }
+	return t, nil
+}
 
 
 // ----------- read / write functions -----------
