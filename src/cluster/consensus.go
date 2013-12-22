@@ -26,6 +26,9 @@ type Command struct {
 	// the node id of the command leader
 	LeaderID NodeId
 
+	// the ballot number for this commend
+	Ballot uint64
+
 	// the current status of this command
 	Status CommandStatus
 
@@ -39,9 +42,6 @@ type Command struct {
 	// to be executed before a decision can be
 	// made for this command
 	Blocking bool
-
-	// the ballot number for this commend
-	Ballot uint64
 }
 
 // determines if 2 commands are equal
