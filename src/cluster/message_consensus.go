@@ -23,10 +23,28 @@ type PreAcceptRequest struct {
 }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error {
+	if err := serializeCommand(m.Command, buf); err != nil { return err }
+
+	numDeps := uint32(len(m.Dependencies))
+	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	for _, dep := range m.Dependencies {
+		if err := serializeCommand(dep, buf); err != nil { return err }
+	}
+
 	return nil
 }
 
-func (m *PreAcceptRequest) Deserialize(buf *bufio.Writer) error {
+func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
+	var err error
+	if m.Command, err = deserializeCommand(buf); err != nil { return err }
+
+	var numDeps uint32
+	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	m.Dependencies = make([]*Command, int(numDeps))
+	for i:=0; i<int(numDeps); i++ {
+		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
+	}
+
 	return nil
 }
 
@@ -42,10 +60,30 @@ type PreAcceptResponse struct {
 }
 
 func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
+	var accepted byte
+	if m.Accepted { accepted = 0x1 }
+	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
+
+	numDeps := uint32(len(m.Dependencies))
+	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	for _, dep := range m.Dependencies {
+		if err := serializeCommand(dep, buf); err != nil { return err }
+	}
 	return nil
 }
 
-func (m *PreAcceptResponse) Deserialize(buf *bufio.Writer) error {
+func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
+	var accepted byte
+	var err error
+	if err = binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	m.Accepted = accepted != 0x0
+
+	var numDeps uint32
+	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	m.Dependencies = make([]*Command, int(numDeps))
+	for i:=0; i<int(numDeps); i++ {
+		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
+	}
 	return nil
 }
 
@@ -59,7 +97,7 @@ func (m *CommitRequest) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (m *CommitRequest) Deserialize(buf *bufio.Writer) error {
+func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
@@ -73,7 +111,7 @@ func (m *CommitResponse) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (m *CommitResponse) Deserialize(buf *bufio.Writer) error {
+func (m *CommitResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
@@ -87,7 +125,7 @@ func (m *AcceptRequest) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (m *AcceptRequest) Deserialize(buf *bufio.Writer) error {
+func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
@@ -101,7 +139,7 @@ func (m *AcceptResponse) Serialize(buf *bufio.Writer) error {
 	return nil
 }
 
-func (m *AcceptResponse) Deserialize(buf *bufio.Writer) error {
+func (m *AcceptResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
