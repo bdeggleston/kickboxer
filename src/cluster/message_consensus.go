@@ -51,24 +51,49 @@ type AcceptResponse struct {
 // ----------- encoding helpers -----------
 
 func serializeCommand(cmd *Command, buf *bufio.Writer) error {
-	if err := writeFieldBytes(buf, []byte(cmd.LeaderID)); err != nil { return err }
+	if err := writeFieldString(buf, string(cmd.LeaderID)); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &cmd.Status); err != nil { return err }
-	if err := writeFieldBytes(buf, []byte(cmd.Cmd)); err != nil { return err }
-	if err := writeFieldBytes(buf, []byte(cmd.Key)); err != nil { return err }
+	if err := writeFieldString(buf, cmd.Cmd); err != nil { return err }
+	if err := writeFieldString(buf, cmd.Key); err != nil { return err }
 
 	// Args
 	numArgs := len(cmd.Args)
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 	for _, arg := range cmd.Args {
-		if err := writeFieldBytes(buf, []byte(arg)); err != nil { return err }
+		if err := writeFieldString(buf, arg); err != nil { return err }
 	}
 
+	if err := writeTime(buf, cmd.Timestamp); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &cmd.Blocking); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return err }
 
-	if b, err := cmd.Timestamp.GobEncode(); err != nil {
-		return err
-	} else {
-		if err := writeFieldBytes(buf, b); err != nil { return err }
-	}
 	return nil
+}
+
+func deserializeCommand(buf *bufio.Reader) (*Command, error) {
+	cmd := &Command{}
+	var err error
+	if str, err := readFieldString(buf); err != nil {
+		return nil, err
+	} else {
+		cmd.LeaderID = NodeId(str)
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &cmd.Status); err != nil { return nil, err }
+	if cmd.Cmd, err = readFieldString(buf); err != nil { return nil, err }
+
+	// Args
+	var numArgs int
+	if err := binary.Read(buf, binary.LittleEndian, &numArgs); err != nil { return nil, err }
+	cmd.Args = make([]string, numArgs)
+	for i:=0; i<numArgs; i++ {
+		if cmd.Args[i], err = readFieldString(buf); err != nil { return nil, err }
+	}
+
+	if cmd.Timestamp, err = readTime(buf); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &cmd.Blocking); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return nil, err }
+
+	return cmd, nil
 }
 
