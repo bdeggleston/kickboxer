@@ -57,14 +57,16 @@ func serializeCommand(cmd *Command, buf *bufio.Writer) error {
 	if err := writeFieldString(buf, cmd.Key); err != nil { return err }
 
 	// Args
-	numArgs := len(cmd.Args)
+	numArgs := uint32(len(cmd.Args))
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 	for _, arg := range cmd.Args {
 		if err := writeFieldString(buf, arg); err != nil { return err }
 	}
 
 	if err := writeTime(buf, cmd.Timestamp); err != nil { return err }
-	if err := binary.Write(buf, binary.LittleEndian, &cmd.Blocking); err != nil { return err }
+	var blocking byte
+	if cmd.Blocking { blocking = 0x1 }
+	if err := binary.Write(buf, binary.LittleEndian, &blocking); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return err }
 
 	return nil
@@ -79,19 +81,23 @@ func deserializeCommand(buf *bufio.Reader) (*Command, error) {
 		cmd.LeaderID = NodeId(str)
 	}
 
-	if err := binary.Read(buf, binary.LittleEndian, &cmd.Status); err != nil { return nil, err }
+	if err = binary.Read(buf, binary.LittleEndian, &cmd.Status); err != nil { return nil, err }
 	if cmd.Cmd, err = readFieldString(buf); err != nil { return nil, err }
+	if cmd.Key, err = readFieldString(buf); err != nil { return nil, err }
 
 	// Args
-	var numArgs int
+	var numArgs uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numArgs); err != nil { return nil, err }
 	cmd.Args = make([]string, numArgs)
-	for i:=0; i<numArgs; i++ {
+	for i:=uint32(0); i<numArgs; i++ {
 		if cmd.Args[i], err = readFieldString(buf); err != nil { return nil, err }
 	}
 
 	if cmd.Timestamp, err = readTime(buf); err != nil { return nil, err }
-	if err := binary.Read(buf, binary.LittleEndian, &cmd.Blocking); err != nil { return nil, err }
+
+	var blocking byte
+	if err := binary.Read(buf, binary.LittleEndian, &blocking); err != nil { return nil, err }
+	cmd.Blocking = blocking != 0x00
 	if err := binary.Read(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return nil, err }
 
 	return cmd, nil
