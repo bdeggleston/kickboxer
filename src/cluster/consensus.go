@@ -44,6 +44,23 @@ type Command struct {
 	Ballot uint64
 }
 
+// determines if 2 commands are equal
+func (c *Command) Equal(o *Command) bool {
+	result := true
+	result = result && c.LeaderID == o.LeaderID
+	result = result && c.Status == o.Status
+	result = result && c.Cmd == o.Cmd
+	result = result && c.Key == o.Key
+	result = result && c.Blocking == o.Blocking
+	result = result && c.Ballot == o.Ballot
+	result = result && c.Timestamp.Equal(o.Timestamp)
+	if len(c.Args) != len(o.Args) { return false }
+	for i:=0;i<len(c.Args);i++ {
+		result = result && c.Args[i] == o.Args[i]
+	}
+	return result
+}
+
 // manager for interfering commands
 type Instance struct {
 	Dependencies []Command

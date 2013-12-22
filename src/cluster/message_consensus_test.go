@@ -59,6 +59,10 @@ func TestCommandSerialization(t *testing.T) {
 		t.Fatalf("Error deserializing command: %v", err)
 	}
 
+
+	if !src.Equal(dst) {
+		t.Errorf("src & dst are not equal, expected: %+v, got", src, dst)
+	}
 	testing_helpers.AssertEqual(t, "LeaderID", src.LeaderID, dst.LeaderID)
 	testing_helpers.AssertEqual(t, "Status", src.Status, dst.Status)
 	testing_helpers.AssertEqual(t, "Cmd", src.Cmd, dst.Cmd)
