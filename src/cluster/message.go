@@ -73,6 +73,10 @@ func writeFieldBytes(buf *bufio.Writer, bytes []byte) error {
 	return nil
 }
 
+func writeFieldString(buf *bufio.Writer, str string) error {
+	return writeFieldBytes(buf, []byte(str))
+}
+
 // read field bytes
 func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 	var size uint32
@@ -89,6 +93,11 @@ func readFieldBytes(buf *bufio.Reader) ([]byte, error) {
 		return nil, NewMessageEncodingError(fmt.Sprintf("unexpected num bytes read. Expected %v, got %v", size, n))
 	}
 	return bytes, nil
+}
+
+func readFieldString(buf *bufio.Reader) (string, error) {
+	bytes, err := readFieldBytes(buf)
+	return string(bytes), err
 }
 
 func writeTime(buf *bufio.Writer, t time.Time) error {
