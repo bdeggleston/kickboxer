@@ -144,16 +144,19 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &ConnectionAcceptedResponse{}
 	case CONNECTION_REFUSED_RESPONSE:
 		msg = &ConnectionRefusedResponse{}
+
 	case DISCOVER_PEERS_REQUEST:
 		msg = &DiscoverPeersRequest{}
 	case DISCOVER_PEERS_RESPONSE:
 		msg = &DiscoverPeerResponse{}
+
 	case READ_REQUEST:
 		msg = &ReadRequest{}
 	case WRITE_REQUEST:
 		msg = &WriteRequest{}
 	case QUERY_RESPONSE:
 		msg = &QueryResponse{}
+
 	case STREAM_REQUEST:
 		msg = &StreamRequest{}
 	case STREAM_RESPONSE:
@@ -166,6 +169,20 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 		msg = &StreamDataRequest{}
 	case STREAM_DATA_RESPONSE:
 		msg = &StreamDataResponse{}
+
+	case CONSENSUS_PRE_ACCEPT_REQUEST:
+		msg = &PreAcceptRequest{}
+	case CONSENSUS_PRE_ACCEPT_RESPONSE:
+		msg = &PreAcceptResponse{}
+	case CONSENSUS_COMMIT_REQUEST:
+		msg = &CommitRequest{}
+	case CONSENSUS_COMMIT_RESPONSE:
+		msg = &CommitResponse{}
+	case CONSENSUS_ACCEPT_REQUEST:
+		msg = &AcceptRequest{}
+	case CONSENSUS_ACCEPT_RESPONSE:
+		msg = &AcceptResponse{}
+
 	case close_connection:
 		msg = &closeConnection{}
 	default:
