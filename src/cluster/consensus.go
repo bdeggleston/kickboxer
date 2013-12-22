@@ -1,6 +1,10 @@
 package cluster
 
 import (
+	"time"
+)
+
+import (
 	"store"
 )
 
@@ -20,27 +24,30 @@ const (
 
 type Command struct {
 	// the node id of the command leader
-	leader NodeId
+	LeaderID NodeId
 
 	// the current status of this command
-	status CommandStatus
+	Status CommandStatus
 
 	// the actual instruction to be executed
-	instruction *store.Instruction
+	Cmd string
+	Key string
+	Args []string
+	Timestamp time.Time
 
 	// indicates that previous commands need
 	// to be executed before a decision can be
 	// made for this command
-	require_execution bool
+	Blocking bool
 
 	// the ballot number for this commend
-	ballot uint64
+	Ballot uint64
 }
 
 // manager for interfering commands
 type Instance struct {
-	dependencies []Command
-	max_ballot   uint64
+	Dependencies []Command
+	MaxBallot   uint64
 }
 
 
