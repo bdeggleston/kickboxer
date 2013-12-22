@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"fmt"
+	"sync"
 	"time"
 )
 
@@ -63,28 +65,128 @@ func (c *Command) Equal(o *Command) bool {
 
 // manager for interfering commands
 type Instance struct {
-	Dependencies []Command
+	Dependencies []*Command
 	MaxBallot   uint64
+	key string
+
+	cluster *Cluster
 }
 
+func NewInstance(key string, cluster *Cluster) *Instance {
+	return &Instance{
+		key:key,
+		cluster:cluster,
+		Dependencies:make([]*Command, 0, 20),
+	}
+}
 
-func (c *Cluster) executeConsensusInstruction(instruction store.Instruction, consistency ConsistencyLevel) {
+// gets the replicas & quorum size for this instance, for the given consistency level
+func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quorumSize int, err error) {
+	switch cl {
+	case CONSISTENCY_CONSENSUS_LOCAL:
+		localReplicas := i.cluster.GetLocalNodesForKey(i.key)
+		numReplicas := len(localReplicas)
+		replicas = make([]*RemoteNode, 0, numReplicas - 1)
 
-	// check if this node can be the comamnd leader
-	localReplicas := c.GetLocalNodesForKey(instruction.Key)
-	eligibleLeader := false
-	for _, replica := range localReplicas {
-		if replica.GetId() == c.GetNodeId() {
-			eligibleLeader = true
+		for _, node := range localReplicas {
+			if rnode, ok := node.(*RemoteNode); ok {
+				replicas = append(replicas, rnode)
+			}
+		}
+		if len(replicas) != numReplicas - 1 {
+			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
+		}
+		quorumSize = (len(localReplicas) / 2) + 1
+
+	case CONSISTENCY_CONSENSUS:
+		replicaMap := i.cluster.GetNodesForKey(i.key)
+		numReplicas := 0
+		for _, nodes := range replicaMap { numReplicas += len(nodes) }
+		replicas = make([]*RemoteNode, 0, numReplicas - 1)
+		for _, nodes := range replicaMap {
+			for _, node := range nodes {
+				if rnode, ok := node.(*RemoteNode); ok {
+					replicas = append(replicas, rnode)
+				}
+			}
+		}
+		if len(replicas) != numReplicas - 1 {
+			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
+		}
+		quorumSize = (len(replicas) / 2) + 1
+
+	default:
+		return []*RemoteNode{}, 0, fmt.Errorf("Unknown consistency level: %v", cl)
+	}
+	return replicas, quorumSize, nil
+}
+
+func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
+	replicas, quorumSize, err := i.getReplicas(cl)
+	_ = replicas
+	_ = quorumSize
+	if err != nil { return nil, err }
+	return nil, nil
+}
+
+type ConsensusManager struct {
+	cluster *Cluster
+	instanceMutex sync.RWMutex
+	instances map[string]*Instance
+}
+
+func NewConsensusManager(cluster *Cluster) *ConsensusManager {
+	return &ConsensusManager{
+		cluster:cluster,
+		instances:make(map[string]*Instance),
+	}
+}
+
+// determines if the cluster can be the command leader for the given instruction
+func (cm *ConsensusManager) canExecute(inst store.Instruction) bool {
+	for _, replica := range cm.cluster.GetLocalNodesForKey(inst.Key) {
+		if replica.GetId() == cm.cluster.GetNodeId() {
+			return true
 		}
 	}
-	if !eligibleLeader {
-		panic("Forward to key replica")
-	} else {
-
-	}
+	return false
 }
 
-func (c *Cluster) handlePreAccept(cmd *Command, dependencies []Command) {
+func (cm *ConsensusManager) getInstance(key string) *Instance {
+	// get
+	cm.instanceMutex.RLock()
+	instance, exists := cm.instances[key]
+	cm.instanceMutex.RUnlock()
+
+	// or create
+	if !exists {
+		cm.instanceMutex.Lock()
+		instance = NewInstance(key, cm.cluster)
+		cm.instances[key] = instance
+		cm.instanceMutex.Unlock()
+	}
+
+	return instance
+}
+
+func (cm *ConsensusManager) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
+	if !cm.canExecute(inst) {
+		// need to iterate over the possible replicas, allowing for
+		// some to be down
+		panic("Forward to eligible replica not implemented yet")
+	} else {
+		instance := cm.getInstance(inst.Key)
+		val, err := instance.ExecuteInstruction(inst, cl)
+		return val, err
+	}
+	return nil, nil
+}
+
+func (c *Cluster) executeConsensusInstruction(instruction store.Instruction, consistency ConsistencyLevel) (store.Value, error) {
+
+	return nil, nil
+}
+
+func (c *Cluster) handlePreAccept(cmd *Command, dependencies []*Command) {
 
 }
