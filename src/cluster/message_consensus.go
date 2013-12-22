@@ -18,10 +18,19 @@ const (
 // ----------- consensus messages -----------
 
 type PreAcceptRequest struct {
-	LeaderID NodeId
 	Command *Command
 	Dependencies []*Command
 }
+
+func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *PreAcceptRequest) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *PreAcceptRequest) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_REQUEST }
 
 type PreAcceptResponse struct {
 	Accepted bool
@@ -32,21 +41,71 @@ type PreAcceptResponse struct {
 	Dependencies []*Command
 }
 
+func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *PreAcceptResponse) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *PreAcceptResponse) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_RESPONSE }
+
 type CommitRequest struct {
 
 }
+
+func (m *CommitRequest) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *CommitRequest) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *CommitRequest) GetType() uint32 { return CONSENSUS_COMMIT_REQUEST }
 
 type CommitResponse struct {
 
 }
 
+func (m *CommitResponse) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *CommitResponse) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *CommitResponse) GetType() uint32 { return CONSENSUS_COMMIT_RESPONSE }
+
 type AcceptRequest struct {
 
 }
 
+func (m *AcceptRequest) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *AcceptRequest) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *AcceptRequest) GetType() uint32 { return CONSENSUS_ACCEPT_REQUEST }
+
 type AcceptResponse struct {
 
 }
+
+func (m *AcceptResponse) Serialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *AcceptResponse) Deserialize(buf *bufio.Writer) error {
+	return nil
+}
+
+func (m *AcceptResponse) GetType() uint32 { return CONSENSUS_ACCEPT_RESPONSE }
 
 // ----------- encoding helpers -----------
 

@@ -5,11 +5,35 @@ import (
 	"bytes"
 	"testing"
 	"time"
-)
 
+)
 import (
 	"testing_helpers"
 )
+
+func TestPreAcceptRequest(t *testing.T) {
+
+}
+
+func TestPreAcceptResponse(t *testing.T) {
+
+}
+
+func TestCommitRequest(t *testing.T) {
+
+}
+
+func TestCommitResponse(t *testing.T) {
+
+}
+
+func TestAcceptRequest(t *testing.T) {
+
+}
+
+func TestAcceptResponse(t *testing.T) {
+
+}
 
 func TestCommandSerialization(t *testing.T) {
 	src := &Command{
