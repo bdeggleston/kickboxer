@@ -63,9 +63,11 @@ func (c *Command) Equal(o *Command) bool {
 	return result
 }
 
+type Dependencies []*Command
+
 // manager for interfering commands
 type Instance struct {
-	Dependencies []*Command
+	Dependencies Dependencies
 	MaxBallot   uint64
 	key string
 
@@ -76,7 +78,7 @@ func NewInstance(key string, cluster *Cluster) *Instance {
 	return &Instance{
 		key:key,
 		cluster:cluster,
-		Dependencies:make([]*Command, 0, 20),
+		Dependencies:make(Dependencies, 0, 20),
 	}
 }
 
@@ -182,11 +184,15 @@ func (cm *ConsensusManager) ExecuteInstruction(inst store.Instruction, cl Consis
 	return nil, nil
 }
 
-func (c *Cluster) executeConsensusInstruction(instruction store.Instruction, consistency ConsistencyLevel) (store.Value, error) {
-
+func (cm *ConsensusManager) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, error) {
 	return nil, nil
 }
 
-func (c *Cluster) handlePreAccept(cmd *Command, dependencies []*Command) {
-
+func (cm *ConsensusManager) HandleCommit(msg *CommitRequest) (*CommitResponse, error) {
+	return nil, nil
 }
+
+func (cm *ConsensusManager) HandleAccept(msg *AcceptRequest) (*AcceptResponse, error) {
+	return nil, nil
+}
+
