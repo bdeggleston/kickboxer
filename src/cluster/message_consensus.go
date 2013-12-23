@@ -19,7 +19,7 @@ const (
 
 type PreAcceptRequest struct {
 	Command *Command
-	Dependencies []*Command
+	Dependencies Dependencies
 }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error {
@@ -40,7 +40,7 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 
 	var numDeps uint32
 	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	m.Dependencies = make([]*Command, int(numDeps))
+	m.Dependencies = make(Dependencies, int(numDeps))
 	for i:=0; i<int(numDeps); i++ {
 		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
 	}
@@ -56,7 +56,7 @@ type PreAcceptResponse struct {
 	// the replica's view of dependencies
 	// will be returned if the request
 	// is not accepted
-	Dependencies []*Command
+	Dependencies Dependencies
 }
 
 func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
@@ -80,7 +80,7 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 
 	var numDeps uint32
 	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	m.Dependencies = make([]*Command, int(numDeps))
+	m.Dependencies = make(Dependencies, int(numDeps))
 	for i:=0; i<int(numDeps); i++ {
 		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
 	}
@@ -118,7 +118,7 @@ func (m *CommitResponse) Deserialize(buf *bufio.Reader) error { return nil }
 func (m *CommitResponse) GetType() uint32 { return CONSENSUS_COMMIT_RESPONSE }
 
 type AcceptRequest struct {
-	Dependencies []*Command
+	Dependencies Dependencies
 }
 
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error {
@@ -136,7 +136,7 @@ func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
 	var err error
 	var numDeps uint32
 	if err = binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	m.Dependencies = make([]*Command, int(numDeps))
+	m.Dependencies = make(Dependencies, int(numDeps))
 	for i:=0; i<int(numDeps); i++ {
 		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
 	}
