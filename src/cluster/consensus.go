@@ -409,6 +409,36 @@ func (i *Instance) HandleAccept(msg *AcceptRequest) (*AcceptResponse, error) {
 	return nil, nil
 }
 
+func (i *Instance) HandleMessage(msg BallotMessage) (BallotMessage, error) {
+	// check the ballot first
+	ballotReject := func() *BallotRejectResponse {
+		i.lock.Lock()
+		defer i.lock.Unlock()
+		if msg.GetBallot() <= i.MaxBallot {
+			return &BallotRejectResponse{Ballot:i.MaxBallot}
+		} else {
+			i.MaxBallot = msg.GetBallot()
+		}
+		return nil
+	}()
+	if ballotReject != nil {
+		return ballotReject, nil
+	}
+
+	// then continue
+	switch request := msg.(type) {
+	case *PreAcceptRequest:
+		return i.HandlePreAccept(request)
+	case *CommitRequest:
+		return i.HandleCommit(request)
+	case *AcceptRequest:
+		return i.HandleAccept(request)
+	default:
+		return nil, fmt.Errorf("Unexpected message type: %T", msg)
+	}
+	panic("unreachable")
+}
+
 type ConsensusManager struct {
 	cluster   *Cluster
 	lock      *sync.RWMutex
