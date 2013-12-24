@@ -175,12 +175,13 @@ func (i *Instance) getNextSequence() uint64 {
 	return seq
 }
 
-// adds a command to the dependency list and returns
-// the old set of dependencies
+// adds a command to the dependency list, sets the sequence number
+// on the new dependency, and returns the old set of dependencies
 func (i *Instance) addDependency(cmd *Command) Dependencies {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	oldDeps := i.Dependencies.Copy()
+	cmd.Sequence = oldDeps.GetMaxSequence() + 1
 	i.Dependencies = append(i.Dependencies, cmd)
 	i.DependencyMap[cmd.ID] = cmd
 	return oldDeps
@@ -263,7 +264,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	cmd := &Command{
 		ID:		   NewCommandID(),
 		LeaderID:  i.cluster.GetNodeId(),
-		Sequence:  i.getNextSequence(),
+		//Sequence:  i.getNextSequence(),  // this is handled by addDependency
 		Status:    DS_PRE_ACCEPTED,
 		Cmd:       inst.Cmd,
 		Key:       inst.Key,
