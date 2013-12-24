@@ -110,6 +110,16 @@ func (d Dependencies) Copy() Dependencies {
 	return c
 }
 
+func (d Dependencies) GetMaxSequence() uint64 {
+	var seq uint64
+	for _, dep := range d {
+		if dep.Sequence > seq {
+			seq = dep.Sequence
+		}
+	}
+	return seq
+}
+
 // manager for interfering commands
 // Dependencies should be sorted with the
 // newest commands at the end of the array
