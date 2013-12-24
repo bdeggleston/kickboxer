@@ -400,7 +400,16 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 }
 
 func (i *Instance) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, error) {
-	return nil, nil
+	cmd := msg.Command
+
+	// no need to persist this yet, or use locking, this is the only
+	// place this command has been seen, and consensus state persistence
+	// will happen in `addDependency`
+	cmd.Status = DS_PRE_ACCEPTED
+	_, deps, err := i.addDependency(cmd)
+	if err != nil { return nil, err }
+
+	return &PreAcceptResponse{Dependencies: deps}, nil
 }
 
 func (i *Instance) HandleCommit(msg *CommitRequest) (*CommitResponse, error) {
