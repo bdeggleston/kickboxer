@@ -70,6 +70,8 @@ type Command struct {
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
 	commitTimeout time.Time
+
+	instance *Instance
 }
 
 // sets the status on this command, and persists it
@@ -182,6 +184,7 @@ func (i *Instance) addDependency(cmd *Command) Dependencies {
 	defer i.lock.Unlock()
 	oldDeps := i.Dependencies.Copy()
 	cmd.Sequence = oldDeps.GetMaxSequence() + 1
+	cmd.instance = i
 	i.Dependencies = append(i.Dependencies, cmd)
 	i.DependencyMap[cmd.ID] = cmd
 	return oldDeps
