@@ -162,8 +162,8 @@ func (m *AcceptResponse) GetType() uint32 { return CONSENSUS_ACCEPT_RESPONSE }
 // ----------- encoding helpers -----------
 
 func serializeCommand(cmd *Command, buf *bufio.Writer) error {
-	if err := writeFieldString(buf, string(cmd.LeaderID)); err != nil { return err }
-	if err := binary.Write(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return err }
+	if err := writeFieldString(buf, string(cmd.ID.LeaderID)); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &cmd.ID.Ballot); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &cmd.Status); err != nil { return err }
 	if err := writeFieldString(buf, cmd.Cmd); err != nil { return err }
 	if err := writeFieldString(buf, cmd.Key); err != nil { return err }
@@ -189,9 +189,9 @@ func deserializeCommand(buf *bufio.Reader) (*Command, error) {
 	if str, err := readFieldString(buf); err != nil {
 		return nil, err
 	} else {
-		cmd.LeaderID = NodeId(str)
+		cmd.ID.LeaderID = NodeId(str)
 	}
-	if err := binary.Read(buf, binary.LittleEndian, &cmd.Ballot); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &cmd.ID.Ballot); err != nil { return nil, err }
 
 	if err = binary.Read(buf, binary.LittleEndian, &cmd.Status); err != nil { return nil, err }
 	if cmd.Cmd, err = readFieldString(buf); err != nil { return nil, err }

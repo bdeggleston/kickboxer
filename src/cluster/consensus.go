@@ -29,12 +29,16 @@ var (
 // TODO: should reads and writes be collapsed into a single function? Let the store decide what to do?
 // TODO: make sure all consensus operations are durably persisted before continuing execution
 
-type Command struct {
+type CommandID struct {
 	// the node id of the command leader
 	LeaderID NodeId
 
 	// the ballot number for this commend
 	Ballot uint64
+}
+
+type Command struct {
+	ID CommandID
 
 	// the current status of this command
 	Status CommandStatus
@@ -58,12 +62,11 @@ type Command struct {
 // determines if 2 commands are equal
 func (c *Command) Equal(o *Command) bool {
 	result := true
-	result = result && c.LeaderID == o.LeaderID
+	result = result && c.ID == o.ID
 	result = result && c.Status == o.Status
 	result = result && c.Cmd == o.Cmd
 	result = result && c.Key == o.Key
 	result = result && c.Blocking == o.Blocking
-	result = result && c.Ballot == o.Ballot
 	result = result && c.Timestamp.Equal(o.Timestamp)
 	if len(c.Args) != len(o.Args) {
 		return false
@@ -202,8 +205,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	// instantiate the command we'd like to commit
 	ballot := i.getNextBallot()
 	cmd := &Command{
-		LeaderID:  i.cluster.GetNodeId(),
-		Ballot:    ballot,
+		ID:		   CommandID{i.cluster.GetNodeId(), ballot},
 		Status:    DS_NULL,
 		Cmd:       inst.Cmd,
 		Key:       inst.Key,
@@ -263,7 +265,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	// if the quorum ok'd the pre accept, commit it
 	if preAcceptOk {
 		cmd.Status = DS_COMMITTED
-		commitMessage := &CommitRequest{LeaderID:cmd.LeaderID, Ballot:cmd.Ballot}
+		commitMessage := &CommitRequest{LeaderID:cmd.ID.LeaderID, Ballot:cmd.ID.Ballot}
 		sendCommit := func(node *RemoteNode) {
 			response, _, err := node.sendMessage(commitMessage)
 			if err != nil {
