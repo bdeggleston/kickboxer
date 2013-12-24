@@ -121,7 +121,7 @@ type Instance struct {
 	cmdLock		 *sync.Mutex
 
 	// allows quick updating of dependency status
-	DependencyMap map[NodeId] map[uint64] *Command
+	DependencyMap map[CommandID] *Command
 
 	// keeps track of the highest ballots seen from
 	// other replicas, allowing this replica to
@@ -157,6 +157,17 @@ func (i *Instance) getNextSequence() uint64 {
 		if dep.Sequence > seq { seq = dep.Sequence }
 	}
 	return seq
+}
+
+// adds a command to the dependency list and returns
+// the old set of dependencies
+func (i *Instance) addDependency(cmd *Command) Dependencies {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	oldDeps := i.Dependencies.Copy()
+	i.Dependencies = append(i.Dependencies, cmd)
+	i.DependencyMap[cmd.ID] = cmd
+	return oldDeps
 }
 
 func (i *Instance) updateMaxBallot(ballot uint64) uint64 {
@@ -249,17 +260,12 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	// lock the instance, copy it's dependencies
 	// into the PreAccept message, and add this
 	// command into the local dependencies
-	msg := func() *PreAcceptRequest {
-		i.lock.Lock()
-		defer i.lock.Unlock()
-		msg := &PreAcceptRequest{
-			Command: cmd,
-			Dependencies:i.Dependencies.Copy(),
-			Ballot: ballot,
-		}
-		i.Dependencies = append(i.Dependencies, cmd)
-		return msg
-	}()
+	oldDeps := i.addDependency(cmd)
+	msg := &PreAcceptRequest{
+		Command: cmd,
+		Dependencies:oldDeps,
+		Ballot: ballot,
+	}
 
 	// send the pre-accept requests
 	responses := make([]*PreAcceptResponse, 0, len(replicas))
@@ -316,6 +322,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	} else {
 		// otherwise, resolve the dependencies and force an accept
 		// TODO: perform a union of the commands
+		depMap := make(map[CommandID] *Command)
 
 	}
 
