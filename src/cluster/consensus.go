@@ -60,6 +60,13 @@ type Command struct {
 	commitTimeout time.Time
 }
 
+// sets the status on this command, and persists it
+func (c *Command) setStatus(status CommandStatus) error {
+	c.Status = status
+	// TODO: durably persist
+	return nil
+}
+
 // determines if 2 commands are equal
 func (c *Command) Equal(o *Command) bool {
 	result := true
