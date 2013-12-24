@@ -21,8 +21,13 @@ const (
 	DS_EXECUTED
 )
 
+var (
+	PREACCEPT_TIMEOUT = uint64(10000)
+)
+
 // TODO: should consensus operations hijack the timestamp??
 // TODO: should reads and writes be collapsed into a single function? Let the store decide what to do?
+// TODO: make sure all consensus operations are durably persisted before continuing execution
 
 type Command struct {
 	// the node id of the command leader
@@ -159,8 +164,10 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 	case CONSISTENCY_CONSENSUS:
 		replicaMap := i.cluster.GetNodesForKey(i.key)
 		numReplicas := 0
-		for _, nodes := range replicaMap { numReplicas += len(nodes) }
-		replicas = make([]*RemoteNode, 0, numReplicas - 1)
+		for _, nodes := range replicaMap {
+			numReplicas += len(nodes)
+		}
+		replicas = make([]*RemoteNode, 0, numReplicas-1)
 		for _, nodes := range replicaMap {
 			for _, node := range nodes {
 				if rnode, ok := node.(*RemoteNode); ok {
@@ -181,9 +188,113 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 
 func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
 	replicas, quorumSize, err := i.getReplicas(cl)
-	_ = replicas
-	_ = quorumSize
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
+
+	// a lock is aquired here to prevent concurrent operations on this node from
+	// interfering with each other. For example, if multiple client queries arrive at
+	// this node at effectively the same time, and they arrive at remote nodes out of
+	// order, the competing commands will consistently 'one-up' each other, and most
+	// client queries will fail
+	i.cmdLock.Lock()
+
+	// instantiate the command we'd like to commit
+	ballot := i.getNextBallot()
+	cmd := &Command{
+		LeaderID:  i.cluster.GetNodeId(),
+		Ballot:    ballot,
+		Status:    DS_NULL,
+		Cmd:       inst.Cmd,
+		Key:       inst.Key,
+		Args:      inst.Args,
+		Timestamp: inst.Timestamp,
+		Blocking:  i.cluster.store.ReturnsValue(inst.Cmd),
+	}
+
+	// lock the instance, copy it's dependencies
+	// into the PreAccept message, and add this
+	// command into the local dependencies
+	msg := func() *PreAcceptRequest {
+		i.lock.Lock()
+		defer i.lock.Unlock()
+		msg := &PreAcceptRequest{
+			Command: cmd,
+			Dependencies:i.Dependencies.Copy(),
+		}
+		i.Dependencies = append(i.Dependencies, cmd)
+		return msg
+	}()
+
+	// send the pre-accept requests
+	responses := make([]*PreAcceptResponse, 0, len(replicas))
+	preAcceptChannel := make(chan *PreAcceptResponse, len(replicas))
+	sendPreAccept := func(node *RemoteNode) {
+		response, _, err := node.sendMessage(msg)
+		if err != nil {
+			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+		}
+		if _, ok := response.(*PreAcceptResponse); !ok {
+			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
+		}
+		preAcceptChannel <- response
+	}
+	for _, node := range replicas {
+		go sendPreAccept(node)
+	}
+
+	// receive pre-accept responses until quorum is met, or until timeout
+	timeoutEvent := time.After(PREACCEPT_TIMEOUT * time.Millisecond)
+	numResponses := 0
+	preAcceptOk := true
+	var response *PreAcceptResponse
+	for numResponses < quorumSize {
+		select {
+		case response = <-preAcceptChannel:
+			preAcceptOk = preAcceptOk && response.Accepted
+			responses = append(responses, response)
+		case <-timeoutEvent:
+			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
+		}
+	}
+	// unblock any pending queries on this instance
+	i.cmdLock.Unlock()
+
+	// if the quorum ok'd the pre accept, commit it
+	if preAcceptOk {
+		cmd.Status = DS_COMMITTED
+		commitMessage := &CommitRequest{LeaderID:cmd.LeaderID, Ballot:cmd.Ballot}
+		sendCommit := func(node *RemoteNode) {
+			response, _, err := node.sendMessage(commitMessage)
+			if err != nil {
+				logger.Warning("Error receiving CommitResponse: %v", err)
+			}
+			if _, ok := response.(*PreAcceptResponse); !ok {
+				logger.Warning("Unexpected Commit response type: %T\n%+v", response, response)
+			}
+		}
+		for _, node := range replicas {
+			go sendCommit(node)
+		}
+		return i.executeCommand(cmd)
+	} else {
+		// otherwise, resolve the dependencies and force an accept
+		// TODO: perform a union of the commands (how does this work when each replica has it's own ballot?)
+
+	}
+
+	return nil, nil
+}
+
+func (i *Instance) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, error) {
+	return nil, nil
+}
+
+func (i *Instance) HandleCommit(msg *CommitRequest) (*CommitResponse, error) {
+	return nil, nil
+}
+
+func (i *Instance) HandleAccept(msg *AcceptRequest) (*AcceptResponse, error) {
 	return nil, nil
 }
 
@@ -195,8 +306,9 @@ type ConsensusManager struct {
 
 func NewConsensusManager(cluster *Cluster) *ConsensusManager {
 	return &ConsensusManager{
-		cluster:cluster,
-		instances:make(map[string]*Instance),
+		cluster:   cluster,
+		instances: make(map[string]*Instance),
+		lock:      &sync.RWMutex{},
 	}
 }
 
@@ -212,16 +324,16 @@ func (cm *ConsensusManager) canExecute(inst store.Instruction) bool {
 
 func (cm *ConsensusManager) getInstance(key string) *Instance {
 	// get
-	cm.instanceMutex.RLock()
+	cm.lock.RLock()
 	instance, exists := cm.instances[key]
-	cm.instanceMutex.RUnlock()
+	cm.lock.RUnlock()
 
 	// or create
 	if !exists {
-		cm.instanceMutex.Lock()
+		cm.lock.Lock()
 		instance = NewInstance(key, cm.cluster)
 		cm.instances[key] = instance
-		cm.instanceMutex.Unlock()
+		cm.lock.Unlock()
 	}
 
 	return instance
@@ -241,6 +353,8 @@ func (cm *ConsensusManager) ExecuteInstruction(inst store.Instruction, cl Consis
 }
 
 func (cm *ConsensusManager) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, error) {
+	instance := cm.getInstance(msg.Command.Key)
+	_ = instance
 	return nil, nil
 }
 
