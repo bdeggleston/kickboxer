@@ -125,6 +125,7 @@ func (d Dependencies) GetMaxSequence() uint64 {
 // manager for interfering commands
 // Dependencies should be sorted with the
 // newest commands at the end of the array
+// TODO: rethink the locking strategy. Maybe only the cmdLock should be used?
 type Instance struct {
 	Dependencies Dependencies
 	MaxBallot    uint64
