@@ -375,7 +375,9 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 
 	// if the quorum ok'd the pre accept, commit it
 	if preAcceptOk {
-		cmd.Status = DS_COMMITTED
+		if err := cmd.setStatus(DS_COMMITTED); err != nil {
+			return nil, err
+		}
 		commitMessage := &CommitRequest{cmd.ID}
 		sendCommit := func(node *RemoteNode) {
 			response, _, err := node.sendMessage(commitMessage)
