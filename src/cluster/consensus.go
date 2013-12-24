@@ -236,17 +236,18 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 		if err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		}
-		if _, ok := response.(*PreAcceptResponse); !ok {
+		if msg, ok := response.(*PreAcceptResponse); !ok {
 			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
+		} else {
+			preAcceptChannel <- msg
 		}
-		preAcceptChannel <- response
 	}
 	for _, node := range replicas {
 		go sendPreAccept(node)
 	}
 
 	// receive pre-accept responses until quorum is met, or until timeout
-	timeoutEvent := time.After(PREACCEPT_TIMEOUT * time.Millisecond)
+	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	numResponses := 0
 	preAcceptOk := true
 	var response *PreAcceptResponse
