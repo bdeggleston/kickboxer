@@ -205,7 +205,7 @@ func (i *Instance) executeCommand(cmd *Command) (store.Value, error) {
 }
 
 // gets the replicas & quorum size for this instance, for the given consistency level
-func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quorumSize int, err error) {
+func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, err error) {
 	switch cl {
 	case CONSISTENCY_CONSENSUS_LOCAL:
 		localReplicas := i.cluster.GetLocalNodesForKey(i.key)
@@ -218,9 +218,8 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 			}
 		}
 		if len(replicas) != numReplicas-1 {
-			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
+			return []*RemoteNode{}, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
-		quorumSize = (len(localReplicas) / 2) + 1
 
 	case CONSISTENCY_CONSENSUS:
 		replicaMap := i.cluster.GetNodesForKey(i.key)
@@ -237,18 +236,71 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 			}
 		}
 		if len(replicas) != numReplicas-1 {
-			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
+			return []*RemoteNode{}, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
-		quorumSize = (len(replicas) / 2) + 1
 
 	default:
-		return []*RemoteNode{}, 0, fmt.Errorf("Unknown consistency level: %v", cl)
+		return []*RemoteNode{}, fmt.Errorf("Unknown consistency level: %v", cl)
 	}
-	return replicas, quorumSize, nil
+	return replicas, nil
+}
+
+func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Dependencies, ballot uint64) ([]*PreAcceptResponse, error) {
+	msg := &PreAcceptRequest{
+		Command: cmd,
+		Dependencies:deps,
+		Ballot: ballot,
+	}
+
+	quorumSize := (len(replicas) / 2) + 1
+
+	// send the pre-accept requests
+	responses := make([]*PreAcceptResponse, 0, len(replicas))
+	preAcceptChannel := make(chan *PreAcceptResponse, len(replicas))
+	sendPreAccept := func(node *RemoteNode) {
+		response, _, err := node.sendMessage(msg)
+		if err != nil {
+			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+		}
+		if msg, ok := response.(*PreAcceptResponse); !ok {
+			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
+		} else {
+			preAcceptChannel <- msg
+		}
+	}
+	for _, node := range replicas {
+		go sendPreAccept(node)
+	}
+
+	// receive pre-accept responses until quorum is met, or until timeout
+	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
+	numResponses := 1  // this node counts as a response
+	preAcceptOk := true
+	var response *PreAcceptResponse
+	for numResponses < quorumSize {
+		select {
+		case response = <-preAcceptChannel:
+			preAcceptOk = preAcceptOk && response.Accepted
+			responses = append(responses, response)
+		case <-timeoutEvent:
+			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
+		}
+	}
+	// grab any other responses
+	drain: for {
+		select {
+		case response = <-preAcceptChannel:
+			preAcceptOk = preAcceptOk && response.Accepted
+			responses = append(responses, response)
+		default:
+			break drain
+		}
+	}
+	return responses, nil
 }
 
 func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
-	replicas, quorumSize, err := i.getReplicas(cl)
+	replicas, err := i.getReplicas(cl)
 	if err != nil {
 		return nil, err
 	}
@@ -274,65 +326,31 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	}
 
 	ballot := i.getNextBallot()
-	// lock the instance, copy it's dependencies
-	// into the PreAccept message, and add this
-	// command into the local dependencies
 	oldDeps := i.addDependency(cmd)
-	msg := &PreAcceptRequest{
-		Command: cmd,
-		Dependencies:oldDeps,
-		Ballot: ballot,
-	}
-
-	// send the pre-accept requests
-	responses := make([]*PreAcceptResponse, 0, len(replicas))
-	preAcceptChannel := make(chan *PreAcceptResponse, len(replicas))
-	sendPreAccept := func(node *RemoteNode) {
-		response, _, err := node.sendMessage(msg)
-		if err != nil {
-			logger.Warning("Error receiving PreAcceptResponse: %v", err)
-		}
-		if msg, ok := response.(*PreAcceptResponse); !ok {
-			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
-		} else {
-			preAcceptChannel <- msg
-		}
-	}
-	for _, node := range replicas {
-		go sendPreAccept(node)
-	}
-
-	// receive pre-accept responses until quorum is met, or until timeout
-	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
-	numResponses := 0
-	preAcceptOk := true
-	var response *PreAcceptResponse
-	for numResponses < quorumSize {
-		select {
-		case response = <-preAcceptChannel:
-			preAcceptOk = preAcceptOk && response.Accepted
-			responses = append(responses, response)
-		case <-timeoutEvent:
-			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
-		}
-	}
-	// grab any other responses
-	drain: for {
-		select {
-		case response = <-preAcceptChannel:
-			preAcceptOk = preAcceptOk && response.Accepted
-			responses = append(responses, response)
-		default:
-			break drain
-		}
-	}
+	responses, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
 	// unblock any pending queries on this instance
 	i.cmdLock.Unlock()
+
+	// otherwise, resolve the dependencies and force an accept
+	// TODO: perform a union of the commands
+
+	depListMap := make(map[CommandID] Dependencies)
+	for _, response := range responses {
+		for _, dep := range response.Dependencies {
+			depList, exists := depListMap[dep.ID]
+			if !exists {
+				depList = make(Dependencies, 0, len(responses))
+				depListMap[dep.ID] = depList
+			}
+			depList = append(depList, dep)
+		}
+	}
+	preAcceptOk := false
 
 	// if the quorum ok'd the pre accept, commit it
 	if preAcceptOk {
 		cmd.Status = DS_COMMITTED
-		commitMessage := &CommitRequest{LeaderID:cmd.ID.LeaderID, Ballot:cmd.ID.Ballot}
+		commitMessage := &CommitRequest{cmd.ID}
 		sendCommit := func(node *RemoteNode) {
 			response, _, err := node.sendMessage(commitMessage)
 			if err != nil {
@@ -346,11 +364,6 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 			go sendCommit(node)
 		}
 		return i.executeCommand(cmd)
-	} else {
-		// otherwise, resolve the dependencies and force an accept
-		// TODO: perform a union of the commands
-		depMap := make(map[CommandID] *Command)
-
 	}
 
 	return nil, nil
