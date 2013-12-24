@@ -372,42 +372,33 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	i.cmdLock.Unlock()
 
 	// otherwise, resolve the dependencies and force an accept
-	// TODO: perform a union of the commands
+	extDeps := make([]Dependencies, len(responses))
+	for i, response := range responses {
+		extDeps[i] = response.Dependencies
+	}
+	resolvedDeps, err := i.dependencyUnion(extDeps)
+	if !newDeps.Equal(resolvedDeps) {
+		// TODO: update the instance's dependency list
+		// TODO: execute multi-paxos accept phase
+	}
 
-	depListMap := make(map[CommandID] Dependencies)
-	_ = newDeps
-	for _, response := range responses {
-		for _, dep := range response.Dependencies {
-			depList, exists := depListMap[dep.ID]
-			if !exists {
-				depList = make(Dependencies, 0, len(responses))
-				depListMap[dep.ID] = depList
-			}
-			depList = append(depList, dep)
+	if err := cmd.setStatus(DS_COMMITTED); err != nil {
+		return nil, err
+	}
+	commitMessage := &CommitRequest{cmd.ID}
+	sendCommit := func(node *RemoteNode) {
+		response, _, err := node.sendMessage(commitMessage)
+		if err != nil {
+			logger.Warning("Error receiving CommitResponse: %v", err)
+		}
+		if _, ok := response.(*PreAcceptResponse); !ok {
+			logger.Warning("Unexpected Commit response type: %T\n%+v", response, response)
 		}
 	}
-	preAcceptOk := false
-
-	// if the quorum ok'd the pre accept, commit it
-	if preAcceptOk {
-		if err := cmd.setStatus(DS_COMMITTED); err != nil {
-			return nil, err
-		}
-		commitMessage := &CommitRequest{cmd.ID}
-		sendCommit := func(node *RemoteNode) {
-			response, _, err := node.sendMessage(commitMessage)
-			if err != nil {
-				logger.Warning("Error receiving CommitResponse: %v", err)
-			}
-			if _, ok := response.(*PreAcceptResponse); !ok {
-				logger.Warning("Unexpected Commit response type: %T\n%+v", response, response)
-			}
-		}
-		for _, node := range replicas {
-			go sendCommit(node)
-		}
-		return i.executeCommand(cmd)
+	for _, node := range replicas {
+		go sendCommit(node)
 	}
+	return i.executeCommand(cmd)
 
 	return nil, nil
 }
