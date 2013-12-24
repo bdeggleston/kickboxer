@@ -39,3 +39,18 @@ func TestInstanceRetrieval(t *testing.T) {
 func TestGetReplicas(t *testing.T) {
 
 }
+
+// tests that calling executeCommand on a command
+// without any undecided dependencies mutates the
+// store as expected, and sets the proper status
+// on the command object
+func TestExecuteCommandMutatesStore(t *testing.T) {
+
+}
+
+// tests that calling executeCommand on a command
+// with undecided dependencies waits for / resolves
+// the undecided commands properly before executing
+func TestUndecidedDependenciesExecuteCommand(t *testing.T) {
+
+}

@@ -12,6 +12,14 @@ func TestSuccessfulPreAcceptResponse(t *testing.T) {
 
 }
 
+// if 2 client requests are received, the second after
+// the first preaccept message is sent, but before any
+// preaccept replies are received...
+// TODO: what should happen in this case?
+func TestConcurrentInterferingRequests(t *testing.T) {
+
+}
+
 // if the leader receives a quorum of rejects from
 // the replicas, it should update it's dependencies
 // from the responses and update all replicas with
