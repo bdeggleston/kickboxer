@@ -14,7 +14,7 @@ type CommandStatus byte
 
 const (
 	DS_NULL = CommandStatus(iota)
-	DS_PRE_ACCEPT
+	DS_PRE_ACCEPTED
 	DS_ACCEPTED
 	DS_REJECTED
 	DS_COMMITTED
@@ -37,6 +37,7 @@ type CommandID struct {
 	Ballot uint64
 }
 
+// TODO: add predicate
 type Command struct {
 	ID CommandID
 
@@ -206,7 +207,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	ballot := i.getNextBallot()
 	cmd := &Command{
 		ID:		   CommandID{i.cluster.GetNodeId(), ballot},
-		Status:    DS_NULL,
+		Status:    DS_PRE_ACCEPTED,
 		Cmd:       inst.Cmd,
 		Key:       inst.Key,
 		Args:      inst.Args,
@@ -282,7 +283,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 		return i.executeCommand(cmd)
 	} else {
 		// otherwise, resolve the dependencies and force an accept
-		// TODO: perform a union of the commands (how does this work when each replica has it's own ballot?)
+		// TODO: perform a union of the commands
 
 	}
 
