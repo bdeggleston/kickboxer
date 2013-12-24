@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-/** Proposals **/
+/** PreAccept **/
 
 // if the leader receives a quorum of accepts from
 // the replicas, it should send a commit message
@@ -39,5 +39,10 @@ func TestFailedQuorumResponse(t *testing.T) {
 // keys it's not a replica of, it forwards the query
 // to a node that is
 func TestProposalsAreForwardedToReplica(t *testing.T) {
+
+}
+
+// test rejected ballot
+func TestPreAcceptBallotRejection(t *testing.T) {
 
 }
