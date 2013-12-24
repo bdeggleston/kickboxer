@@ -35,15 +35,19 @@ type Command struct {
 	Status CommandStatus
 
 	// the actual instruction to be executed
-	Cmd string
-	Key string
-	Args []string
+	Cmd       string
+	Key       string
+	Args      []string
 	Timestamp time.Time
 
 	// indicates that previous commands need
 	// to be executed before a decision can be
 	// made for this command
 	Blocking bool
+
+	// indicates the time that we can stop waiting
+	// for a commit on this command, and force one
+	commitTimeout time.Time
 }
 
 // determines if 2 commands are equal
