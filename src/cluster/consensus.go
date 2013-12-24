@@ -149,6 +149,16 @@ func (i *Instance) getNextBallot() uint64 {
 	return i.MaxBallot
 }
 
+func (i *Instance) getNextSequence() uint64 {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	var seq uint64
+	for _, dep := range i.Dependencies {
+		if dep.Sequence > seq { seq = dep.Sequence }
+	}
+	return seq
+}
+
 func (i *Instance) updateMaxBallot(ballot uint64) uint64 {
 	i.lock.Lock()
 	defer i.lock.Unlock()
@@ -223,9 +233,10 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	i.cmdLock.Lock()
 
 	// instantiate the command we'd like to commit
-	ballot := i.getNextBallot()
 	cmd := &Command{
-		ID:		   CommandID{i.cluster.GetNodeId(), ballot},
+		ID:		   NewCommandID(),
+		LeaderID:  i.cluster.GetNodeId(),
+		Sequence:  i.getNextSequence(),
 		Status:    DS_PRE_ACCEPTED,
 		Cmd:       inst.Cmd,
 		Key:       inst.Key,
@@ -234,6 +245,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 		Blocking:  i.cluster.store.ReturnsValue(inst.Cmd),
 	}
 
+	ballot := i.getNextBallot()
 	// lock the instance, copy it's dependencies
 	// into the PreAccept message, and add this
 	// command into the local dependencies
@@ -243,6 +255,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 		msg := &PreAcceptRequest{
 			Command: cmd,
 			Dependencies:i.Dependencies.Copy(),
+			Ballot: ballot,
 		}
 		i.Dependencies = append(i.Dependencies, cmd)
 		return msg
