@@ -10,7 +10,8 @@ _obj
 _test
 
 # Dependencies
-code.google.com/
+code.google.*/
+github.*/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
