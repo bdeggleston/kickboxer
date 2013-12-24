@@ -7,6 +7,7 @@ import (
 
 const (
 	CONSENSUS_QUERY_FORWARD = uint32(501)
+	CONSENSUS_BALLOT_REJECT_RESPONSE = uint32(502)
 	CONSENSUS_PRE_ACCEPT_REQUEST = uint32(503)
 	CONSENSUS_PRE_ACCEPT_RESPONSE = uint32(504)
 	CONSENSUS_COMMIT_REQUEST = uint32(505)
@@ -16,6 +17,27 @@ const (
 )
 
 // ----------- consensus messages -----------
+
+type BallotMessage interface {
+	Message
+	GetBallot() uint64
+}
+
+type BallotRejectResponse struct {
+	Ballot uint64
+}
+
+func (m *BallotRejectResponse) Serialize(buf *bufio.Writer) error {
+	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
+	return nil
+}
+
+func (m *BallotRejectResponse) Deserialize(buf *bufio.Reader) error {
+	if err := binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
+	return nil
+}
+
+func (m *BallotRejectResponse) GetType() uint32 { return CONSENSUS_BALLOT_REJECT_RESPONSE }
 
 type PreAcceptRequest struct {
 	Command *Command
