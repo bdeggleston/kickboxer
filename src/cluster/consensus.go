@@ -122,6 +122,18 @@ func (d Dependencies) GetMaxSequence() uint64 {
 	return seq
 }
 
+func (d Dependencies) Equal(o Dependencies) bool {
+	if len(d) != len(o) {
+		return false
+	}
+	for i := range d {
+		if !d[i].Equal(o[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // manager for interfering commands
 // Dependencies should be sorted with the
 // newest commands at the end of the array
