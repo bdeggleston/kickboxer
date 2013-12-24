@@ -3,7 +3,9 @@ package cluster
 import (
 	"fmt"
 	"time"
+)
 
+import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
@@ -22,7 +24,7 @@ const (
 type NodeId string
 
 func NewNodeId() NodeId {
-	return NodeId(uuid.NewRandom().String())
+	return NodeId(uuid.NewUUID().String())
 }
 
 func (nid NodeId) IsNil() bool {
