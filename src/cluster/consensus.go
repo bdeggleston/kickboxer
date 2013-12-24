@@ -1,5 +1,9 @@
 package cluster
 
+// references:
+// http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-12-108.pdf
+// http://sigops.org/sosp/sosp13/papers/p358-moraru.pdf
+
 import (
 	"fmt"
 	"sync"
