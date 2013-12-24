@@ -47,6 +47,7 @@ func TestPreAcceptRequest(t *testing.T) {
 				Blocking: true,
 			},
 		},
+		Ballot: 12,
 	}
 	// interface check
 	_ = Message(src)
@@ -80,6 +81,7 @@ func TestPreAcceptRequest(t *testing.T) {
 			t.Errorf("src Dependecy %v doesn't match dst command. Expected: %+v, got %+v", i, s, d)
 		}
 	}
+	testing_helpers.AssertEqual(t, "Ballot", src.Ballot, dst.Ballot)
 }
 
 func TestPreAcceptResponse(t *testing.T) {
@@ -111,6 +113,7 @@ func TestPreAcceptResponse(t *testing.T) {
 				Blocking: true,
 			},
 		},
+		MaxBallot: 13,
 	}
 	// interface check
 	_ = Message(src)
@@ -143,6 +146,7 @@ func TestPreAcceptResponse(t *testing.T) {
 		}
 	}
 
+	testing_helpers.AssertEqual(t, "MaxBallot", src.MaxBallot, dst.MaxBallot)
 }
 
 func TestCommitRequest(t *testing.T) {

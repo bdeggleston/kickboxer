@@ -20,6 +20,7 @@ const (
 type PreAcceptRequest struct {
 	Command *Command
 	Dependencies Dependencies
+	Ballot uint64
 }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error {
@@ -31,6 +32,7 @@ func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error {
 		if err := serializeCommand(dep, buf); err != nil { return err }
 	}
 
+	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	return nil
 }
 
@@ -45,6 +47,7 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
 	}
 
+	if err = binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	return nil
 }
 
@@ -57,6 +60,10 @@ type PreAcceptResponse struct {
 	// will be returned if the request
 	// is not accepted
 	Dependencies Dependencies
+
+	// the highest ballot number
+	// the responding replica has seen
+	MaxBallot uint64
 }
 
 func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
@@ -69,6 +76,8 @@ func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
 	for _, dep := range m.Dependencies {
 		if err := serializeCommand(dep, buf); err != nil { return err }
 	}
+
+	if err := binary.Write(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
 	return nil
 }
 
@@ -84,6 +93,7 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 	for i:=0; i<int(numDeps); i++ {
 		if m.Dependencies[i], err = deserializeCommand(buf); err != nil { return err }
 	}
+	if err = binary.Read(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
 	return nil
 }
 
