@@ -141,6 +141,12 @@ func NewInstance(key string, cluster *Cluster) *Instance {
 	}
 }
 
+// persists this instance's state
+func (i *Instance) Persist() error {
+	// TODO: this
+	return nil
+}
+
 func (i *Instance) getNextBallot() uint64 {
 	i.lock.Lock()
 	defer i.lock.Unlock()
