@@ -60,8 +60,10 @@ func (c *Command) Equal(o *Command) bool {
 	result = result && c.Blocking == o.Blocking
 	result = result && c.Ballot == o.Ballot
 	result = result && c.Timestamp.Equal(o.Timestamp)
-	if len(c.Args) != len(o.Args) { return false }
-	for i:=0;i<len(c.Args);i++ {
+	if len(c.Args) != len(o.Args) {
+		return false
+	}
+	for i := 0; i < len(c.Args); i++ {
 		result = result && c.Args[i] == o.Args[i]
 	}
 	return result
@@ -166,7 +168,7 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 				}
 			}
 		}
-		if len(replicas) != numReplicas - 1 {
+		if len(replicas) != numReplicas-1 {
 			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
 		quorumSize = (len(replicas) / 2) + 1
@@ -249,4 +251,3 @@ func (cm *ConsensusManager) HandleCommit(msg *CommitRequest) (*CommitResponse, e
 func (cm *ConsensusManager) HandleAccept(msg *AcceptRequest) (*AcceptResponse, error) {
 	return nil, nil
 }
-
