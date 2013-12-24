@@ -186,9 +186,7 @@ func (i *Instance) addDependency(cmd *Command) (Dependencies, error) {
 	oldDeps := i.Dependencies.Copy()
 
 	// setup dependency
-	if cmd.Sequence == 0 {
-		cmd.Sequence = oldDeps.GetMaxSequence() + 1
-	}
+	cmd.Sequence = oldDeps.GetMaxSequence() + 1
 	cmd.instance = i
 
 	i.Dependencies = append(i.Dependencies, cmd)
