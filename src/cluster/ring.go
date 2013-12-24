@@ -29,7 +29,7 @@ func (ns *nodeSorter) Swap(i, j int) {
 
 // encapsulates all of the ring get/mutate logic
 type Ring struct {
-	lock sync.RWMutex
+	lock *sync.RWMutex
 
 	// map of node ids to node objects
 	nodeMap map[NodeId] Node
@@ -43,11 +43,12 @@ type Ring struct {
 
 // creates and starts a ring
 func NewRing() *Ring {
-	r := &Ring{}
-	r.nodeMap = make(map[NodeId] Node)
-	r.tokenRing = make([]Node, 0)
-	r.priorRing = make([]Node, 0)
-	return r
+	return &Ring{
+		nodeMap:make(map[NodeId] Node),
+		tokenRing:make([]Node, 0),
+		priorRing:make([]Node, 0),
+		lock:&sync.RWMutex{},
+	}
 }
 
 func (r *Ring) Size() int {
