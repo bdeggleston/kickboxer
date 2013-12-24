@@ -14,35 +14,37 @@ import (
 func TestPreAcceptRequest(t *testing.T) {
 	src := &PreAcceptRequest{
 		Command:&Command{
-			LeaderID: NewNodeId(),
 			Status: DS_EXECUTED,
 			Cmd: "SET",
 			Key: "ABCXYZ",
 			Args: []string{"d", "e", "f"},
 			Timestamp: time.Now(),
 			Blocking: true,
-			Ballot: uint64(2002),
 		},
 		Dependencies: []*Command{
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2001),
+				},
 				Status: DS_ACCEPTED,
 				Cmd: "GET",
 				Key: "DEF",
 				Args: []string{"g", "h", "i"},
 				Timestamp: time.Now(),
 				Blocking: false,
-				Ballot: uint64(2001),
 			},
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2000),
+				},
 				Status: DS_EXECUTED,
 				Cmd: "DEL",
 				Key: "ABCXYZ",
 				Args: []string{"d", "e", "f"},
 				Timestamp: time.Now(),
 				Blocking: true,
-				Ballot: uint64(2000),
 			},
 		},
 	}
@@ -85,24 +87,28 @@ func TestPreAcceptResponse(t *testing.T) {
 		Accepted:true,
 		Dependencies: []*Command{
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2001),
+				},
 				Status: DS_ACCEPTED,
 				Cmd: "GET",
 				Key: "DEF",
 				Args: []string{"g", "h", "i"},
 				Timestamp: time.Now(),
 				Blocking: false,
-				Ballot: uint64(2001),
 			},
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2000),
+				},
 				Status: DS_EXECUTED,
 				Cmd: "DEL",
 				Key: "ABCXYZ",
 				Args: []string{"d", "e", "f"},
 				Timestamp: time.Now(),
 				Blocking: true,
-				Ballot: uint64(2000),
 			},
 		},
 	}
@@ -197,24 +203,28 @@ func TestAcceptRequest(t *testing.T) {
 	src := &AcceptRequest{
 		Dependencies: []*Command{
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2001),
+				},
 				Status: DS_ACCEPTED,
 				Cmd: "GET",
 				Key: "DEF",
 				Args: []string{"g", "h", "i"},
 				Timestamp: time.Now(),
 				Blocking: false,
-				Ballot: uint64(2001),
 			},
 			&Command{
-				LeaderID: NewNodeId(),
+				ID: CommandID{
+					LeaderID: NewNodeId(),
+					Ballot: uint64(2000),
+				},
 				Status: DS_EXECUTED,
 				Cmd: "DEL",
 				Key: "ABCXYZ",
 				Args: []string{"d", "e", "f"},
 				Timestamp: time.Now(),
 				Blocking: true,
-				Ballot: uint64(2000),
 			},
 		},
 	}
@@ -273,14 +283,16 @@ func TestAcceptResponse(t *testing.T) {
 
 func TestCommandSerialization(t *testing.T) {
 	src := &Command{
-		LeaderID: NewNodeId(),
+		ID: CommandID{
+			LeaderID: NewNodeId(),
+			Ballot: uint64(2002),
+		},
 		Status: DS_EXECUTED,
 		Cmd: "SET",
 		Key: "ABCXYZ",
 		Args: []string{"d", "e", "f"},
 		Timestamp: time.Now(),
 		Blocking: true,
-		Ballot: uint64(2002),
 	}
 
 	buf := &bytes.Buffer{}
@@ -299,13 +311,13 @@ func TestCommandSerialization(t *testing.T) {
 	if !src.Equal(dst) {
 		t.Errorf("src & dst are not equal, expected: %+v, got", src, dst)
 	}
-	testing_helpers.AssertEqual(t, "LeaderID", src.LeaderID, dst.LeaderID)
+	testing_helpers.AssertEqual(t, "LeaderID", src.ID.LeaderID, dst.ID.LeaderID)
+	testing_helpers.AssertEqual(t, "Ballot", src.ID.Ballot, dst.ID.Ballot)
 	testing_helpers.AssertEqual(t, "Status", src.Status, dst.Status)
 	testing_helpers.AssertEqual(t, "Cmd", src.Cmd, dst.Cmd)
 	testing_helpers.AssertEqual(t, "Key", src.Key, dst.Key)
 	testing_helpers.AssertStringArrayEqual(t, "Args", src.Args, dst.Args)
 	testing_helpers.AssertEqual(t, "Blocking", src.Blocking, dst.Blocking)
-	testing_helpers.AssertEqual(t, "Ballot", src.Ballot, dst.Ballot)
 	if !src.Timestamp.Equal(dst.Timestamp) {
 		t.Errorf("Timestamp mismatch. Expected: %v, got %v", src.Timestamp, dst.Timestamp)
 	}
