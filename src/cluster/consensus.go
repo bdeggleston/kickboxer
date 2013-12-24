@@ -180,23 +180,24 @@ func (i *Instance) getNextSequence() uint64 {
 // adds a command to the dependency list, sets the sequence number
 // on the new dependency if it hasn't been set, and returns the old
 // set of dependencies
-func (i *Instance) addDependency(cmd *Command) (Dependencies, error) {
+func (i *Instance) addDependency(cmd *Command) (old Dependencies, new Dependencies, err error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
-	oldDeps := i.Dependencies.Copy()
+	old := i.Dependencies.Copy()
 
 	// setup dependency
-	cmd.Sequence = oldDeps.GetMaxSequence() + 1
+	cmd.Sequence = old.GetMaxSequence() + 1
 	cmd.instance = i
 
 	i.Dependencies = append(i.Dependencies, cmd)
 	i.DependencyMap[cmd.ID] = cmd
 
 	if err := i.Persist(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	new := i.Dependencies.Copy()
 
-	return oldDeps, nil
+	return old, new, nil
 }
 
 func (i *Instance) updateMaxBallot(ballot uint64) uint64 {
@@ -351,7 +352,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	}
 
 	ballot := i.getNextBallot()
-	oldDeps, err := i.addDependency(cmd)
+	oldDeps, newDeps, err := i.addDependency(cmd)
 	if err != nil { return nil, err }
 	responses, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
 	// unblock any pending queries on this instance
@@ -361,6 +362,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	// TODO: perform a union of the commands
 
 	depListMap := make(map[CommandID] Dependencies)
+	_ = newDeps
 	for _, response := range responses {
 		for _, dep := range response.Dependencies {
 			depList, exists := depListMap[dep.ID]
