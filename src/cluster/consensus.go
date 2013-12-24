@@ -321,6 +321,11 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 	return responses, nil
 }
 
+// perform union on external dependencies
+func (i *Instance) dependencyUnion(extDeps []Dependencies) (Dependencies, error) {
+	return nil, nil
+}
+
 func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
 	replicas, err := i.getReplicas(cl)
 	if err != nil {
