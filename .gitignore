@@ -2,10 +2,15 @@
 *.o
 *.a
 *.so
+*.test
+out/
 
 # Folders
 _obj
 _test
+
+# Dependencies
+code.google.com/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -24,3 +29,4 @@ _testmain.go
 # IDE
 *.iml
 .idea/
+.project
