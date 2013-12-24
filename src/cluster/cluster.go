@@ -6,8 +6,18 @@ import (
 )
 
 import (
+	logging "github.com/op/go-logging"
+)
+
+import (
 	"store"
 )
+
+var logger *logging.Logger
+
+func init() {
+	logger = logging.MustGetLogger("monitor")
+}
 
 type Token []byte
 
