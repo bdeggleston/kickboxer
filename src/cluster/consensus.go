@@ -316,6 +316,16 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
 		}
 	}
+	// grab any other responses
+	drain: for {
+		select {
+		case response = <-preAcceptChannel:
+			preAcceptOk = preAcceptOk && response.Accepted
+			responses = append(responses, response)
+		default:
+			break drain
+		}
+	}
 	// unblock any pending queries on this instance
 	i.cmdLock.Unlock()
 
