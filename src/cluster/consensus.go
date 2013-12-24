@@ -11,13 +11,17 @@ import (
 )
 
 import (
+	"code.google.com/p/go-uuid/uuid"
+)
+
+import (
 	"store"
 )
 
 type CommandStatus byte
 
 const (
-	DS_NULL = CommandStatus(iota)
+	DS_IGNORED = CommandStatus(iota)
 	DS_PRE_ACCEPTED
 	DS_ACCEPTED
 	DS_REJECTED
@@ -33,17 +37,21 @@ var (
 // TODO: should reads and writes be collapsed into a single function? Let the store decide what to do?
 // TODO: make sure all consensus operations are durably persisted before continuing execution
 
-type CommandID struct {
-	// the node id of the command leader
-	LeaderID NodeId
+type CommandID string
 
-	// the ballot number for this commend
-	Ballot uint64
+func NewCommandID() CommandID {
+	return CommandID(uuid.NewUUID().String())
 }
 
 // TODO: add predicate
 type Command struct {
 	ID CommandID
+
+	// the node id of the command leader
+	LeaderID NodeId
+
+	// the sequence number of this command (like an array index)
+	Sequence uint64
 
 	// the current status of this command
 	Status CommandStatus
