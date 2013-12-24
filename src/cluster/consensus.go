@@ -136,8 +136,8 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 }
 
 type ConsensusManager struct {
-	cluster *Cluster
-	instanceMutex sync.RWMutex
+	cluster   *Cluster
+	lock      *sync.RWMutex
 	instances map[string]*Instance
 }
 
