@@ -183,7 +183,11 @@ func (i *Instance) addDependency(cmd *Command) Dependencies {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	oldDeps := i.Dependencies.Copy()
-	cmd.Sequence = oldDeps.GetMaxSequence() + 1
+
+	// setup dependency
+	if cmd.Sequence == 0 {
+		cmd.Sequence = oldDeps.GetMaxSequence() + 1
+	}
 	cmd.instance = i
 	i.Dependencies = append(i.Dependencies, cmd)
 	i.DependencyMap[cmd.ID] = cmd
