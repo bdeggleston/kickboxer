@@ -271,15 +271,19 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 	// send the pre-accept requests
 	responses := make([]*PreAcceptResponse, 0, len(replicas))
 	preAcceptChannel := make(chan *PreAcceptResponse, len(replicas))
+	ballotRejectChannel := make(chan *BallotRejectResponse, len(replicas))
 	sendPreAccept := func(node *RemoteNode) {
 		response, _, err := node.sendMessage(msg)
 		if err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		}
-		if msg, ok := response.(*PreAcceptResponse); !ok {
-			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
-		} else {
+		switch msg := response.(type) {
+		case *PreAcceptResponse:
 			preAcceptChannel <- msg
+		case *BallotRejectResponse:
+			ballotRejectChannel <- msg
+		default:
+			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
 		}
 	}
 	for _, node := range replicas {
@@ -291,11 +295,15 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 	numResponses := 1  // this node counts as a response
 	preAcceptOk := true
 	var response *PreAcceptResponse
+	var ballotResponse *BallotRejectResponse
 	for numResponses < quorumSize {
 		select {
 		case response = <-preAcceptChannel:
 			preAcceptOk = preAcceptOk && response.Accepted
 			responses = append(responses, response)
+		case ballotResponse = <- ballotRejectChannel:
+			panic("Ballot rejection handling not implemented yet")
+
 		case <-timeoutEvent:
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
 		}
