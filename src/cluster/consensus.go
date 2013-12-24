@@ -69,21 +69,71 @@ func (c *Command) Equal(o *Command) bool {
 
 type Dependencies []*Command
 
+// returns an array with a copy of each of
+// the dependencies
+func (d Dependencies) Copy() Dependencies {
+	c := make(Dependencies, len(d))
+	for i := range d {
+		x := *d[i]
+		c[i] = &x
+	}
+	return c
+}
+
 // manager for interfering commands
+// Dependencies should be sorted with the
+// newest commands at the end of the array
 type Instance struct {
 	Dependencies Dependencies
-	MaxBallot   uint64
-	key string
+	MaxBallot    uint64
+	key          string
+	lock         *sync.RWMutex
+	cmdLock		 *sync.Mutex
+
+	// allows quick updating of dependency status
+	DependencyMap map[NodeId] map[uint64] *Command
+
+	// keeps track of the highest ballots seen from
+	// other replicas, allowing this replica to
+	// disregard old messages
+	MaxBallotMap map[NodeId] uint64
 
 	cluster *Cluster
 }
 
 func NewInstance(key string, cluster *Cluster) *Instance {
 	return &Instance{
-		key:key,
-		cluster:cluster,
-		Dependencies:make(Dependencies, 0, 20),
+		key:          key,
+		cluster:      cluster,
+		Dependencies: make(Dependencies, 0, 20),
+		lock:         &sync.RWMutex{},
+		cmdLock:	  &sync.Mutex{},
 	}
+}
+
+func (i *Instance) getNextBallot() uint64 {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	i.MaxBallot++
+	return i.MaxBallot
+}
+
+func (i *Instance) updateMaxBallot(ballot uint64) uint64 {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	if ballot > i.MaxBallot {
+		i.MaxBallot = ballot
+	}
+	return i.MaxBallot
+}
+
+// executes the command locally, mutating the store,
+// waiting for / forcing commits on uncommitted command
+// dependencies if the command is a blocking one
+func (i *Instance) executeCommand(cmd *Command) (store.Value, error) {
+	// TODO: this
+	return nil, nil
 }
 
 // gets the replicas & quorum size for this instance, for the given consistency level
@@ -92,14 +142,14 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, quo
 	case CONSISTENCY_CONSENSUS_LOCAL:
 		localReplicas := i.cluster.GetLocalNodesForKey(i.key)
 		numReplicas := len(localReplicas)
-		replicas = make([]*RemoteNode, 0, numReplicas - 1)
+		replicas = make([]*RemoteNode, 0, numReplicas-1)
 
 		for _, node := range localReplicas {
 			if rnode, ok := node.(*RemoteNode); ok {
 				replicas = append(replicas, rnode)
 			}
 		}
-		if len(replicas) != numReplicas - 1 {
+		if len(replicas) != numReplicas-1 {
 			return []*RemoteNode{}, 0, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
 		quorumSize = (len(localReplicas) / 2) + 1
