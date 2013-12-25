@@ -54,3 +54,27 @@ func TestExecuteCommandMutatesStore(t *testing.T) {
 func TestUndecidedDependenciesExecuteCommand(t *testing.T) {
 
 }
+
+// tests that adding a new dependency via the addDependency
+// method sets the proper sequence number, appends the cmd,
+// and sets dependencyMatch if checkDeps is not nil
+func TestAddDependency(t *testing.T) {
+
+}
+
+func TestDependencyUnionNoop(t *testing.T) {
+
+}
+
+func TestDependencyUnionMismatch(t *testing.T) {
+
+}
+
+func TestDependencyUnionOutOfOrder(t *testing.T) {
+
+}
+
+func TestHandleMessageBallotCheck(t *testing.T) {
+
+}
+
