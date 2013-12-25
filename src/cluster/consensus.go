@@ -71,6 +71,16 @@ type Command struct {
 	// for a commit on this command, and force one
 	commitTimeout time.Time
 
+	// indicates that the dependencies from the leader
+	// matched the replica's local dependencies. This
+	// is used when there are only 3 replicas and another
+	// replica takes over leadership for a command.
+	// Even if the old command leader is unreachable,
+	// the new leader will know that at least 2 replicas
+	// had identical dependency graphs at the time of proposal,
+	// it may still be useful in other situations
+	dependencyMatch bool
+
 	instance *Instance
 }
 
