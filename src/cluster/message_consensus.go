@@ -76,16 +76,10 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 func (m *PreAcceptRequest) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_REQUEST }
 
 type PreAcceptResponse struct {
-	Accepted bool
-
 	// the replica's view of dependencies
 	// will be returned if the request
 	// is not accepted
 	Dependencies Dependencies
-
-	// the highest ballot number
-	// the responding replica has seen
-	MaxBallot uint64
 }
 
 func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error {
@@ -122,8 +116,7 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 func (m *PreAcceptResponse) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_RESPONSE }
 
 type CommitRequest struct {
-	LeaderID NodeId
-	Ballot uint64
+	CommandID CommandID
 }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error {
