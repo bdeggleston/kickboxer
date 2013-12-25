@@ -91,11 +91,11 @@ func (c *Command) setStatus(status CommandStatus) error {
 	return nil
 }
 
-// determines if 2 commands are equal
-func (c *Command) Equal(o *Command) bool {
+// relaxed equality check, it ignores node specific
+// information
+func (c *Command) RelaxedEqual(o *Command) bool {
 	result := true
 	result = result && c.ID == o.ID
-	result = result && c.Status == o.Status
 	result = result && c.Cmd == o.Cmd
 	result = result && c.Key == o.Key
 	result = result && c.Blocking == o.Blocking
@@ -106,6 +106,17 @@ func (c *Command) Equal(o *Command) bool {
 	for i := 0; i < len(c.Args); i++ {
 		result = result && c.Args[i] == o.Args[i]
 	}
+	return result
+
+}
+
+// determines if 2 commands are exactly equal
+func (c *Command) Equal(o *Command) bool {
+	result := c.RelaxedEqual(o)
+	result = result && c.Status == o.Status
+	result = result && c.commitTimeout.Equal(o.commitTimeout)
+	result = result && c.dependencyMatch == o.dependencyMatch
+
 	return result
 }
 
@@ -130,6 +141,18 @@ func (d Dependencies) GetMaxSequence() uint64 {
 		}
 	}
 	return seq
+}
+
+func (d Dependencies) RelaxedEqual(o Dependencies) bool {
+	if len(d) != len(o) {
+		return false
+	}
+	for i := range d {
+		if !d[i].RelaxedEqual(o[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (d Dependencies) Equal(o Dependencies) bool {
