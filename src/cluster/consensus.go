@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	PREACCEPT_TIMEOUT = uint64(10000)
+	PREACCEPT_TIMEOUT = uint64(500)
 )
 
 // TODO: should consensus operations hijack the timestamp??
