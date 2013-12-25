@@ -225,8 +225,11 @@ func (i *Instance) getNextSequence() uint64 {
 
 // adds a command to the dependency list, sets the sequence number
 // on the new dependency if it hasn't been set, and returns the old
-// set of dependencies
-func (i *Instance) addDependency(cmd *Command) (old Dependencies, new Dependencies, err error) {
+// set of dependencies.
+// If checkDeps is not nil, this instance's dependencies will be
+// compared against the provided dependencies, and dependencyMatch will
+// be set to true if they're equal
+func (i *Instance) addDependency(cmd *Command, checkDeps Dependencies) (old Dependencies, new Dependencies, err error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	old := i.Dependencies.Copy()
@@ -234,6 +237,11 @@ func (i *Instance) addDependency(cmd *Command) (old Dependencies, new Dependenci
 	// setup dependency
 	cmd.Sequence = old.GetMaxSequence() + 1
 	cmd.instance = i
+
+	// if the provided dependencies match the local dependencies, record it
+	if checkDeps != nil {
+		cmd.dependencyMatch = i.Dependencies.RelaxedEqual(checkDeps)
+	}
 
 	i.Dependencies = append(i.Dependencies, cmd)
 	i.DependencyMap[cmd.ID] = cmd
@@ -398,7 +406,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	}
 
 	ballot := i.getNextBallot()
-	oldDeps, newDeps, err := i.addDependency(cmd)
+	oldDeps, newDeps, err := i.addDependency(cmd, nil)
 	if err != nil { return nil, err }
 	responses, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
 	// unblock any pending queries on this instance
@@ -443,7 +451,10 @@ func (i *Instance) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, e
 	// place this command has been seen, and consensus state persistence
 	// will happen in `addDependency`
 	cmd.Status = DS_PRE_ACCEPTED
-	_, deps, err := i.addDependency(cmd)
+
+	cmd.dependencyMatch = i.Dependencies.Equal(msg.Dependencies)
+
+	_, deps, err := i.addDependency(cmd, msg.Dependencies)
 	if err != nil { return nil, err }
 
 	return &PreAcceptResponse{Dependencies: deps}, nil
