@@ -284,7 +284,7 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, err
 				replicas = append(replicas, rnode)
 			}
 		}
-		if len(replicas) != numReplicas-1 {
+		if len(replicas) != numReplicas - 1 {
 			return []*RemoteNode{}, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
 
@@ -302,7 +302,7 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, err
 				}
 			}
 		}
-		if len(replicas) != numReplicas-1 {
+		if len(replicas) != numReplicas - 1 {
 			return []*RemoteNode{}, fmt.Errorf("Expected %v replicas, got %v", (numReplicas - 1), len(replicas))
 		}
 
@@ -319,7 +319,8 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 		Ballot: ballot,
 	}
 
-	quorumSize := (len(replicas) / 2) + 1
+	replicaCount := len(replicas) + 1
+	quorumSize := (replicaCount / 2) + 1
 
 	// send the pre-accept requests
 	responses := make([]*PreAcceptResponse, 0, len(replicas))
@@ -454,8 +455,6 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 		go sendCommit(node)
 	}
 	return i.executeCommand(cmd)
-
-	return nil, nil
 }
 
 func (i *Instance) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, error) {
