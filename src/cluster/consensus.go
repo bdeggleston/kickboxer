@@ -312,51 +312,55 @@ func (i *Instance) getReplicas(cl ConsistencyLevel) (replicas []*RemoteNode, err
 	return replicas, nil
 }
 
-func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Dependencies, ballot uint64) ([]*PreAcceptResponse, error) {
+func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Dependencies, ballot uint64) (chan Message, error) {
 	msg := &PreAcceptRequest{
 		Command: cmd,
 		Dependencies:deps,
 		Ballot: ballot,
 	}
 
-	replicaCount := len(replicas) + 1
-	quorumSize := (replicaCount / 2) + 1
 
 	// send the pre-accept requests
-	responses := make([]*PreAcceptResponse, 0, len(replicas))
-	preAcceptChannel := make(chan *PreAcceptResponse, len(replicas))
-	ballotRejectChannel := make(chan *BallotRejectResponse, len(replicas))
+	preAcceptChannel := make(chan Message, len(replicas))
 	sendPreAccept := func(node *RemoteNode) {
 		response, _, err := node.sendMessage(msg)
 		if err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		}
-		switch msg := response.(type) {
-		case *PreAcceptResponse:
-			preAcceptChannel <- msg
-		case *BallotRejectResponse:
-			ballotRejectChannel <- msg
-		default:
-			logger.Warning("Unexpected PreAccept response type: %T\n%+v", response, response)
-		}
+		preAcceptChannel <- response
 	}
 	for _, node := range replicas {
 		go sendPreAccept(node)
 	}
 
+	return preAcceptChannel, nil
+}
+
+func (i *Instance) getPreAcceptResponses(recvChan <-chan Message, replicaCount int) ([]*PreAcceptResponse, error) {
+	quorumSize := (replicaCount / 2) + 1
+	numResponses := 1  // this node counts as a response
+	responses := make([]*PreAcceptResponse, 0, replicaCount - 1)
+
+	recvResponse := func(msg Message) error {
+		switch response := msg.(type) {
+		case *PreAcceptResponse:
+			responses = append(responses, response)
+			numResponses++
+		case *BallotRejectResponse:
+			panic("Ballot rejection handling not implemented yet")
+		default:
+			return fmt.Errorf("Unexpected PreAccept response type: %T", msg)
+		}
+		return nil
+	}
+
 	// receive pre-accept responses until quorum is met, or until timeout
 	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
-	numResponses := 1  // this node counts as a response
-	preAcceptOk := true
-	var response *PreAcceptResponse
-	var ballotResponse *BallotRejectResponse
+	var msg Message
 	for numResponses < quorumSize {
 		select {
-		case response = <-preAcceptChannel:
-			preAcceptOk = preAcceptOk && response.Accepted
-			responses = append(responses, response)
-		case ballotResponse = <- ballotRejectChannel:
-			panic("Ballot rejection handling not implemented yet")
+		case msg = <- recvChan:
+			if err := recvResponse(msg); err != nil { return nil, err }
 
 		case <-timeoutEvent:
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
@@ -365,9 +369,9 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 	// grab any other responses
 	drain: for {
 		select {
-		case response = <-preAcceptChannel:
-			preAcceptOk = preAcceptOk && response.Accepted
-			responses = append(responses, response)
+		case msg = <-recvChan:
+			if err := recvResponse(msg); err != nil { return nil, err }
+
 		default:
 			break drain
 		}
@@ -397,8 +401,9 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	if err != nil { return nil, err }
 
 	// calculate the number of all replicase, including this node
-	totalNumReplicas := len(replicas) + 1
-	_ = totalNumReplicas
+	replicaCount := len(replicas) + 1
+	quorumSize := (replicaCount / 2) + 1
+	_ = quorumSize
 
 	// a lock is aquired here to prevent concurrent operations on this node from
 	// interfering with each other. For example, if multiple client queries arrive at
@@ -423,7 +428,7 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	ballot := i.getNextBallot()
 	oldDeps, newDeps, err := i.addDependency(cmd, nil)
 	if err != nil { return nil, err }
-	responses, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
+	responseChan, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
 	// unblock any pending queries on this instance
 	i.cmdLock.Unlock()
 
