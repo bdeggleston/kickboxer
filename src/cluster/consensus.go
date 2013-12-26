@@ -30,7 +30,11 @@ const (
 )
 
 var (
-	PREACCEPT_TIMEOUT = uint64(500)
+	// timeout receiving the initial quorum of
+	// preaccept responses
+	PREACCEPT_TIMEOUT_1 = uint64(500)
+	// timeout receiving N - 2 preaccept responses
+	PREACCEPT_TIMEOUT_2 = uint64(250)
 )
 
 // TODO: should consensus operations hijack the timestamp??
@@ -355,23 +359,32 @@ func (i *Instance) getPreAcceptResponses(recvChan <-chan Message, replicaCount i
 	}
 
 	// receive pre-accept responses until quorum is met, or until timeout
-	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
+	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT_1) * time.Millisecond)
 	var msg Message
 	for numResponses < quorumSize {
 		select {
 		case msg = <- recvChan:
 			if err := recvResponse(msg); err != nil { return nil, err }
-
 		case <-timeoutEvent:
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
 		}
 	}
-	// grab any other responses
+	// receive up to n - 2 responses
+	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT_2) * time.Millisecond)
+	receive2: for numResponses < (replicaCount - 2) {
+		select {
+		case msg = <-recvChan:
+			if err := recvResponse(msg); err != nil { return nil, err }
+		case <-timeoutEvent:
+			break receive2
+		}
+	}
+
+	// finally, receive any additional responses
 	drain: for {
 		select {
 		case msg = <-recvChan:
 			if err := recvResponse(msg); err != nil { return nil, err }
-
 		default:
 			break drain
 		}
