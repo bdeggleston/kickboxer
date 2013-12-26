@@ -375,15 +375,29 @@ func (i *Instance) sendPreAccept(replicas []*RemoteNode, cmd *Command, deps Depe
 }
 
 // perform union on external dependencies
-func (i *Instance) dependencyUnion(extDeps []Dependencies) (Dependencies, error) {
-	return nil, nil
+func (i *Instance) dependencyUnion(extDeps []Dependencies) (Dependencies, bool, error) {
+//	depListMap := make(map[CommandID] Dependencies)
+//	_ = newDeps
+//	for _, response := range responses {
+//		for _, dep := range response.Dependencies {
+//			depList, exists := depListMap[dep.ID]
+//			if !exists {
+//				depList = make(Dependencies, 0, len(responses))
+//				depListMap[dep.ID] = depList
+//			}
+//			depList = append(depList, dep)
+//		}
+//	}
+	return nil, false, nil
 }
 
 func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLevel) (store.Value, error) {
 	replicas, err := i.getReplicas(cl)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
+
+	// calculate the number of all replicase, including this node
+	totalNumReplicas := len(replicas) + 1
+	_ = totalNumReplicas
 
 	// a lock is aquired here to prevent concurrent operations on this node from
 	// interfering with each other. For example, if multiple client queries arrive at
