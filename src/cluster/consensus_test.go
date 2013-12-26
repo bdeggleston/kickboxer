@@ -4,6 +4,14 @@ import (
 	"testing"
 )
 
+/** Command Object **/
+
+// tests persistent serialization includes dependencyMatch
+// in addition to the other fields
+func TestPersistenCommandSerialization(t *testing.T) {
+
+}
+
 /** Consensus Manager **/
 
 // test that the consensus leader can accurately
