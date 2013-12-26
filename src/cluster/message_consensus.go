@@ -76,6 +76,7 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 func (m *PreAcceptRequest) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_REQUEST }
 
 type PreAcceptResponse struct {
+	NodeId NodeId
 	// the replica's view of dependencies
 	// will be returned if the request
 	// is not accepted

@@ -488,7 +488,7 @@ func (i *Instance) HandlePreAccept(msg *PreAcceptRequest) (*PreAcceptResponse, e
 	_, deps, err := i.addDependency(cmd, msg.Dependencies)
 	if err != nil { return nil, err }
 
-	return &PreAcceptResponse{Dependencies: deps}, nil
+	return &PreAcceptResponse{NodeId: i.cluster.GetNodeId(), Dependencies: deps}, nil
 }
 
 func (i *Instance) HandleCommit(msg *CommitRequest) (*CommitResponse, error) {
