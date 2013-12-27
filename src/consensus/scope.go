@@ -44,11 +44,9 @@ func (s *Scope) Persist() error {
 	return nil
 }
 
-// creates an epaxos instance from the given instructions
-func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
+// returns the current dependencies for a new instance
+// this method doesn't implement any locking or persistence
+func (s *Scope) getCurrentDeps() []InstanceID {
 	// grab ALL instances as dependencies for now
 	// TODO: use fewer deps (inProgress + committed + executed[len(executed)-1])
 	executedDeps := 1
@@ -60,16 +58,29 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	for dep := range s.committed { deps = append(deps, dep) }
 	if executedDeps > 0 { deps = append(deps, s.executed[len(s.executed) - 1]) }
 
+	return deps
+}
+
+// returns the next available sequence number for a new instance
+// this method doesn't implement any locking or persistence
+func (s *Scope) getNextSeq() uint64 {
 	s.maxSeq++
-	seq := s.maxSeq
+	return s.maxSeq
+}
+
+// creates an epaxos instance from the given instructions
+func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	instance := &Instance{
 		InstanceID: NewInstanceID(),
 		LeaderID: s.GetLocalID(),
 		Commands: instructions,
-		Dependencies: deps,
-		Sequence: seq,
+		Dependencies: s.getCurrentDeps(),
+		Sequence: s.getNextSeq(),
 		Status: INSTANCE_PREACCEPTED,
+		MaxBallot: 1,
 	}
 
 	// add to manager maps
