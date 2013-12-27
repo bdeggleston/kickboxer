@@ -44,6 +44,7 @@ func (e *NodeError) Error() string {
 }
 
 // the basic node interface
+// TODO: rename ClusterNode, inherit from node.Node
 type Node interface {
 	Name() string
 	GetAddr() string

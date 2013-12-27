@@ -29,6 +29,10 @@ const (
 	DS_EXECUTED
 )
 
+const (
+	DEPENDENCY_HORIZON = 5
+)
+
 var (
 	// timeout receiving the initial quorum of
 	// preaccept responses
@@ -65,6 +69,8 @@ type Command struct {
 	Key       string
 	Args      []string
 	Timestamp time.Time
+
+	Dependencies [DEPENDENCY_HORIZON]CommandID
 
 	// indicates that previous commands need
 	// to be executed before a decision can be
@@ -258,13 +264,16 @@ func (i *Instance) addDependency(cmd *Command, checkDeps Dependencies) (old Depe
 	return old, new, nil
 }
 
-func (i *Instance) updateMaxBallot(ballot uint64) uint64 {
+func (i *Instance) updateMaxBallot(ballot uint64) (uint64, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	if ballot > i.MaxBallot {
 		i.MaxBallot = ballot
+	} else {
+		return i.MaxBallot, fmt.Errorf("Ballot# %v is less than or equal to the current ballot#: %v", ballot, i.MaxBallot)
 	}
-	return i.MaxBallot
+	if err := i.Persist(); err != nil { return 0, err }
+	return i.MaxBallot, nil
 }
 
 // executes the command locally, mutating the store,
@@ -392,8 +401,26 @@ func (i *Instance) getPreAcceptResponses(recvChan <-chan Message, replicaCount i
 	return responses, nil
 }
 
+func (i *Instance) mergeDependencies()
+
 // perform union on external dependencies
-func (i *Instance) dependencyUnion(extDeps []Dependencies) (Dependencies, bool, error) {
+func (i *Instance) dependencyUnion(localDeps Dependencies, extDeps []Dependencies) (Dependencies, bool, error) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	maxDeps := len(localDeps)
+	maxSeq := 0
+	for _, deps := range extDeps {
+		if size := len(deps); size > maxDeps {
+			maxDeps = size
+		}
+		if len(deps) > 0 {
+			if seq := deps[len(deps) - 1].Sequence; seq > maxSeq {
+				maxSeq = seq
+			}
+		}
+	}
+
 //	depListMap := make(map[CommandID] Dependencies)
 //	_ = newDeps
 //	for _, response := range responses {
@@ -442,20 +469,34 @@ func (i *Instance) ExecuteInstruction(inst store.Instruction, cl ConsistencyLeve
 	oldDeps, newDeps, err := i.addDependency(cmd, nil)
 	if err != nil { return nil, err }
 	responseChan, err := i.sendPreAccept(replicas, cmd, oldDeps, ballot)
+	if err != nil { return nil, err }
 	// unblock any pending queries on this instance
 	i.cmdLock.Unlock()
 
-	// otherwise, resolve the dependencies and force an accept
-	extDeps := make([]Dependencies, len(responses))
-	for i, response := range responses {
-		extDeps[i] = response.Dependencies
-	}
-	resolvedDeps, err := i.dependencyUnion(extDeps)
-	if !newDeps.Equal(resolvedDeps) {
-		// TODO: update the instance's dependency list
-		// TODO: execute multi-paxos accept phase
+	responses, err := i.getPreAcceptResponses(responseChan, replicaCount)
+	if err != nil { return nil, err }
+
+	differencesExist := false
+	for _, response := range responses {
+		if !oldDeps.RelaxedEqual(response.Dependencies) {
+			differencesExist = true
+		}
 	}
 
+	_ = newDeps
+	if differencesExist {
+		// run multi-paxos accept phase
+		remoteDeps := make(Dependencies, 0, len(responses))
+		for _, response := range responses {
+			remoteDeps = append(remoteDeps, response.Dependencies)
+		}
+
+	} else {
+		//
+
+	}
+
+	// if we've made it this far, commit the command
 	if err := cmd.setStatus(DS_COMMITTED); err != nil {
 		return nil, err
 	}
@@ -501,18 +542,12 @@ func (i *Instance) HandleAccept(msg *AcceptRequest) (*AcceptResponse, error) {
 
 func (i *Instance) HandleMessage(msg BallotMessage) (BallotMessage, error) {
 	// check the ballot first
-	ballotReject := func() *BallotRejectResponse {
-		i.lock.Lock()
-		defer i.lock.Unlock()
-		if msg.GetBallot() <= i.MaxBallot {
-			return &BallotRejectResponse{Ballot:i.MaxBallot}
+	if maxBallot, err := i.updateMaxBallot(msg.GetBallot()); err != nil {
+		if maxBallot > 0 {
+			return &BallotRejectResponse{Ballot:maxBallot}
 		} else {
-			i.MaxBallot = msg.GetBallot()
+			return nil, err
 		}
-		return nil
-	}()
-	if ballotReject != nil {
-		return ballotReject, nil
 	}
 
 	// then continue

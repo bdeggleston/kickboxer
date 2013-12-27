@@ -39,6 +39,8 @@ func (m *BallotRejectResponse) Deserialize(buf *bufio.Reader) error {
 
 func (m *BallotRejectResponse) GetType() uint32 { return CONSENSUS_BALLOT_REJECT_RESPONSE }
 
+func (m *BallotRejectResponse) GetBallot() uint64 { return m.Ballot }
+
 type PreAcceptRequest struct {
 	Command *Command
 	Dependencies Dependencies
@@ -73,6 +75,7 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *PreAcceptRequest) GetBallot() uint64 { return m.Ballot }
 func (m *PreAcceptRequest) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_REQUEST }
 
 type PreAcceptResponse struct {
@@ -118,6 +121,7 @@ func (m *PreAcceptResponse) GetType() uint32 { return CONSENSUS_PRE_ACCEPT_RESPO
 
 type CommitRequest struct {
 	CommandID CommandID
+	Ballot uint64
 }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error {
@@ -136,6 +140,7 @@ func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *CommitRequest) GetBallot() uint64 { return m.Ballot }
 func (m *CommitRequest) GetType() uint32 { return CONSENSUS_COMMIT_REQUEST }
 
 type CommitResponse struct { }
@@ -144,6 +149,7 @@ func (m *CommitResponse) Deserialize(buf *bufio.Reader) error { return nil }
 func (m *CommitResponse) GetType() uint32 { return CONSENSUS_COMMIT_RESPONSE }
 
 type AcceptRequest struct {
+	Ballot uint64
 	Dependencies Dependencies
 }
 
@@ -169,6 +175,7 @@ func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+func (m *AcceptRequest) GetBallot() uint64 { return m.Ballot }
 func (m *AcceptRequest) GetType() uint32 { return CONSENSUS_ACCEPT_REQUEST }
 
 type AcceptResponse struct {
