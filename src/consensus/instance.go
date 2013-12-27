@@ -17,12 +17,12 @@ import (
 type InstanceStatus byte
 
 const (
-	IS_IGNORED = InstanceStatus(iota)
-	IS_PRE_ACCEPTED
-	IS_ACCEPTED
-	IS_REJECTED
-	IS_COMMITTED
-	IS_EXECUTED
+	INSTANCE_IGNORED = InstanceStatus(iota)
+	INSTANCE_PREACCEPTED
+	INSTANCE_ACCEPTED
+	INSTANCE_REJECTED
+	INSTANCE_COMMITTED
+	INSTANCE_EXECUTED
 )
 
 const (
@@ -32,7 +32,15 @@ const (
 type InstanceID string
 
 func NewInstanceID() InstanceID {
-	return InstanceID(uuid.NewUUID().String())
+	return InstanceID(uuid.NewUUID())
+}
+
+func (i *InstanceID) UUID() uuid.UUID {
+	return uuid.UUID(*i)
+}
+
+func (i *InstanceID) String() string {
+	return i.UUID().String()
 }
 
 type Instance struct {
