@@ -4,7 +4,6 @@ import (
 	"bufio"
 )
 
-
 import (
 	"message"
 )
@@ -20,7 +19,6 @@ type messageCheat struct { }
 func (m *messageCheat) Serialize(*bufio.Writer) error { return nil }
 func (m *messageCheat) Deserialize(*bufio.Reader) error { return nil }
 func (m *messageCheat) GetType() uint32 { return 0 }
-
 
 type PreAcceptRequest struct {
 	messageCheat

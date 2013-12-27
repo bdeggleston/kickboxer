@@ -52,7 +52,7 @@ func (s *Scope) Persist() error {
 
 // returns the current dependencies for a new instance
 // this method doesn't implement any locking or persistence
-func (s *Scope) getCurrentDeps() []InstanceID {
+func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	// grab ALL instances as dependencies for now
 	// TODO: use fewer deps (inProgress + committed + executed[len(executed)-1])
 	executedDeps := 1
@@ -69,7 +69,7 @@ func (s *Scope) getCurrentDeps() []InstanceID {
 
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
-func (s *Scope) getNextSeq() uint64 {
+func (s *Scope) getNextSeqUnsafe() uint64 {
 	s.maxSeq++
 	return s.maxSeq
 }
@@ -83,8 +83,8 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 		InstanceID: NewInstanceID(),
 		LeaderID: s.GetLocalID(),
 		Commands: instructions,
-		Dependencies: s.getCurrentDeps(),
-		Sequence: s.getNextSeq(),
+		Dependencies: s.getCurrentDepsUnsafe(),
+		Sequence: s.getNextSeqUnsafe(),
 		Status: INSTANCE_PREACCEPTED,
 		MaxBallot: 1,
 	}
