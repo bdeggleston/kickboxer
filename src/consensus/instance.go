@@ -24,10 +24,6 @@ const (
 	INSTANCE_EXECUTED
 )
 
-const (
-	DEPENDENCY_HORIZON = 5
-)
-
 type InstanceID string
 
 func NewInstanceID() InstanceID {
@@ -65,7 +61,7 @@ type Instance struct {
 
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
-	// *not serialized
+	// * not message serialized *
 	commitTimeout time.Time
 
 	// indicates that the dependencies from the leader
@@ -76,6 +72,6 @@ type Instance struct {
 	// the new leader will know that at least 2 replicas
 	// had identical dependency graphs at the time of proposal,
 	// it may still be useful in other situations
-	// *not serialized
+	// * not message serialized *
 	dependencyMatch bool
 }
