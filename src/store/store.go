@@ -20,6 +20,9 @@ type Value interface {
 	Equal(value Value) bool
 }
 
+// an instruction to be executed against
+// the store. These objects should be
+// considered immutable once instantiated
 type Instruction struct {
 	Cmd string
 	Key string
