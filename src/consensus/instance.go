@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-
 import (
 	"node"
 	"store"
@@ -80,5 +79,3 @@ type Instance struct {
 	// *not serialized
 	dependencyMatch bool
 }
-
-

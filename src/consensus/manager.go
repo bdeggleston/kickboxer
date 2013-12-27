@@ -13,14 +13,14 @@ import (
 // replica level manager for consensus operations
 type Manager struct {
 	scopeMap map[string]*Scope
-	lock sync.RWMutex
-	cluster NodeCoordinator
+	lock     sync.RWMutex
+	cluster  NodeCoordinator
 }
 
 func NewManager(coordinator NodeCoordinator) *Manager {
 	return &Manager{
 		scopeMap: make(map[string]*Scope),
-		cluster:coordinator,
+		cluster:  coordinator,
 	}
 }
 
@@ -81,5 +81,3 @@ func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replica
 
 	return nil, nil
 }
-
-
