@@ -40,6 +40,11 @@ func (m *Manager) getScope(key string) *Instance {
 
 	return instance
 }
+
+func (m *Manager) GetLocalID() node.NodeId {
+	return m.coordinator.GetID()
+}
+
 func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	localId := m.coordinator.GetID()
 	eligibleLeader := false

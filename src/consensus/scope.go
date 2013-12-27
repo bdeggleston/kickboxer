@@ -34,12 +34,16 @@ func NewScope(name string, manager *Manager) *Scope {
 	}
 }
 
-func (m *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
+func (s *Scope) GetLocalID() node.NodeId {
+	return s.manager.GetLocalID()
+}
+
+func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	// replica setup
 	remoteReplicas := make([]node.Node, 0, len(replicas) - 1)
 	localReplicaFound := false
 	for _, replica := range replicas {
-		if replica.GetId() != m.manager.coordinator.GetID() {
+		if replica.GetId() != s.GetLocalID() {
 			remoteReplicas = append(remoteReplicas, replica)
 		} else {
 			localReplicaFound = true
