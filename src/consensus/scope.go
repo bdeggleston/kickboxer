@@ -10,6 +10,12 @@ import (
 	"store"
 )
 
+var (
+	// timeout receiving a quorum of
+	// preaccept responses
+	PREACCEPT_TIMEOUT = uint64(500)
+)
+
 // manages a subset of interdependent
 // consensus operations
 type Scope struct {
@@ -115,6 +121,23 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	// create epaxos instance
 	instance, err := s.makeInstance(instructions)
 	if err != nil { return nil, err }
+
+	// send instance pre-accept to replicas
+	preAcceptResponsChan := make(chan *PreAcceptResponse, len(remoteReplicas))
+	msg := &PreAcceptRequest{Scope:s.name, Instance:instance}
+	sendMsg := func(n node.Node) {
+		if response, err := n.SendMessage(msg); err != nil {
+			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+		} else {
+			if preAccept, ok := response.(*PreAcceptResponse); !ok {
+				logger.Warning("Unexpected PreAccept response type: %T", response)
+				preAcceptResponsChan <- preAccept
+			}
+		}
+	}
+	for _, node := range remoteReplicas {
+		go sendMsg(node)
+	}
 
 	_ = instance
 	return nil, nil
