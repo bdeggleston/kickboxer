@@ -14,27 +14,27 @@ import (
 type Manager struct {
 	scopeMap map[string]*Scope
 	lock sync.RWMutex
-	coordinator NodeCoordinator
+	cluster NodeCoordinator
 }
 
 func NewManager(coordinator NodeCoordinator) *Manager {
 	return &Manager{
 		scopeMap: make(map[string]*Scope),
-		coordinator:coordinator,
+		cluster:coordinator,
 	}
 }
 
-func (m *Manager) getScope(key string) *Instance {
+func (m *Manager) getScope(key string) *Scope {
 	// get
 	m.lock.RLock()
-	instance, exists := m.instances[key]
+	instance, exists := m.scopeMap[key]
 	m.lock.RUnlock()
 
 	// or create
 	if !exists {
 		m.lock.Lock()
-		instance = NewScope(key, m.cluster)
-		m.instances[key] = instance
+		instance = NewScope(key, m)
+		m.scopeMap[key] = instance
 		m.lock.Unlock()
 	}
 
@@ -42,11 +42,11 @@ func (m *Manager) getScope(key string) *Instance {
 }
 
 func (m *Manager) GetLocalID() node.NodeId {
-	return m.coordinator.GetID()
+	return m.cluster.GetID()
 }
 
 func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
-	localId := m.coordinator.GetID()
+	localId := m.cluster.GetID()
 	eligibleLeader := false
 	for _, replica := range replicas {
 		if replica.GetId() == localId {
@@ -75,7 +75,7 @@ func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replica
 		panic("Forward to eligible replica not implemented yet")
 	} else {
 		scope := m.getScope(key)
-		val, err := scope.ExecuteInstruction(instructions, replicas)
+		val, err := scope.ExecuteInstructions(instructions, replicas)
 		return val, err
 	}
 

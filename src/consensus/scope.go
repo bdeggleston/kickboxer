@@ -14,7 +14,7 @@ import (
 // consensus operations
 type Scope struct {
 	name        string
-	instanceMap map[InstanceID]*Instance
+	instances map[InstanceID]*Instance
 	inProgress  map[InstanceID]*Instance
 	committed   map[InstanceID]*Instance
 	executed    []InstanceID
@@ -26,10 +26,10 @@ type Scope struct {
 func NewScope(name string, manager *Manager) *Scope {
 	return &Scope{
 		name:        name,
-		instanceMap: make(map[InstanceID]*Instance),
+		instances: make(map[InstanceID]*Instance),
 		inProgress:  make(map[InstanceID]*Instance),
 		committed:   make(map[InstanceID]*Instance),
-		executed:    make([]*Instance, 0, 16),
+		executed:    make([]InstanceID, 0, 16),
 		manager:     manager,
 	}
 }
