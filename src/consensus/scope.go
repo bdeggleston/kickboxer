@@ -3,6 +3,7 @@ package consensus
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 import (
@@ -86,7 +87,6 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 		Dependencies: s.getCurrentDepsUnsafe(),
 		Sequence: s.getNextSeqUnsafe(),
 		Status: INSTANCE_PREACCEPTED,
-		MaxBallot: 1,
 	}
 
 	// add to manager maps
@@ -98,6 +98,45 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	}
 
 	return instance, nil
+}
+
+// sends pre accept responses to the given replicas, and returns their responses. An error will be returned
+// if there are problems, or a quorum of responses were not received within the timeout
+func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
+	//
+	preAcceptResponsChan := make(chan *PreAcceptResponse, len(replicas))
+	msg := &PreAcceptRequest{Scope:s.name, Instance:instance}
+	sendMsg := func(n node.Node) {
+		if response, err := n.SendMessage(msg); err != nil {
+			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+		} else {
+			if preAccept, ok := response.(*PreAcceptResponse); !ok {
+				logger.Warning("Unexpected PreAccept response type: %T", response)
+				preAcceptResponsChan <- preAccept
+			}
+		}
+	}
+	for _, node := range replicas {
+		go sendMsg(node)
+	}
+
+
+	numReceived := 1  // this node counts as a response
+	quorumSize := ((len(replicas) + 1) / 2) + 1
+	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
+	var response *PreAcceptResponse
+	responses := make([]*PreAcceptResponse, len(replicas))
+	for numReceived < quorumSize {
+		select {
+		case response = <-preAcceptResponsChan:
+			responses = append(responses, response)
+			numReceived++
+		case <-timeoutEvent:
+			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
+		}
+	}
+
+	return responses, nil
 }
 
 func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
@@ -123,22 +162,8 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	if err != nil { return nil, err }
 
 	// send instance pre-accept to replicas
-	preAcceptResponsChan := make(chan *PreAcceptResponse, len(remoteReplicas))
-	msg := &PreAcceptRequest{Scope:s.name, Instance:instance}
-	sendMsg := func(n node.Node) {
-		if response, err := n.SendMessage(msg); err != nil {
-			logger.Warning("Error receiving PreAcceptResponse: %v", err)
-		} else {
-			if preAccept, ok := response.(*PreAcceptResponse); !ok {
-				logger.Warning("Unexpected PreAccept response type: %T", response)
-				preAcceptResponsChan <- preAccept
-			}
-		}
-	}
-	for _, node := range remoteReplicas {
-		go sendMsg(node)
-	}
+	preAcceptResponses, err := s.sendPreAccept(instance, remoteReplicas)
+	if err != nil { return nil, err }
 
-	_ = instance
 	return nil, nil
 }
