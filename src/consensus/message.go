@@ -35,6 +35,8 @@ type PreAcceptRequest struct {
 	Instance *Instance
 }
 
+func (m *PreAcceptRequest) GetScope() string { return m.Scope }
+
 type PreAcceptResponse struct {
 	messageCheat
 
@@ -72,6 +74,8 @@ type AcceptRequest struct {
 	MissingInstances []*Instance
 }
 
+func (m *AcceptRequest) GetScope() string { return m.Scope }
+
 type AcceptResponse struct {
 	messageCheat
 
@@ -96,6 +100,8 @@ type CommitRequest struct {
 	// the id of the messages to be committed
 	InstanceID InstanceID
 }
+
+func (m *CommitRequest) GetScope() string { return m.Scope }
 
 type CommitResponse struct {
 	messageCheat
