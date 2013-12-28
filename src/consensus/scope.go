@@ -7,6 +7,7 @@ import (
 )
 
 import (
+	"message"
 	"node"
 	"store"
 )
@@ -15,6 +16,10 @@ var (
 	// timeout receiving a quorum of
 	// preaccept responses
 	PREACCEPT_TIMEOUT = uint64(500)
+
+	// timeout receiving a quorum of
+	// accept responses
+	ACCEPT_TIMEOUT = uint64(500)
 )
 
 // manages a subset of interdependent
@@ -327,5 +332,43 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 
 	return nil, nil
 }
+
+func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// have we somehow seen this already?
+	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
+		if instance.MaxBallot >= request.Instance.MaxBallot {
+			return &PreAcceptResponse{
+				Accepted: false,
+				MaxBallot: instance.MaxBallot,
+				Instance: instance,
+				MissingInstances: []*Instance{},
+			}, nil
+		}
+	}
 	return nil, nil
+}
+
+func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
+	return nil, nil
+}
+
+func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
+	return nil, nil
+}
+
+func (s *Scope) HandleMessage(message ScopedMessage) (message.Message, error) {
+	switch request := message.(type) {
+	case *PreAcceptRequest:
+		return s.HandlePreAccept(request)
+	case *CommitRequest:
+		return s.HandleCommit(request)
+	case *AcceptRequest:
+		return s.HandleAccept(request)
+	default:
+		return nil, fmt.Errorf("Unexpected message type: %T", message)
+	}
+	panic("unreachable")
 }
