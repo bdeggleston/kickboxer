@@ -108,3 +108,24 @@ type Instance struct {
 	// * not message serialized *
 	dependencyMatch bool
 }
+
+// merges sequence and dependencies onto this instance, and returns
+// true/false to indicate if there were any changes
+func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
+	changes := false
+	if seq > i.Sequence {
+		changes = true
+		i.Sequence = seq
+	}
+	iSet := NewInstanceIDSet(i.Dependencies)
+	oSet := NewInstanceIDSet(deps)
+	if !iSet.Equal(oSet) {
+		changes = true
+		union := iSet.Union(oSet)
+		i.Dependencies = make([]InstanceID, 0, len(union))
+		for id := range union {
+			i.Dependencies = append(i.Dependencies, id)
+		}
+	}
+	return changes
+}

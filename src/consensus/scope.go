@@ -157,6 +157,96 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	return responses, nil
 }
 
+// merges the attributes from the pre accept responses onto the local instance
+// and returns a bool indicating if any changes were made
+func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcceptResponse) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	changes := false
+	for _, response := range responses {
+		changes = changes || instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+	}
+	if err := s.Persist(); err != nil {
+		return true, err
+	}
+	// TODO: handle MissingInstances included in the responses
+	return changes, nil
+}
+
+func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
+
+	// send the message
+	recvChan := make(chan *AcceptResponse, len(replicas))
+	msg := &AcceptRequest{Scope:s.name, Instance:instance}
+	sendMsg := func(n node.Node) {
+		if response, err := n.SendMessage(msg); err != nil {
+			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+		} else {
+			if accept, ok := response.(*AcceptResponse); !ok {
+				logger.Warning("Unexpected Accept response type: %T", response)
+				recvChan <- accept
+			}
+		}
+	}
+	for _, replica := range replicas {
+		go sendMsg(replica)
+	}
+
+	// receive the replies
+	numReceived := 1  // this node counts as a response
+	quorumSize := ((len(replicas) + 1) / 2) + 1
+	timeoutEvent := time.After(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
+	var response *AcceptResponse
+	responses := make([]*AcceptResponse, len(replicas))
+	for numReceived < quorumSize {
+		select {
+		case response = <-recvChan:
+			responses = append(responses, response)
+			numReceived++
+		case <-timeoutEvent:
+			return fmt.Errorf("Timeout while awaiting pre accept responses")
+		}
+	}
+
+	// check if any of the messages were rejected
+	accepted := true
+	for _, response := range responses {
+		accepted = accepted && response.Accepted
+	}
+
+	// handle rejected pre-accept messages
+	if !accepted {
+		// update max ballot from responses
+		bmResponses := make([]BallotMessage, len(responses))
+		for i, response := range responses {
+			bmResponses[i] = BallotMessage(response)
+		}
+		s.updateInstanceBallotFromResponses(instance, bmResponses)
+		// TODO: figure out what to do here. Try again?
+		panic("rejected accept not handled yet")
+	}
+	return nil
+}
+
+// Mark the instance as committed locally, persist state to disk, then send
+// commit messages to the other replicas
+// We're not concerned with whether the replicas actually respond because, since
+// a quorum of nodes have agreed on the dependency graph for this instance, they
+// won't be able to do anything else without finding out about it. This method
+// will only return an error if persisting the committed state fails
+func (s *Scope) commitInstance(instance *Instance, replicas []node.Node) error {
+	if err := s.setInstanceStatus(instance, INSTANCE_COMMITTED); err != nil {
+		return err
+	}
+
+	msg := &CommitRequest{Scope:s.name, InstanceID:instance.InstanceID}
+	sendCommit := func(n node.Node) { n.SendMessage(msg) }
+	for _, replica := range replicas {
+		go sendCommit(replica)
+	}
+	return nil
+}
+
 func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	// replica setup
 	remoteReplicas := make([]node.Node, 0, len(replicas)-1)
