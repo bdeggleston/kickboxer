@@ -95,7 +95,12 @@ func TestSendPreAcceptQuorumFailure(t *testing.T) {
 }
 
 func TestSendPreAcceptBallotFailure(t *testing.T) {
-
+	// TODO: figure out what to do in this situation
+	// the only way this would happen if is the command
+	// was taken over by another replica, in which case,
+	// should we just wait for the other leader to
+	// execute it?
+	t.Skip("figure out the expected behavior")
 }
 
 func TestMergePreAcceptAttributes(t *testing.T) {
