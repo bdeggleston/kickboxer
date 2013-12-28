@@ -14,6 +14,12 @@ func TestExecutionSuccessCase(t *testing.T) {
 
 }
 
+// tests that executing an instance moves the instance
+// from committed to executed
+func TestExecuteMovesInstance(t *testing.T) {
+
+}
+
 func TestExecutionUnexecutedDependencies(t *testing.T) {
 
 }

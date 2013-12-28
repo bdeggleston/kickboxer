@@ -4,6 +4,12 @@ import (
 	"testing"
 )
 
+// tests that committing an instance moves the instance
+// from inProgress to committed
+func TestCommitMovesInstance(t *testing.T) {
+
+}
+
 func TestHandleCommit(t *testing.T) {
 
 }
