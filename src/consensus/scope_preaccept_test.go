@@ -8,6 +8,7 @@ import (
 
 import (
 	"message"
+	"testing_helpers"
 )
 
 /** Leader **/
@@ -104,7 +105,71 @@ func TestSendPreAcceptBallotFailure(t *testing.T) {
 }
 
 func TestMergePreAcceptAttributes(t *testing.T) {
+	leader := setupReplicaSet(1)[0]
+	scope := leader.manager.getScope("a")
+	instance, err := scope.makeInstance(getBasicInstruction())
 
+	if err != nil {
+		t.Fatalf("There was a problem creating the instance: %v", err)
+	}
+	for i:=0;i<4;i++ {
+		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
+	}
+	instance.Sequence = 3
+	expected := NewInstanceIDSet(instance.Dependencies)
+
+	remoteInstance := copyInstance(instance)
+	remoteInstance.Dependencies = instance.Dependencies[1:]
+	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
+	expected.Add(remoteInstance.Dependencies...)
+
+	if size := len(instance.Dependencies); size != 4 {
+		t.Fatalf("Expected 4 dependencies, got: %v", size)
+	}
+	if size := len(remoteInstance.Dependencies); size != 4 {
+		t.Fatalf("Expected 4 dependencies, got: %v", size)
+	}
+	remoteInstance.Sequence++
+
+	testing_helpers.AssertEqual(t, "instance sequence", uint64(3), instance.Sequence)
+	testing_helpers.AssertEqual(t, "remote sequence", uint64(4), remoteInstance.Sequence)
+
+	responses := []*PreAcceptResponse{&PreAcceptResponse{
+		Accepted: true,
+		MaxBallot: remoteInstance.MaxBallot,
+		Instance: remoteInstance,
+		MissingInstances: []*Instance{},
+	}}
+	changes, err := scope.mergePreAcceptAttributes(instance, responses)
+
+	if err != nil {
+		t.Fatalf("There was a problem merging attributes: %v", err)
+	}
+	if !changes {
+		t.Errorf("Expected changes to be reported")
+	}
+	if size := len(instance.Dependencies); size != 5 {
+		t.Fatalf("Expected 5 dependencies, got: %v", size)
+	}
+	testing_helpers.AssertEqual(t, "instance sequence", uint64(4), instance.Sequence)
+
+	// test dependencies
+	actual := NewInstanceIDSet(instance.Dependencies)
+	if !expected.Equal(actual) {
+		t.Errorf("Actual dependencies do not match expected dependencies.\nExpected: %v\nGot: %v", expected, actual)
+	}
+
+	t.Error(expected)
+}
+
+func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
+//	leader := setupReplicaSet(1)[0]
+//	scope := leader.manager.getScope("a")
+//	instance, err := scope.makeInstance(getBasicInstruction())
+//
+//	if err != nil {
+//		t.Fatalf("There was a problem creating the instance: %v", err)
+//	}
 }
 
 
