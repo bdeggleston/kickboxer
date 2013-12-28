@@ -41,3 +41,9 @@ func copyInstance(i *Instance) *Instance {
 	copy(n.Dependencies, i.Dependencies)
 	return n
 }
+
+func copyDependencies(o []*InstanceID) []*InstanceID {
+	n := make([]*InstanceID, len(o))
+	copy(n, o)
+	return n
+}
