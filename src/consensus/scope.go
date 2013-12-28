@@ -134,7 +134,7 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
 	//
-	preAcceptResponsChan := make(chan *PreAcceptResponse, len(replicas))
+	recvChan := make(chan *PreAcceptResponse, len(replicas))
 	msg := &PreAcceptRequest{Scope:s.name, Instance:instance}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
@@ -142,14 +142,13 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		} else {
 			if preAccept, ok := response.(*PreAcceptResponse); !ok {
 				logger.Warning("Unexpected PreAccept response type: %T", response)
-				preAcceptResponsChan <- preAccept
+				recvChan <- preAccept
 			}
 		}
 	}
-	for _, node := range replicas {
-		go sendMsg(node)
+	for _, replica := range replicas {
+		go sendMsg(replica)
 	}
-
 
 	numReceived := 1  // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
