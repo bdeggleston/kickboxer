@@ -154,9 +154,10 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		} else {
-			if preAccept, ok := response.(*PreAcceptResponse); !ok {
-				logger.Warning("Unexpected PreAccept response type: %T", response)
+			if preAccept, ok := response.(*PreAcceptResponse); ok {
 				recvChan <- preAccept
+			} else {
+				logger.Warning("Unexpected PreAccept response type: %T", response)
 			}
 		}
 	}
@@ -168,13 +169,15 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	var response *PreAcceptResponse
-	responses := make([]*PreAcceptResponse, len(replicas))
+	responses := make([]*PreAcceptResponse, 0, len(replicas))
 	for numReceived < quorumSize {
 		select {
 		case response = <-recvChan:
+			logger.Debug("PreAccept response received: %v", instance.InstanceID)
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
+			logger.Debug("PreAccept timeout for instance: %v", instance.InstanceID)
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
 		}
 	}
