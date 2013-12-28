@@ -71,6 +71,26 @@ func (i InstanceIDSet) Union(o InstanceIDSet) InstanceIDSet {
 	return u
 }
 
+func (i InstanceIDSet) Add(ids... InstanceID) {
+	for _, id := range ids {
+		i[id] = true
+	}
+}
+
+func (i InstanceIDSet) String() string {
+	s := "{"
+	n := 0
+	for k := range i {
+		if n > 0 {
+			s += ", "
+		}
+		s += k.String()
+		n++
+	}
+	s += "}"
+	return s
+}
+
 type Instance struct {
 	// the uuid of this instance
 	InstanceID InstanceID
