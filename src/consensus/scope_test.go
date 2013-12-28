@@ -53,6 +53,12 @@ func TestGetCurrentDeps(t *testing.T) {
 		t.Errorf("Expected deps do not match actual deps.\nExpected: %v\nGot: %v", expected, actual)
 	}
 }
+func TestGetNextSeq(t *testing.T) {
+	scope := NewScope("a", nil)
+	scope.maxSeq = 5
+	nextSeq := scope.getNextSeqUnsafe()
+	testing_helpers.AssertEqual(t, "nextSeq", uint64(6), nextSeq)
+}
 
 // test that instances are created properly
 func TestInstanceCreation(t *testing.T) {
