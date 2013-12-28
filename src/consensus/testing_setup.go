@@ -1,22 +1,12 @@
 package consensus
 
 import (
-	"os"
 	"time"
-)
-
-import (
-	logging "github.com/op/go-logging"
 )
 
 import (
 	"store"
 )
-
-func setupTestLogging() {
-	logging.SetLevel(logging.DEBUG, "consensus")
-	logging.SetBackend(logging.NewLogBackend(os.Stderr, "", 0xFFFF))
-}
 
 // returns a set of mock nodes of the given size
 func setupReplicaSet(size int) []*mockNode {
