@@ -30,11 +30,11 @@ func NewInstanceID() InstanceID {
 	return InstanceID(uuid.NewUUID())
 }
 
-func (i *InstanceID) UUID() uuid.UUID {
-	return uuid.UUID(*i)
+func (i InstanceID) UUID() uuid.UUID {
+	return uuid.UUID(i)
 }
 
-func (i *InstanceID) String() string {
+func (i InstanceID) String() string {
 	return i.UUID().String()
 }
 
