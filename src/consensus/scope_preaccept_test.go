@@ -1,7 +1,9 @@
 package consensus
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 import (
@@ -12,7 +14,6 @@ import (
 
 // tests all replicas returning results
 func TestSendPreAcceptSuccess(t *testing.T) {
-	setupTestLogging()
 	nodes := setupReplicaSet(5)
 	leader := nodes[0]
 	replicas := nodes[1:]
@@ -48,7 +49,49 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 }
 
 func TestSendPreAcceptQuorumFailure(t *testing.T) {
+	nodes := setupReplicaSet(5)
+	leader := nodes[0]
+	replicas := nodes[1:]
+	scope := leader.manager.getScope("a")
+	instance, err := scope.makeInstance(getBasicInstruction())
+	if err != nil {
+		t.Fatalf("There was a problem creating the instance: %v", err)
+	}
 
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		newInst := copyInstance(instance)
+		return &PreAcceptResponse{
+			Accepted: true,
+			MaxBallot: newInst.MaxBallot,
+			Instance: newInst,
+			MissingInstances: []*Instance{},
+		}, nil
+	}
+	hangResponse := func(n *mockNode, m message.Message) (message.Message, error) {
+		time.Sleep(1 * time.Second)
+		return nil, fmt.Errorf("nope")
+	}
+
+	for i, replica := range replicas {
+		if i == 0 {
+			replica.messageHandler = responseFunc
+		} else {
+			replica.messageHandler = hangResponse
+		}
+	}
+
+	responses, err := scope.sendPreAccept(instance, transformMockNodeArray(replicas))
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+	if _, ok := err.(TimeoutError); !ok {
+		t.Errorf("Expected TimeoutError, got: %T", err)
+	}
+	if responses != nil {
+		t.Errorf("Expected nil responses, got: %v", responses)
+
+	}
 }
 
 func TestSendPreAcceptBallotFailure(t *testing.T) {
