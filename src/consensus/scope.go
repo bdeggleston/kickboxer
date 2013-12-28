@@ -299,8 +299,33 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	if err != nil { return nil, err }
 
 	// send instance pre-accept to replicas
-	preAcceptResponses, err := s.sendPreAccept(instance, remoteReplicas)
+	paResponses, err := s.sendPreAccept(instance, remoteReplicas)
 	if err != nil { return nil, err }
 
+	if changes, err := s.mergePreAcceptAttributes(instance, paResponses); err != nil {
+		return nil, err
+
+	} else if changes {
+		// some of the instance attributes received from the other replicas
+		// were different from what was sent to them. Run the multi-paxos
+		// accept phase
+
+		// mark the local instance as accepted
+		if err := s.setInstanceStatus(instance, INSTANCE_ACCEPTED); err != nil {
+			return nil, err
+		}
+		if err := s.sendAccept(instance, replicas); err != nil {
+			return nil, err
+		}
+
+	}
+
+	// if we've gotten this far, either all the pre accept instance attributes
+	// matched what was sent to them, or the correcting accept phase was successful
+	// commit this instance
+	s.commitInstance(instance, replicas)
+
+	return nil, nil
+}
 	return nil, nil
 }
