@@ -290,6 +290,13 @@ func (s *Scope) commitInstance(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
+// applies an instance to the store
+// first it will resolve all dependencies, then wait for them to commit/reject, or force them
+// to do one or the other. Then it will execute it's committed dependencies, then execute itself
+func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store.Value, error) {
+	return nil, nil
+}
+
 func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	// replica setup
 	remoteReplicas := make([]node.Node, 0, len(replicas)-1)
