@@ -38,6 +38,39 @@ func (i *InstanceID) String() string {
 	return i.UUID().String()
 }
 
+type InstanceIDSet map[InstanceID]bool
+
+func NewInstanceIDSet(ids []InstanceID) InstanceIDSet {
+	s := make(InstanceIDSet, len(ids))
+	for _, id := range ids {
+		s[id] = true
+	}
+	return s
+}
+
+func (i InstanceIDSet) Equal(o InstanceIDSet) bool {
+	if len(i) != len(o) {
+		return false
+	}
+	for key := range i {
+		if !o[key] {
+			return false
+		}
+	}
+	return true
+}
+
+func (i InstanceIDSet) Union(o InstanceIDSet) InstanceIDSet {
+	u := make(InstanceIDSet, (len(i) * 3) / 2)
+	for k := range i {
+		u[k] = true
+	}
+	for k := range o {
+		u[k] = true
+	}
+	return u
+}
+
 type Instance struct {
 	// the uuid of this instance
 	InstanceID InstanceID
