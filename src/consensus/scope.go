@@ -71,14 +71,23 @@ func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) err
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	// grab ALL instances as dependencies for now
 	// TODO: use fewer deps (inProgress + committed + executed[len(executed)-1])
-	executedDeps := 1
-	if len(s.executed) == 0 {
-		executedDeps = 0
+	numDeps := len(s.inProgress) + len(s.committed)
+	if len(s.executed) > 0 {
+		numDeps += 1
 	}
-	deps := make([]InstanceID, len(s.inProgress) + len(s.committed) + executedDeps)
-	for dep := range s.inProgress { deps = append(deps, dep) }
-	for dep := range s.committed { deps = append(deps, dep) }
-	if executedDeps > 0 { deps = append(deps, s.executed[len(s.executed) - 1]) }
+
+	deps := make([]InstanceID, 0, numDeps)
+	for dep := range s.inProgress {
+		deps = append(deps, dep)
+	}
+
+	for dep := range s.committed {
+		deps = append(deps, dep)
+	}
+
+	if len(s.executed) > 0 {
+		deps = append(deps, s.executed[len(s.executed) - 1])
+	}
 
 	return deps
 }
