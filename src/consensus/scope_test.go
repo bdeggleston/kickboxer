@@ -99,7 +99,3 @@ func TestGetNextSeq(t *testing.T) {
 	testing_helpers.AssertEqual(t, "nextSeq", uint64(6), nextSeq)
 }
 
-func TestInstanceCreationPersistenceError(t *testing.T) {
-
-}
-

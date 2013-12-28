@@ -7,21 +7,19 @@ import (
 	"testing"
 )
 
-func TestSendPreAcceptSuccess(t *testing.T) {
+// tests that execution will fail if the command leader
+// (the node running ExecuteInstructions) can't find
+// itself in the list of given replicas
+func TestNonReplicaLeaderFailure(t *testing.T) {
 
 }
 
-func TestSendPreAcceptQuorumFailure(t *testing.T) {
+// tests that the comand leader aborts if there's an
+// error creating a new instance
+func TestInstanceCreationPersistenceError(t *testing.T) {
 
 }
 
-func TestSendPreAcceptBallotFailure(t *testing.T) {
-
-}
-
-func TestMergePreAcceptAttributes(t *testing.T) {
-
-}
 
 func TestSendAcceptSuccess(t *testing.T) {
 
