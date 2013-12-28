@@ -100,6 +100,26 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	return instance, nil
 }
 
+func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses []BallotMessage) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ballot := instance.MaxBallot
+	for _, response := range responses {
+		if response.GetBallot() > ballot {
+			ballot = response.GetBallot()
+		}
+	}
+
+	if ballot > instance.MaxBallot {
+		instance.MaxBallot = ballot
+	}
+	if err := s.Persist(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
