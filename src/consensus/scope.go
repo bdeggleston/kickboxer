@@ -51,6 +51,16 @@ func (s *Scope) Persist() error {
 	return nil
 }
 
+func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	instance.Status = status
+	if err := s.Persist(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // returns the current dependencies for a new instance
 // this method doesn't implement any locking or persistence
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
