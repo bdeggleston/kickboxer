@@ -2,16 +2,17 @@ package consensus
 
 import (
 	"testing"
-//	"time"
+	"time"
 )
 
 import (
-//	"store"
+	"store"
 	"testing_helpers"
 )
 
 func setupScope() *Scope {
-	scope := NewScope("a", nil)
+	manager := NewManager(newMockCluster())
+	scope := NewScope("a", manager)
 	for i:=0; i<4; i++ {
 		scope.inProgress[NewInstanceID()] = nil
 	}
@@ -26,10 +27,17 @@ func setupScope() *Scope {
 
 // test that instances are created properly
 func TestInstanceCreation(t *testing.T) {
-	// TODO: test max seq assignment and scope update
-	// TODO: test dependency selection
 	// TODO: test new instances are added to inProgress
-	//	scope := NewScope("a", nil)
+	scope := setupScope()
+	scope.maxSeq = 4
+	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
+	instance, err := scope.makeInstance(instructions)
+	if err != nil {
+		t.Fatalf("Error creating instance: %v", err)
+	}
+
+	testing_helpers.AssertEqual(t, "Sequence", 5, int(instance.Sequence))
+	testing_helpers.AssertEqual(t, "Ballot", 0, int(instance.MaxBallot))
 }
 
 func TestGetCurrentDeps(t *testing.T) {
