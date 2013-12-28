@@ -128,12 +128,30 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	responses := make([]*PreAcceptResponse, len(replicas))
 	for numReceived < quorumSize {
 		select {
-		case response = <-preAcceptResponsChan:
+		case response = <-recvChan:
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
 			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
 		}
+	}
+
+	// check if any of the messages were rejected
+	accepted := true
+	for _, response := range responses {
+		accepted = accepted && response.Accepted
+	}
+
+	// handle rejected pre-accept messages
+	if !accepted {
+		// update max ballot from responses
+		bmResponses := make([]BallotMessage, len(responses))
+		for i, response := range responses {
+			bmResponses[i] = BallotMessage(response)
+		}
+		s.updateInstanceBallotFromResponses(instance, bmResponses)
+		// TODO: what to do here... Try again?
+		panic("rejected pre-accept not handled yet")
 	}
 
 	return responses, nil
