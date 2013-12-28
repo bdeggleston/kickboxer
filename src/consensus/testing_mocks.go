@@ -61,3 +61,11 @@ func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp
 func (n *mockNode) SendMessage(msg message.Message) (message.Message, error) {
 	return n.messageHandler(n, msg)
 }
+
+func transformMockNodeArray(src []*mockNode) []node.Node {
+	dst := make([]node.Node, len(src))
+	for i := range src {
+		dst[i] = node.Node(src[i])
+	}
+	return dst
+}
