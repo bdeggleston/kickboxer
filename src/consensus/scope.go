@@ -22,6 +22,15 @@ var (
 	ACCEPT_TIMEOUT = uint64(500)
 )
 
+type TimeoutError struct {
+	message string
+}
+func (t TimeoutError) Error() string { return t.message }
+func (t TimeoutError) String() string { return t.message }
+func NewTimeoutError(format string, a ...interface{}) TimeoutError {
+	return TimeoutError{fmt.Sprintf(format, a...)}
+}
+
 // manages a subset of interdependent
 // consensus operations
 type Scope struct {
@@ -178,7 +187,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			numReceived++
 		case <-timeoutEvent:
 			logger.Debug("PreAccept timeout for instance: %v", instance.InstanceID)
-			return nil, fmt.Errorf("Timeout while awaiting pre accept responses")
+			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
 	}
 
