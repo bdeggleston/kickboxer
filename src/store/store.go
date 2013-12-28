@@ -30,6 +30,16 @@ type Instruction struct {
 	Timestamp time.Time
 }
 
+// creates a new instruction
+func NewInstruction(cmd string, key string, args []string, timestamp time.Time) *Instruction {
+	return &Instruction{
+		Cmd: cmd,
+		Key: key,
+		Args: args,
+		Timestamp: timestamp,
+	}
+}
+
 // instruction equality test
 func (i *Instruction) Equal(o *Instruction) bool {
 	if i.Cmd != o.Cmd { return false }
