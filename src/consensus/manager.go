@@ -6,6 +6,7 @@ import (
 )
 
 import (
+	"message"
 	"node"
 	"store"
 )
@@ -80,4 +81,15 @@ func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replica
 	}
 
 	return nil, nil
+}
+
+func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
+	if request, ok := msg.(ScopedMessage); ok {
+		scope := m.getScope(request.GetScope())
+		return scope.HandleMessage(request)
+
+	} else {
+		return nil, fmt.Errorf("Only scoped messages are handled")
+	}
+	panic("unreachable")
 }
