@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-
 import (
 	"message"
 	"node"
@@ -21,7 +20,7 @@ func newMockCluster() *mockCluster {
 	}
 }
 
-func (c *mockCluster) GetID() node.NodeId { return c.id }
+func (c *mockCluster) GetID() node.NodeId    { return c.id }
 func (c *mockCluster) GetStore() store.Store { return nil }
 
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
@@ -35,18 +34,18 @@ type mockNode struct {
 	// against this node
 	queries []*store.Instruction
 
-	cluster *mockCluster
-	manager *Manager
+	cluster        *mockCluster
+	manager        *Manager
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 }
 
 func newMockNode() *mockNode {
 	cluster := newMockCluster()
 	return &mockNode{
-		id: cluster.GetID(),
-		queries: []*store.Instruction{},
-		cluster:cluster,
-		manager:NewManager(cluster),
+		id:             cluster.GetID(),
+		queries:        []*store.Instruction{},
+		cluster:        cluster,
+		manager:        NewManager(cluster),
 		messageHandler: mockNodeDefaultMessageHandler,
 	}
 }

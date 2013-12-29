@@ -44,7 +44,7 @@ func TestGetCurrentDeps(t *testing.T) {
 	for dep := range scope.committed {
 		expectedDeps = append(expectedDeps, dep)
 	}
-	expectedDeps = append(expectedDeps, scope.executed[len(scope.executed) - 1])
+	expectedDeps = append(expectedDeps, scope.executed[len(scope.executed)-1])
 
 	// sanity checks
 	testing_helpers.AssertEqual(t, "inProgress len", 4, len(scope.inProgress))
@@ -98,4 +98,3 @@ func TestGetNextSeq(t *testing.T) {
 func TestAddMissingInstanceNotPreviouslySeen(t *testing.T) {
 
 }
-

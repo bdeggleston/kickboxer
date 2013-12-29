@@ -1,6 +1,6 @@
 /**
 tests the command leaders protocol execution
- */
+*/
 package consensus
 
 import (
@@ -19,7 +19,6 @@ func TestNonReplicaLeaderFailure(t *testing.T) {
 func TestInstanceCreationPersistenceError(t *testing.T) {
 
 }
-
 
 func TestSendAcceptSuccess(t *testing.T) {
 

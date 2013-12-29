@@ -5,30 +5,29 @@ import (
 )
 
 import (
-	"store"
 	"node"
+	"store"
 )
 
 func setupScope() *Scope {
 	manager := NewManager(newMockCluster())
 	scope := NewScope("a", manager)
-	for i:=0; i<4; i++ {
+	for i := 0; i < 4; i++ {
 		scope.inProgress[NewInstanceID()] = nil
 	}
-	for i:=0; i<4; i++ {
+	for i := 0; i < 4; i++ {
 		scope.committed[NewInstanceID()] = nil
 	}
-	for i:=0; i<4; i++ {
+	for i := 0; i < 4; i++ {
 		scope.executed = append(scope.executed, NewInstanceID())
 	}
 	return scope
 }
 
-
 // returns a set of mock nodes of the given size
 func setupReplicaSet(size int) []*mockNode {
 	replicas := make([]*mockNode, size)
-	for i:=0;i<size;i++ {
+	for i := 0; i < size; i++ {
 		replicas[i] = newMockNode()
 	}
 	return replicas
@@ -67,12 +66,12 @@ func copyDependencies(o []*InstanceID) []*InstanceID {
 
 func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 	instance := &Instance{
-		InstanceID: NewInstanceID(),
-		LeaderID: nid,
-		Commands: getBasicInstruction(),
+		InstanceID:   NewInstanceID(),
+		LeaderID:     nid,
+		Commands:     getBasicInstruction(),
 		Dependencies: deps,
-		Sequence: 0,
-		Status: INSTANCE_PREACCEPTED,
+		Sequence:     0,
+		Status:       INSTANCE_PREACCEPTED,
 	}
 	return instance
 }

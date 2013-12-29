@@ -1,6 +1,6 @@
 /**
 tests the execution of committed commands
- */
+*/
 package consensus
 
 import (

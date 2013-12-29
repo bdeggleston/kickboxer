@@ -20,17 +20,18 @@ type BallotMessage interface {
 
 // cheats the message interface implementation
 // TODO: actually implement the message interface
-type messageCheat struct { }
-func (m *messageCheat) Serialize(*bufio.Writer) error { return nil }
+type messageCheat struct{}
+
+func (m *messageCheat) Serialize(*bufio.Writer) error   { return nil }
 func (m *messageCheat) Deserialize(*bufio.Reader) error { return nil }
-func (m *messageCheat) GetType() uint32 { return 0 }
+func (m *messageCheat) GetType() uint32                 { return 0 }
 
 type PreAcceptRequest struct {
 	messageCheat
 
 	// the scope name the message
 	// is going to
-	Scope    string
+	Scope string
 
 	Instance *Instance
 }
@@ -65,7 +66,7 @@ type AcceptRequest struct {
 
 	// the scope name the message
 	// is going to
-	Scope    string
+	Scope string
 
 	// the instance the remote node is instructed
 	// to accept
@@ -97,7 +98,7 @@ type CommitRequest struct {
 
 	// the scope name the message
 	// is going to
-	Scope    string
+	Scope string
 
 	// the id of the messages to be committed
 	InstanceID InstanceID

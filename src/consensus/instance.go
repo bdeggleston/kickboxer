@@ -61,7 +61,7 @@ func (i InstanceIDSet) Equal(o InstanceIDSet) bool {
 }
 
 func (i InstanceIDSet) Union(o InstanceIDSet) InstanceIDSet {
-	u := make(InstanceIDSet, (len(i) * 3) / 2)
+	u := make(InstanceIDSet, (len(i)*3)/2)
 	for k := range i {
 		u[k] = true
 	}
@@ -71,7 +71,7 @@ func (i InstanceIDSet) Union(o InstanceIDSet) InstanceIDSet {
 	return u
 }
 
-func (i InstanceIDSet) Add(ids... InstanceID) {
+func (i InstanceIDSet) Add(ids ...InstanceID) {
 	for _, id := range ids {
 		i[id] = true
 	}

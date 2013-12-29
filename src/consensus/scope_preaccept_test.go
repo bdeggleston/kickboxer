@@ -29,9 +29,9 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		newInst := copyInstance(instance)
 		return &PreAcceptResponse{
-			Accepted: true,
-			MaxBallot: newInst.MaxBallot,
-			Instance: newInst,
+			Accepted:         true,
+			MaxBallot:        newInst.MaxBallot,
+			Instance:         newInst,
 			MissingInstances: []*Instance{},
 		}, nil
 	}
@@ -64,9 +64,9 @@ func TestSendPreAcceptQuorumFailure(t *testing.T) {
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		newInst := copyInstance(instance)
 		return &PreAcceptResponse{
-			Accepted: true,
-			MaxBallot: newInst.MaxBallot,
-			Instance: newInst,
+			Accepted:         true,
+			MaxBallot:        newInst.MaxBallot,
+			Instance:         newInst,
 			MissingInstances: []*Instance{},
 		}, nil
 	}
@@ -113,7 +113,7 @@ func TestMergePreAcceptAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("There was a problem creating the instance: %v", err)
 	}
-	for i:=0;i<4;i++ {
+	for i := 0; i < 4; i++ {
 		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
 	}
 	instance.Sequence = 3
@@ -136,9 +136,9 @@ func TestMergePreAcceptAttributes(t *testing.T) {
 	testing_helpers.AssertEqual(t, "remote sequence", uint64(4), remoteInstance.Sequence)
 
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
-		Accepted: true,
-		MaxBallot: remoteInstance.MaxBallot,
-		Instance: remoteInstance,
+		Accepted:         true,
+		MaxBallot:        remoteInstance.MaxBallot,
+		Instance:         remoteInstance,
 		MissingInstances: []*Instance{},
 	}}
 	changes, err := scope.mergePreAcceptAttributes(instance, responses)
@@ -169,7 +169,7 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("There was a problem creating the instance: %v", err)
 	}
-	for i:=0;i<4;i++ {
+	for i := 0; i < 4; i++ {
 		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
 	}
 	instance.Sequence = 3
@@ -188,9 +188,9 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 	testing_helpers.AssertEqual(t, "remote sequence", uint64(3), remoteInstance.Sequence)
 
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
-		Accepted: true,
-		MaxBallot: remoteInstance.MaxBallot,
-		Instance: remoteInstance,
+		Accepted:         true,
+		MaxBallot:        remoteInstance.MaxBallot,
+		Instance:         remoteInstance,
 		MissingInstances: []*Instance{},
 	}}
 	changes, err := scope.mergePreAcceptAttributes(instance, responses)
@@ -213,7 +213,6 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 	}
 }
 
-
 /** Replica **/
 
 // tests that the dependency match flag is set
@@ -223,15 +222,15 @@ func TestHandlePreAcceptSameDeps(t *testing.T) {
 	scope.maxSeq = 3
 
 	instance := &Instance{
-		InstanceID: NewInstanceID(),
-		LeaderID: node.NewNodeId(),
-		Commands: getBasicInstruction(),
+		InstanceID:   NewInstanceID(),
+		LeaderID:     node.NewNodeId(),
+		Commands:     getBasicInstruction(),
 		Dependencies: scope.getCurrentDepsUnsafe(),
-		Sequence: scope.maxSeq + 1,
-		Status: INSTANCE_PREACCEPTED,
+		Sequence:     scope.maxSeq + 1,
+		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope: scope.name,
+		Scope:    scope.name,
 		Instance: instance,
 	}
 
@@ -267,19 +266,19 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
 	instance := &Instance{
-		InstanceID: NewInstanceID(),
-		LeaderID: node.NewNodeId(),
-		Commands: getBasicInstruction(),
+		InstanceID:   NewInstanceID(),
+		LeaderID:     node.NewNodeId(),
+		Commands:     getBasicInstruction(),
 		Dependencies: leaderDeps,
-		Sequence: 3,
-		Status: INSTANCE_PREACCEPTED,
+		Sequence:     3,
+		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope: scope.name,
+		Scope:    scope.name,
 		Instance: instance,
 	}
 
-	scope.instances[missingDep] = &Instance{InstanceID:missingDep}
+	scope.instances[missingDep] = &Instance{InstanceID: missingDep}
 
 	// process the preaccept message
 	response, err := scope.HandlePreAccept(request)
