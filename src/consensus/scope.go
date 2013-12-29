@@ -44,7 +44,7 @@ type TimeoutError struct {
 	message string
 }
 
-func (t TimeoutError) Error() string { return t.message }
+func (t TimeoutError) Error() string  { return t.message }
 func (t TimeoutError) String() string { return t.message }
 func NewTimeoutError(format string, a ...interface{}) TimeoutError {
 	return TimeoutError{fmt.Sprintf(format, a...)}
@@ -53,15 +53,15 @@ func NewTimeoutError(format string, a ...interface{}) TimeoutError {
 // manages a subset of interdependent
 // consensus operations
 type Scope struct {
-	name       string
-	instances  InstanceMap
-	inProgress InstanceMap
-	committed  InstanceMap
-	executed   []InstanceID
-	maxSeq     uint64
-	lock       sync.RWMutex
-	cmdLock    sync.Mutex
-	manager    *Manager
+	name         string
+	instances    InstanceMap
+	inProgress   InstanceMap
+	committed    InstanceMap
+	executed     []InstanceID
+	maxSeq       uint64
+	lock         sync.RWMutex
+	cmdLock      sync.Mutex
+	manager      *Manager
 	persistCount uint64
 }
 
@@ -106,11 +106,11 @@ func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	}
 
 	deps := make([]InstanceID, 0, numDeps)
-	deps  = append(deps, s.inProgress.InstanceIDs()...)
-	deps  = append(deps, s.committed.InstanceIDs()...)
+	deps = append(deps, s.inProgress.InstanceIDs()...)
+	deps = append(deps, s.committed.InstanceIDs()...)
 
 	if len(s.executed) > 0 {
-		deps = append(deps, s.executed[len(s.executed) - 1])
+		deps = append(deps, s.executed[len(s.executed)-1])
 	}
 
 	return deps
@@ -130,12 +130,12 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	defer s.lock.Unlock()
 
 	instance := &Instance{
-		InstanceID: NewInstanceID(),
-		LeaderID: s.GetLocalID(),
-		Commands: instructions,
+		InstanceID:   NewInstanceID(),
+		LeaderID:     s.GetLocalID(),
+		Commands:     instructions,
 		Dependencies: s.getCurrentDepsUnsafe(),
-		Sequence: s.getNextSeqUnsafe(),
-		Status: INSTANCE_PREACCEPTED,
+		Sequence:     s.getNextSeqUnsafe(),
+		Status:       INSTANCE_PREACCEPTED,
 	}
 
 	// add to manager maps
@@ -149,7 +149,7 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	return instance, nil
 }
 
-func (s *Scope) addMissingInstancesUnsafe(instances... *Instance) error {
+func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 	for _, instance := range instances {
 		if !s.instances.ContainsID(instance.InstanceID) {
 			switch instance.Status {
@@ -173,7 +173,7 @@ func (s *Scope) addMissingInstancesUnsafe(instances... *Instance) error {
 	return nil
 }
 
-func (s *Scope) addMissingInstances(instances... *Instance) error {
+func (s *Scope) addMissingInstances(instances ...*Instance) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if err := s.addMissingInstancesUnsafe(instances...); err != nil {
@@ -210,7 +210,7 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
 	//
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
-	msg := &PreAcceptRequest{Scope:s.name, Instance:instance}
+	msg := &PreAcceptRequest{Scope: s.name, Instance: instance}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
@@ -226,7 +226,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		go sendMsg(replica)
 	}
 
-	numReceived := 1  // this node counts as a response
+	numReceived := 1 // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	var response *PreAcceptResponse
@@ -300,10 +300,9 @@ func (s *Scope) acceptInstance(instance *Instance) error {
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
-
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
-	msg := &AcceptRequest{Scope:s.name, Instance:instance}
+	msg := &AcceptRequest{Scope: s.name, Instance: instance}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
@@ -319,7 +318,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	}
 
 	// receive the replies
-	numReceived := 1  // this node counts as a response
+	numReceived := 1 // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	timeoutEvent := time.After(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
 	var response *AcceptResponse
@@ -365,7 +364,7 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 		return err
 	}
 
-	msg := &CommitRequest{Scope:s.name, InstanceID:instance.InstanceID}
+	msg := &CommitRequest{Scope: s.name, InstanceID: instance.InstanceID}
 	sendCommit := func(n node.Node) { n.SendMessage(msg) }
 	for _, replica := range replicas {
 		go sendCommit(replica)
@@ -400,11 +399,15 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 
 	// create epaxos instance
 	instance, err := s.makeInstance(instructions)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	// send instance pre-accept to replicas
 	paResponses, err := s.sendPreAccept(instance, remoteReplicas)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	if changes, err := s.mergePreAcceptAttributes(instance, paResponses); err != nil {
 		return nil, err
@@ -464,9 +467,9 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 
 	missingDeps := newDeps.Subtract(extDeps)
 	reply := &PreAcceptResponse{
-		Accepted: true,
-		MaxBallot: instance.MaxBallot,
-		Instance: instance,
+		Accepted:         true,
+		MaxBallot:        instance.MaxBallot,
+		Instance:         instance,
 		MissingInstances: make([]*Instance, 0, len(missingDeps)),
 	}
 
@@ -497,7 +500,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 
 		// message is out of date, reject
 		if instance.MaxBallot >= reqInstance.MaxBallot {
-			return &AcceptResponse{Accepted:false, MaxBallot:instance.MaxBallot}, nil
+			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
 
 		if instance.Status != INSTANCE_PREACCEPTED {
