@@ -278,6 +278,24 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	return changes, nil
 }
 
+func (s *Scope) acceptInstance(instance *Instance) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if existing, exists := s.instances[instance.InstanceID]; exists {
+		if existing.Status >= INSTANCE_ACCEPTED {
+			return nil
+		}
+	}
+
+	instance.Status = INSTANCE_ACCEPTED
+	s.inProgress.Add(instance)
+	if err := s.Persist(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 
@@ -340,7 +358,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 // a quorum of nodes have agreed on the dependency graph for this instance, they
 // won't be able to do anything else without finding out about it. This method
 // will only return an error if persisting the committed state fails
-func (s *Scope) commitInstance(instance *Instance, replicas []node.Node) error {
+func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	if err := s.setInstanceStatus(instance, INSTANCE_COMMITTED); err != nil {
 		return err
 	}
@@ -406,7 +424,7 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	// if we've gotten this far, either all the pre accept instance attributes
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
-	s.commitInstance(instance, replicas)
+	s.sendCommit(instance, replicas)
 
 	return s.executeInstance(instance, replicas)
 }
