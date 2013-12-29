@@ -79,7 +79,6 @@ func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) err
 // this method doesn't implement any locking or persistence
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	// grab ALL instances as dependencies for now
-	// TODO: use fewer deps (inProgress + committed + executed[len(executed)-1])
 	numDeps := len(s.inProgress) + len(s.committed)
 	if len(s.executed) > 0 {
 		numDeps += 1
@@ -365,17 +364,10 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	// have we somehow seen this already?
-	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
-		if instance.MaxBallot >= request.Instance.MaxBallot {
-			return &PreAcceptResponse{
-				Accepted: false,
-				MaxBallot: instance.MaxBallot,
-				Instance: instance,
-				MissingInstances: []*Instance{},
-			}, nil
-		}
-	}
+	instance := request.Instance
+	instance.Status = INSTANCE_PREACCEPTED
+	instance.Sequence = s.getNextSeqUnsafe()
+	instance.Dependencies = s.getCurrentDepsUnsafe()
 	return nil, nil
 }
 
