@@ -77,6 +77,22 @@ func (i InstanceIDSet) Add(ids... InstanceID) {
 	}
 }
 
+// returns all of the keys in i, that aren't in o
+func (i InstanceIDSet) Subtract(o InstanceIDSet) InstanceIDSet {
+	s := NewInstanceIDSet([]InstanceID{})
+	for key := range i {
+		if !o.Contains(key) {
+			s.Add(key)
+		}
+	}
+	return s
+}
+
+func (i InstanceIDSet) Contains(id InstanceID) bool {
+	_, exists := i[id]
+	return exists
+}
+
 func (i InstanceIDSet) String() string {
 	s := "{"
 	n := 0
@@ -107,6 +123,11 @@ func (i InstanceMap) Remove(instance *Instance) {
 
 func (i InstanceMap) RemoveID(id InstanceID) {
 	delete(i, id)
+}
+
+func (i InstanceMap) ContainsID(id InstanceID) bool {
+	_, exists := i[id]
+	return exists
 }
 
 func (i InstanceMap) InstanceIDs() []InstanceID {
