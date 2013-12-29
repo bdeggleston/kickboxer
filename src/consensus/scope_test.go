@@ -38,6 +38,14 @@ func TestInstanceCreation(t *testing.T) {
 
 	testing_helpers.AssertEqual(t, "Sequence", 5, int(instance.Sequence))
 	testing_helpers.AssertEqual(t, "Ballot", 0, int(instance.MaxBallot))
+
+	if _, exists := scope.instances[instance.InstanceID]; !exists {
+		t.Errorf("Expected to find instance in `instances`")
+	}
+
+	if _, exists := scope.inProgress[instance.InstanceID]; !exists {
+		t.Errorf("Expected to find instance in `inProgress`")
+	}
 }
 
 func TestGetCurrentDeps(t *testing.T) {
