@@ -93,6 +93,14 @@ func (i InstanceIDSet) Contains(id InstanceID) bool {
 	return exists
 }
 
+func (i InstanceIDSet) List() []InstanceID {
+	l := make([]InstanceID, 0, len(i))
+	for k := range i {
+		l = append(l, k)
+	}
+	return l
+}
+
 func (i InstanceIDSet) String() string {
 	s := "{"
 	n := 0
