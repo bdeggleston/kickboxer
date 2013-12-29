@@ -147,24 +147,38 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	return instance, nil
 }
 
-func (s *Scope) addMissingInstanceUnsafe(instance *Instance) error {
-	if !s.instances.ContainsID(instance.InstanceID) {
-		switch instance.Status {
-		case INSTANCE_PREACCEPTED:
-			instance.commitTimeout = makePreAcceptCommitTimeout()
-			s.inProgress.Add(instance)
-		case INSTANCE_ACCEPTED:
-			instance.commitTimeout = makeAcceptCommitTimeout()
-			s.inProgress.Add(instance)
-		case INSTANCE_REJECTED:
-			panic("rejected instances not handled yet")
-		case INSTANCE_COMMITTED:
-			s.committed.Add(instance)
-		case INSTANCE_EXECUTED:
-			instance.Status = INSTANCE_COMMITTED
-			s.committed.Add(instance)
+func (s *Scope) addMissingInstancesUnsafe(instances... *Instance) error {
+	for _, instance := range instances {
+		if !s.instances.ContainsID(instance.InstanceID) {
+			switch instance.Status {
+			case INSTANCE_PREACCEPTED:
+				instance.commitTimeout = makePreAcceptCommitTimeout()
+				s.inProgress.Add(instance)
+			case INSTANCE_ACCEPTED:
+				instance.commitTimeout = makeAcceptCommitTimeout()
+				s.inProgress.Add(instance)
+			case INSTANCE_REJECTED:
+				panic("rejected instances not handled yet")
+			case INSTANCE_COMMITTED:
+				s.committed.Add(instance)
+			case INSTANCE_EXECUTED:
+				instance.Status = INSTANCE_COMMITTED
+				s.committed.Add(instance)
+			}
+			s.instances.Add(instance)
 		}
-		s.instances.Add(instance)
+	}
+	return nil
+}
+
+func (s *Scope) addMissingInstances(instances... *Instance) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if err := s.addMissingInstancesUnsafe(instances...); err != nil {
+		return err
+	}
+	if err := s.Persist(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -478,8 +492,8 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		instance.commitTimeout = makeAcceptCommitTimeout()
 	}
 
-	for _, instance := range request.MissingInstances {
-		s.addMissingInstanceUnsafe(instance)
+	if len(request.MissingInstances) > 0 {
+		s.addMissingInstancesUnsafe(request.MissingInstances...)
 	}
 
 	if err := s.Persist(); err != nil {
