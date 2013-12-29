@@ -62,6 +62,7 @@ type Scope struct {
 	lock       sync.RWMutex
 	cmdLock    sync.Mutex
 	manager    *Manager
+	persistCount uint64
 }
 
 func NewScope(name string, manager *Manager) *Scope {
@@ -81,6 +82,7 @@ func (s *Scope) GetLocalID() node.NodeId {
 
 // persists the scope's state to disk
 func (s *Scope) Persist() error {
+	s.persistCount++
 	return nil
 }
 
