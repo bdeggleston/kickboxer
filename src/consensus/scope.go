@@ -17,14 +17,33 @@ var (
 	// preaccept responses
 	PREACCEPT_TIMEOUT = uint64(500)
 
+	// the amount of time a replica will wait
+	// on a message with a preaccept status
+	// before attempting to force a commit
+	PREACCEPT_COMMIT_TIMEOUT = uint64(750)
+
 	// timeout receiving a quorum of
 	// accept responses
 	ACCEPT_TIMEOUT = uint64(500)
+
+	// the amount of time a replica will wait
+	// on a message with a accept status
+	// before attempting to force a commit
+	ACCEPT_COMMIT_TIMEOUT = uint64(750)
 )
+
+func makePreAcceptCommitTimeout() time.Time {
+	return time.Now().Add(PREACCEPT_COMMIT_TIMEOUT * time.Millisecond)
+}
+
+func makeAcceptCommitTimeout() time.Time {
+	return time.Now().Add(ACCEPT_COMMIT_TIMEOUT * time.Millisecond)
+}
 
 type TimeoutError struct {
 	message string
 }
+
 func (t TimeoutError) Error() string { return t.message }
 func (t TimeoutError) String() string { return t.message }
 func NewTimeoutError(format string, a ...interface{}) TimeoutError {
@@ -225,6 +244,7 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
+
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
 	msg := &AcceptRequest{Scope:s.name, Instance:instance}
@@ -372,6 +392,9 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	instance.Status = INSTANCE_PREACCEPTED
 	instance.Sequence = s.getNextSeqUnsafe()
 	instance.Dependencies = s.getCurrentDepsUnsafe()
+	instance.commitTimeout = makePreAcceptCommitTimeout()
+
+	// add to scope
 	s.instances.Add(instance)
 	s.inProgress.Add(instance)
 
@@ -402,6 +425,61 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 }
 
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	reqInstance := request.Instance
+	id := reqInstance.InstanceID
+
+	if !s.instances.ContainsID(id) {
+		// add to scope
+		reqInstance.commitTimeout = makeAcceptCommitTimeout()
+		s.instances.Add(reqInstance)
+		s.inProgress.Add(reqInstance)
+	} else {
+		instance := s.instances[id]
+
+		// message is out of date, reject
+		if instance.MaxBallot >= reqInstance.MaxBallot {
+			return &AcceptResponse{Accepted:false, MaxBallot:instance.MaxBallot}
+		}
+
+		if instance.Status != INSTANCE_PREACCEPTED {
+			// how would this happen, if the ballot was correct?
+			panic("handling non pre accept instance not handled yet")
+		}
+
+		// accept the new attributes
+		instance.Dependencies = reqInstance.Dependencies
+		instance.Sequence = reqInstance.Sequence
+		instance.MaxBallot = reqInstance.MaxBallot
+		instance.commitTimeout = makeAcceptCommitTimeout()
+	}
+
+	for _, instance := range request.MissingInstances {
+		if !s.instances.ContainsID(instance.InstanceID) {
+			switch instance.Status {
+			case INSTANCE_PREACCEPTED:
+				instance.commitTimeout = makePreAcceptCommitTimeout()
+				s.inProgress.Add(instance)
+			case INSTANCE_ACCEPTED:
+				instance.commitTimeout = makeAcceptCommitTimeout()
+				s.inProgress.Add(instance)
+			case INSTANCE_REJECTED:
+				panic("rejected instances not handled yet")
+			case INSTANCE_COMMITTED:
+				s.committed.Add(instance)
+			case INSTANCE_EXECUTED:
+				instance.Status = INSTANCE_COMMITTED
+				s.committed.Add(instance)
+			}
+			s.instances.Add(instance)
+		}
+	}
+
+	if err := s.Persist(); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
