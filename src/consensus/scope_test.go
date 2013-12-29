@@ -10,21 +10,6 @@ import (
 	"testing_helpers"
 )
 
-func setupScope() *Scope {
-	manager := NewManager(newMockCluster())
-	scope := NewScope("a", manager)
-	for i:=0; i<4; i++ {
-		scope.inProgress[NewInstanceID()] = nil
-	}
-	for i:=0; i<4; i++ {
-		scope.committed[NewInstanceID()] = nil
-	}
-	for i:=0; i<4; i++ {
-		scope.executed = append(scope.executed, NewInstanceID())
-	}
-	return scope
-}
-
 // test that instances are created properly
 func TestInstanceCreation(t *testing.T) {
 	// TODO: test new instances are added to inProgress
@@ -46,6 +31,8 @@ func TestInstanceCreation(t *testing.T) {
 	if _, exists := scope.inProgress[instance.InstanceID]; !exists {
 		t.Errorf("Expected to find instance in `inProgress`")
 	}
+
+	// TODO: check persist is called
 }
 
 func TestGetCurrentDeps(t *testing.T) {

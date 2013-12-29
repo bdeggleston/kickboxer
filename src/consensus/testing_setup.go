@@ -8,6 +8,22 @@ import (
 	"store"
 )
 
+func setupScope() *Scope {
+	manager := NewManager(newMockCluster())
+	scope := NewScope("a", manager)
+	for i:=0; i<4; i++ {
+		scope.inProgress[NewInstanceID()] = nil
+	}
+	for i:=0; i<4; i++ {
+		scope.committed[NewInstanceID()] = nil
+	}
+	for i:=0; i<4; i++ {
+		scope.executed = append(scope.executed, NewInstanceID())
+	}
+	return scope
+}
+
+
 // returns a set of mock nodes of the given size
 func setupReplicaSet(size int) []*mockNode {
 	replicas := make([]*mockNode, size)
