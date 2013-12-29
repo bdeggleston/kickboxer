@@ -358,12 +358,47 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	id := request.Instance.InstanceID
+
+	// TODO: check if this is a late message (ie: this replica already knows about the instance)
+	if s.instances.ContainsID(id) {
+		panic("handling previously seen instance not handled yet")
+	}
+
+	extSeq := request.Instance.Sequence
+	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	instance := request.Instance
 	instance.Status = INSTANCE_PREACCEPTED
 	instance.Sequence = s.getNextSeqUnsafe()
 	instance.Dependencies = s.getCurrentDepsUnsafe()
-	return nil, nil
+	s.instances.Add(instance)
+	s.inProgress.Add(instance)
+
+	// check agreement on seq and deps with leader
+	newDeps := NewInstanceIDSet(instance.Dependencies)
+	instance.dependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
+
+	if err := s.Persist(); err != nil {
+		return nil, err
+	}
+
+	missingDeps := newDeps.Subtract(extDeps)
+	reply := &PreAcceptResponse{
+		Accepted: true,
+		MaxBallot: instance.MaxBallot,
+		Instance: instance,
+		MissingInstances: make([]*Instance, 0, len(missingDeps)),
+	}
+
+	for iid := range missingDeps {
+		inst := s.instances[iid]
+		if inst != nil {
+			reply.MissingInstances = append(reply.MissingInstances, inst)
+		}
+	}
+
+	return reply, nil
 }
 
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {

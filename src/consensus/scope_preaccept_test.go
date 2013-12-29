@@ -215,15 +215,22 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 
 /** Replica **/
 
+// tests that the dependency match flag is set
+// if the seq and deps matched
 func TestHandlePreAcceptSameDeps(t *testing.T) {
+	scope := setupScope()
 
 }
 
-func TestHandlePreAcceptOldBallotFailure(t *testing.T) {
-
-}
-
+// tests that the replica updates the sequence and
+// dependencies if it disagrees with the leader
 func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
+
+}
+
+// checks that handle pre-accept returns any missing
+// instance dependencies that the leader didn't include
+func TestHandlePreAcceptMissingDeps(t *testing.T) {
 
 }
 
