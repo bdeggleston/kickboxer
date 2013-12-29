@@ -94,3 +94,8 @@ func TestGetNextSeq(t *testing.T) {
 	testing_helpers.AssertEqual(t, "nextSeq", uint64(6), nextSeq)
 }
 
+// tests that the addMissingInstance method works properly
+func TestAddMissingInstanceNotPreviouslySeen(t *testing.T) {
+
+}
+
