@@ -93,6 +93,10 @@ func (i InstanceIDSet) String() string {
 
 type InstanceMap map[InstanceID]*Instance
 
+func NewInstanceMap() InstanceMap {
+	return make(InstanceMap)
+}
+
 func (i InstanceMap) Add(instance *Instance) {
 	i[instance.InstanceID] = instance
 }
@@ -103,6 +107,14 @@ func (i InstanceMap) Remove(instance *Instance) {
 
 func (i InstanceMap) RemoveID(id InstanceID) {
 	delete(i, id)
+}
+
+func (i InstanceMap) InstanceIDs() []InstanceID {
+	arr := make([]InstanceID, 0, len(i))
+	for key := range i {
+		arr = append(arr, key)
+	}
+	return arr
 }
 
 type Instance struct {

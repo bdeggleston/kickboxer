@@ -35,9 +35,9 @@ func NewTimeoutError(format string, a ...interface{}) TimeoutError {
 // consensus operations
 type Scope struct {
 	name       string
-	instances  map[InstanceID]*Instance
-	inProgress map[InstanceID]*Instance
-	committed  map[InstanceID]*Instance
+	instances  InstanceMap
+	inProgress InstanceMap
+	committed  InstanceMap
 	executed   []InstanceID
 	maxSeq     uint64
 	lock       sync.RWMutex
@@ -48,9 +48,9 @@ type Scope struct {
 func NewScope(name string, manager *Manager) *Scope {
 	return &Scope{
 		name:       name,
-		instances:  make(map[InstanceID]*Instance),
-		inProgress: make(map[InstanceID]*Instance),
-		committed:  make(map[InstanceID]*Instance),
+		instances:  NewInstanceMap(),
+		inProgress: NewInstanceMap(),
+		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 		manager:    manager,
 	}
@@ -85,13 +85,8 @@ func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	}
 
 	deps := make([]InstanceID, 0, numDeps)
-	for dep := range s.inProgress {
-		deps = append(deps, dep)
-	}
-
-	for dep := range s.committed {
-		deps = append(deps, dep)
-	}
+	deps  = append(deps, s.inProgress.InstanceIDs()...)
+	deps  = append(deps, s.committed.InstanceIDs()...)
 
 	if len(s.executed) > 0 {
 		deps = append(deps, s.executed[len(s.executed) - 1])
@@ -107,7 +102,8 @@ func (s *Scope) getNextSeqUnsafe() uint64 {
 	return s.maxSeq
 }
 
-// creates an epaxos instance from the given instructions
+// creates an epaxos instance from the given instructions and adds it
+// to the scope's bookeeping containers
 func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -122,8 +118,8 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	}
 
 	// add to manager maps
-	s.instances[instance.InstanceID] = instance
-	s.inProgress[instance.InstanceID] = instance
+	s.instances.Add(instance)
+	s.inProgress.Add(instance)
 
 	if err := s.Persist(); err != nil {
 		return nil, err
@@ -349,7 +345,6 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 		if err := s.sendAccept(instance, replicas); err != nil {
 			return nil, err
 		}
-
 	}
 
 	// if we've gotten this far, either all the pre accept instance attributes
