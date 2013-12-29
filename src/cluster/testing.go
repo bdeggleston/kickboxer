@@ -1,7 +1,8 @@
-/**
- * Helpers for testing cluster functionality
- */
 package cluster
+
+/*
+Helpers for testing cluster functionality
+ */
 
 import (
 	"encoding/binary"

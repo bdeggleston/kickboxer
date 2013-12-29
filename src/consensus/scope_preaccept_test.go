@@ -235,7 +235,9 @@ func TestHandlePreAcceptSameDeps(t *testing.T) {
 		Instance: instance,
 	}
 
+	// process the preaccept message
 	response, err := scope.HandlePreAccept(request)
+
 	if err != nil {
 		t.Fatalf("Error handling pre accept: %v", err)
 	}
@@ -250,6 +252,7 @@ func TestHandlePreAcceptSameDeps(t *testing.T) {
 	}
 	testing_helpers.AssertEqual(t, "Sequence", uint64(4), localInstance.Sequence)
 	testing_helpers.AssertEqual(t, "dependencyMatch", true, localInstance.dependencyMatch)
+	testing_helpers.AssertEqual(t, "MissingInstances size", 0, len(response.MissingInstances))
 }
 
 // tests that the replica updates the sequence and
@@ -278,7 +281,9 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 
 	scope.instances[missingDep] = &Instance{InstanceID:missingDep}
 
+	// process the preaccept message
 	response, err := scope.HandlePreAccept(request)
+
 	if err != nil {
 		t.Fatalf("Error handling pre accept: %v", err)
 	}

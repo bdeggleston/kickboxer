@@ -1,3 +1,6 @@
+/*
+Kickboxer's egalitarian paxos implementation
+ */
 package consensus
 
 import (

@@ -1,3 +1,6 @@
+/*
+Handles internode organization and communication
+ */
 package cluster
 
 import (

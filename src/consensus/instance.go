@@ -16,7 +16,7 @@ import (
 type InstanceStatus byte
 
 const (
-	INSTANCE_IGNORED = InstanceStatus(iota)
+	_ = InstanceStatus(iota)
 	INSTANCE_PREACCEPTED
 	INSTANCE_ACCEPTED
 	INSTANCE_REJECTED
@@ -146,6 +146,7 @@ func (i InstanceMap) InstanceIDs() []InstanceID {
 	return arr
 }
 
+// a serializable set of instructions
 type Instance struct {
 	// the uuid of this instance
 	InstanceID InstanceID
