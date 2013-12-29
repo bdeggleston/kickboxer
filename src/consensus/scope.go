@@ -33,11 +33,11 @@ var (
 )
 
 func makePreAcceptCommitTimeout() time.Time {
-	return time.Now().Add(PREACCEPT_COMMIT_TIMEOUT * time.Millisecond)
+	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
 func makeAcceptCommitTimeout() time.Time {
-	return time.Now().Add(ACCEPT_COMMIT_TIMEOUT * time.Millisecond)
+	return time.Now().Add(time.Duration(ACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
 type TimeoutError struct {
@@ -441,7 +441,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 
 		// message is out of date, reject
 		if instance.MaxBallot >= reqInstance.MaxBallot {
-			return &AcceptResponse{Accepted:false, MaxBallot:instance.MaxBallot}
+			return &AcceptResponse{Accepted:false, MaxBallot:instance.MaxBallot}, nil
 		}
 
 		if instance.Status != INSTANCE_PREACCEPTED {
