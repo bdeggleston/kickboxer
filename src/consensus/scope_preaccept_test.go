@@ -261,7 +261,6 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 	replicaDeps := scope.getCurrentDepsUnsafe()
 	leaderDeps := scope.getCurrentDepsUnsafe()
 	missingDep := leaderDeps[0]
-	_ = missingDep
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
 	instance := &Instance{
@@ -276,6 +275,8 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 		Scope: scope.name,
 		Instance: instance,
 	}
+
+	scope.instances[missingDep] = &Instance{InstanceID:missingDep}
 
 	response, err := scope.HandlePreAccept(request)
 	if err != nil {
@@ -295,11 +296,13 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 
 	testing_helpers.AssertEqual(t, "Sequence", uint64(4), responseInst.Sequence)
 	testing_helpers.AssertEqual(t, "dependencyMatch", false, responseInst.dependencyMatch)
-}
 
-// checks that handle pre-accept returns any missing
-// instance dependencies that the leader didn't include
-func TestHandlePreAcceptMissingDeps(t *testing.T) {
+	// check that handle pre-accept returns any missing
+	// instance dependencies that the leader didn't include
+	if size := len(response.MissingInstances); size != 1 {
+		t.Fatalf("Expected 1 missing instance, got: %v", size)
+	}
+	testing_helpers.AssertEqual(t, "InstanceId", missingDep, response.MissingInstances[0].InstanceID)
 
 }
 
