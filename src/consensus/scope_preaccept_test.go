@@ -8,6 +8,7 @@ import (
 
 import (
 	"message"
+	"node"
 	"testing_helpers"
 )
 
@@ -219,7 +220,34 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 // if the seq and deps matched
 func TestHandlePreAcceptSameDeps(t *testing.T) {
 	scope := setupScope()
+	scope.maxSeq = 3
 
+	instance := &Instance{
+		InstanceID: NewInstanceID(),
+		LeaderID: node.NewNodeId(),
+		Commands: getBasicInstruction(),
+		Dependencies: scope.getCurrentDepsUnsafe(),
+		Sequence: scope.maxSeq - 1,
+		Status: INSTANCE_PREACCEPTED,
+	}
+	request := &PreAcceptRequest{
+		Scope: scope.name,
+		Instance: instance,
+	}
+
+	response, err := scope.HandlePreAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling pre accept: %v", err)
+	}
+
+	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+
+	localInstance := scope.instances[instance.InstanceID]
+	expectedDeps := NewInstanceIDSet(instance.Dependencies)
+	actualDeps := NewInstanceIDSet(localInstance.Dependencies)
+	if !expectedDeps.Equal(actualDeps) {
+		t.Fatalf("actual dependencies don't match expected dependencies")
+	}
 }
 
 // tests that the replica updates the sequence and
