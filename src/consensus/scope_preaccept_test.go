@@ -226,3 +226,10 @@ func TestHandlePreAcceptOldBallotFailure(t *testing.T) {
 func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 
 }
+
+// if the pre accept message reaches the replica
+// after the command has been accepted, or committed
+func TestHandlePreAcceptLate(t *testing.T) {
+	// TODO: does the replica need to do anything besides ignore it?
+	t.Skip("figure out the expected behavior")
+}
