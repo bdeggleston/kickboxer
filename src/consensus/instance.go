@@ -91,6 +91,20 @@ func (i InstanceIDSet) String() string {
 	return s
 }
 
+type InstanceMap map[InstanceID]*Instance
+
+func (i InstanceMap) Add(instance *Instance) {
+	i[instance.InstanceID] = instance
+}
+
+func (i InstanceMap) Remove(instance *Instance) {
+	delete(i, instance.InstanceID)
+}
+
+func (i InstanceMap) RemoveID(id InstanceID) {
+	delete(i, id)
+}
+
 type Instance struct {
 	// the uuid of this instance
 	InstanceID InstanceID
