@@ -67,6 +67,8 @@ type AcceptRequest struct {
 	// is going to
 	Scope    string
 
+	// the instance the remote node is instructed
+	// to accept
 	Instance *Instance
 
 	// if the replica seems to be missing
