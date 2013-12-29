@@ -147,6 +147,28 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, erro
 	return instance, nil
 }
 
+func (s *Scope) addMissingInstanceUnsafe(instance *Instance) error {
+	if !s.instances.ContainsID(instance.InstanceID) {
+		switch instance.Status {
+		case INSTANCE_PREACCEPTED:
+			instance.commitTimeout = makePreAcceptCommitTimeout()
+			s.inProgress.Add(instance)
+		case INSTANCE_ACCEPTED:
+			instance.commitTimeout = makeAcceptCommitTimeout()
+			s.inProgress.Add(instance)
+		case INSTANCE_REJECTED:
+			panic("rejected instances not handled yet")
+		case INSTANCE_COMMITTED:
+			s.committed.Add(instance)
+		case INSTANCE_EXECUTED:
+			instance.Status = INSTANCE_COMMITTED
+			s.committed.Add(instance)
+		}
+		s.instances.Add(instance)
+	}
+	return nil
+}
+
 func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses []BallotMessage) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -372,7 +394,7 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	// commit this instance
 	s.commitInstance(instance, replicas)
 
-	return nil, nil
+	return s.executeInstance(instance, replicas)
 }
 
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
@@ -457,24 +479,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	}
 
 	for _, instance := range request.MissingInstances {
-		if !s.instances.ContainsID(instance.InstanceID) {
-			switch instance.Status {
-			case INSTANCE_PREACCEPTED:
-				instance.commitTimeout = makePreAcceptCommitTimeout()
-				s.inProgress.Add(instance)
-			case INSTANCE_ACCEPTED:
-				instance.commitTimeout = makeAcceptCommitTimeout()
-				s.inProgress.Add(instance)
-			case INSTANCE_REJECTED:
-				panic("rejected instances not handled yet")
-			case INSTANCE_COMMITTED:
-				s.committed.Add(instance)
-			case INSTANCE_EXECUTED:
-				instance.Status = INSTANCE_COMMITTED
-				s.committed.Add(instance)
-			}
-			s.instances.Add(instance)
-		}
+		s.addMissingInstanceUnsafe(instance)
 	}
 
 	if err := s.Persist(); err != nil {
