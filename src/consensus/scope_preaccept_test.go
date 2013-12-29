@@ -227,7 +227,7 @@ func TestHandlePreAcceptSameDeps(t *testing.T) {
 		LeaderID: node.NewNodeId(),
 		Commands: getBasicInstruction(),
 		Dependencies: scope.getCurrentDepsUnsafe(),
-		Sequence: scope.maxSeq - 1,
+		Sequence: scope.maxSeq + 1,
 		Status: INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
@@ -248,12 +248,53 @@ func TestHandlePreAcceptSameDeps(t *testing.T) {
 	if !expectedDeps.Equal(actualDeps) {
 		t.Fatalf("actual dependencies don't match expected dependencies")
 	}
+	testing_helpers.AssertEqual(t, "Sequence", uint64(4), localInstance.Sequence)
+	testing_helpers.AssertEqual(t, "dependencyMatch", true, localInstance.dependencyMatch)
 }
 
 // tests that the replica updates the sequence and
 // dependencies if it disagrees with the leader
 func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
+	scope := setupScope()
+	scope.maxSeq = 3
 
+	replicaDeps := scope.getCurrentDepsUnsafe()
+	leaderDeps := scope.getCurrentDepsUnsafe()
+	missingDep := leaderDeps[0]
+	_ = missingDep
+	extraDep := NewInstanceID()
+	leaderDeps[0] = extraDep
+	instance := &Instance{
+		InstanceID: NewInstanceID(),
+		LeaderID: node.NewNodeId(),
+		Commands: getBasicInstruction(),
+		Dependencies: leaderDeps,
+		Sequence: 3,
+		Status: INSTANCE_PREACCEPTED,
+	}
+	request := &PreAcceptRequest{
+		Scope: scope.name,
+		Instance: instance,
+	}
+
+	response, err := scope.HandlePreAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling pre accept: %v", err)
+	}
+
+	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+
+	responseInst := response.Instance
+	expectedDeps := NewInstanceIDSet(replicaDeps)
+
+	actualDeps := NewInstanceIDSet(responseInst.Dependencies)
+	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
+	if !expectedDeps.Equal(actualDeps) {
+		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
+	}
+
+	testing_helpers.AssertEqual(t, "Sequence", uint64(4), responseInst.Sequence)
+	testing_helpers.AssertEqual(t, "dependencyMatch", false, responseInst.dependencyMatch)
 }
 
 // checks that handle pre-accept returns any missing
