@@ -6,6 +6,7 @@ import (
 
 import (
 	"store"
+	"node"
 )
 
 func setupScope() *Scope {
@@ -62,4 +63,16 @@ func copyDependencies(o []*InstanceID) []*InstanceID {
 	n := make([]*InstanceID, len(o))
 	copy(n, o)
 	return n
+}
+
+func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
+	instance := &Instance{
+		InstanceID: NewInstanceID(),
+		LeaderID: nid,
+		Commands: getBasicInstruction(),
+		Dependencies: deps,
+		Sequence: 0,
+		Status: INSTANCE_PREACCEPTED,
+	}
+	return instance
 }
