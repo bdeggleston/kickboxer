@@ -90,7 +90,41 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 // or added to the inProgress set if it already has
 // a higher status
 func TestAcceptInstanceHigherStatusFailure(t *testing.T) {
+	scope := setupScope()
 
+	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
+	scope.maxSeq = 3
+	replicaInstance.Sequence = scope.maxSeq
+	replicaInstance.Status = INSTANCE_COMMITTED
+
+	scope.instances.Add(replicaInstance)
+	scope.committed.Add(replicaInstance)
+
+	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance.Status = INSTANCE_ACCEPTED
+
+	// sanity checks
+	if _, exists := scope.committed[leaderInstance.InstanceID]; !exists {
+		t.Fatalf("Expected to find instance in scope committed")
+	}
+	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope inProgress")
+	}
+
+	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
+		t.Fatalf("Unexpected error accepting instance: %v", err)
+	} else if accepted {
+		t.Error("Expected accept to be skipped")
+	}
+
+	// check set memberships haven't changed
+	if _, exists := scope.committed[leaderInstance.InstanceID]; !exists {
+		t.Fatalf("Expected to find instance in scope committed")
+	}
+	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope inProgress")
+	}
+	testing_helpers.AssertEqual(t, "replica status", INSTANCE_COMMITTED, replicaInstance.Status)
 }
 
 /** leader **/
