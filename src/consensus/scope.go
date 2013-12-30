@@ -280,22 +280,43 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	return changes, nil
 }
 
-func (s *Scope) acceptInstance(instance *Instance) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
+// sets the given instance as accepted
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_ACCEPTED {
 			return nil
+		} else {
+			existing.Dependencies = instance.Dependencies
+			existing.Sequence = instance.Sequence
+			existing.MaxBallot = instance.MaxBallot
 		}
+	} else {
+		s.instances.Add(instance)
 	}
 
 	instance.Status = INSTANCE_ACCEPTED
+	instance.commitTimeout = makeAcceptCommitTimeout()
 	s.inProgress.Add(instance)
 	if err := s.Persist(); err != nil {
 		return err
 	}
 	return nil
+}
+
+// sets the given instance as accepted
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+func (s *Scope) acceptInstance(instance *Instance) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.acceptInstanceUnsafe(instance)
 }
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
@@ -487,33 +508,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	reqInstance := request.Instance
-	id := reqInstance.InstanceID
-
-	if !s.instances.ContainsID(id) {
-		// add to scope
-		reqInstance.commitTimeout = makeAcceptCommitTimeout()
-		s.instances.Add(reqInstance)
-		s.inProgress.Add(reqInstance)
-	} else {
-		instance := s.instances[id]
-
-		// message is out of date, reject
-		if instance.MaxBallot >= reqInstance.MaxBallot {
-			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
-		}
-
-		if instance.Status != INSTANCE_PREACCEPTED {
-			// how would this happen, if the ballot was correct?
-			panic("handling non pre accept instance not handled yet")
-		}
-
-		// accept the new attributes
-		instance.Dependencies = reqInstance.Dependencies
-		instance.Sequence = reqInstance.Sequence
-		instance.MaxBallot = reqInstance.MaxBallot
-		instance.commitTimeout = makeAcceptCommitTimeout()
-	}
+	s.acceptInstanceUnsafe(request.Instance)
 
 	if len(request.MissingInstances) > 0 {
 		s.addMissingInstancesUnsafe(request.MissingInstances...)
