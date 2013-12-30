@@ -19,27 +19,3 @@ func TestNonReplicaLeaderFailure(t *testing.T) {
 func TestInstanceCreationPersistenceError(t *testing.T) {
 
 }
-
-func TestSendAcceptSuccess(t *testing.T) {
-
-}
-
-func TestSendAcceptQuorumFailure(t *testing.T) {
-
-}
-
-func TestSendAcceptBallotFailure(t *testing.T) {
-
-}
-
-func TestSendCommitSuccess(t *testing.T) {
-
-}
-
-func TestSendCommitQuorumFailure(t *testing.T) {
-
-}
-
-func TestSendCommitBallotFailure(t *testing.T) {
-
-}
