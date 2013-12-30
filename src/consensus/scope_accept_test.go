@@ -45,7 +45,37 @@ func TestAcceptInstanceSuccess(t *testing.T) {
 // added to the instances and inProgress set, and
 // persisted if the instance hasn't been seen before
 func TestAcceptInstanceUnseenSuccess(t *testing.T) {
+	scope := setupScope()
+	scope.maxSeq = 3
 
+	leaderInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
+	leaderInstance.Sequence = scope.maxSeq + 2
+
+	// sanity checks
+	if _, exists := scope.instances[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope instances")
+	}
+	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope inProgress")
+	}
+	if _, exists := scope.committed[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope committed")
+	}
+
+	scope.acceptInstance(leaderInstance)
+	if _, exists := scope.instances[leaderInstance.InstanceID]; !exists {
+		t.Fatalf("Expected to find instance in scope instance")
+	}
+	if _, exists := scope.inProgress[leaderInstance.InstanceID]; !exists {
+		t.Fatalf("Expected to find instance in scope inProgress")
+	}
+	if _, exists := scope.committed[leaderInstance.InstanceID]; exists {
+		t.Fatalf("Unexpectedly found instance in scope committed")
+	}
+	replicaInstance := scope.instances[leaderInstance.InstanceID]
+	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
+	testing_helpers.AssertEqual(t, "replica seq", uint64(5), replicaInstance.Sequence)
+	testing_helpers.AssertEqual(t, "scope seq", uint64(5), scope.maxSeq)
 }
 
 // tests that an instance is not marked as accepted,
