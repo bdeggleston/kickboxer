@@ -34,7 +34,11 @@ func TestAcceptInstanceSuccess(t *testing.T) {
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
-	scope.acceptInstance(leaderInstance)
+	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
+		t.Fatalf("Unexpected error accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Acceptance unexpectedly skipped")
+	}
 	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
@@ -62,7 +66,11 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 
-	scope.acceptInstance(leaderInstance)
+	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
+		t.Fatalf("Unexpected error accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Acceptance unexpectedly skipped")
+	}
 	if _, exists := scope.instances[leaderInstance.InstanceID]; !exists {
 		t.Fatalf("Expected to find instance in scope instance")
 	}

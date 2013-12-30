@@ -285,10 +285,12 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
 // instance to the scope's instance
-func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) acceptInstanceUnsafe(instance *Instance) (bool, error) {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_ACCEPTED {
-			return nil
+			return false, nil
 		} else {
 			existing.Dependencies = instance.Dependencies
 			existing.Sequence = instance.Sequence
@@ -307,9 +309,9 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
 	}
 
 	if err := s.Persist(); err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return true, nil
 }
 
 // sets the given instance as accepted
@@ -317,7 +319,9 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
 // instance to the scope's instance
-func (s *Scope) acceptInstance(instance *Instance) error {
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) acceptInstance(instance *Instance) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
