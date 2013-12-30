@@ -64,6 +64,14 @@ func copyDependencies(o []*InstanceID) []*InstanceID {
 	return n
 }
 
+func makeDependencies(size int) []InstanceID {
+	d := make([]InstanceID, size)
+	for i := 0; i < size; i++ {
+		d[i] = NewInstanceID()
+	}
+	return d
+}
+
 func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
