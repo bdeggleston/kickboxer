@@ -7,9 +7,16 @@ import (
 /** acceptInstance **/
 
 // tests that an instance is marked as accepted,
-// added to the inProgress set, and persisted
-// if it doesn't have a higher status
+// added to the inProgress set, has it's seq & deps
+// updated and persisted if it's only preaccepted
 func TestAcceptInstanceSuccess(t *testing.T) {
+
+}
+
+// tests that an instance is marked as accepted,
+// added to the instances and inProgress set, and
+// persisted if the instance hasn't been seen before
+func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 
 }
 
@@ -22,10 +29,13 @@ func TestAcceptInstanceHigherStatusFailure(t *testing.T) {
 
 /** leader **/
 
+// tests all replicas returning results
 func TestSendAcceptSuccess(t *testing.T) {
 
 }
 
+// tests proper error is returned if
+// less than a quorum respond
 func TestSendAcceptQuorumFailure(t *testing.T) {
 
 }
