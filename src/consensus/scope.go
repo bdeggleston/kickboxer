@@ -301,6 +301,11 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
 	instance.Status = INSTANCE_ACCEPTED
 	instance.commitTimeout = makeAcceptCommitTimeout()
 	s.inProgress.Add(instance)
+
+	if instance.Sequence > s.maxSeq {
+		s.maxSeq = instance.Sequence
+	}
+
 	if err := s.Persist(); err != nil {
 		return err
 	}

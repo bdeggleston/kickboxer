@@ -4,12 +4,40 @@ import (
 	"testing"
 )
 
+import (
+	"node"
+	"testing_helpers"
+)
+
 /** acceptInstance **/
 
 // tests that an instance is marked as accepted,
 // added to the inProgress set, has it's seq & deps
 // updated and persisted if it's only preaccepted
 func TestAcceptInstanceSuccess(t *testing.T) {
+	scope := setupScope()
+
+	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
+	scope.maxSeq = 3
+	replicaInstance.Sequence = scope.maxSeq
+
+	scope.instances.Add(replicaInstance)
+	scope.inProgress.Add(replicaInstance)
+	scope.maxSeq = replicaInstance.Sequence
+
+	// sanity checks
+	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
+	testing_helpers.AssertEqual(t, "replica seq", uint64(3), replicaInstance.Sequence)
+	testing_helpers.AssertEqual(t, "scope seq", uint64(3), scope.maxSeq)
+
+	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance.Sequence++
+	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
+
+	scope.acceptInstance(leaderInstance)
+	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
+	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
+	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
 
 }
 
