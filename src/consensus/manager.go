@@ -46,7 +46,7 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
+func (m *Manager) ExecuteQuery(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	localId := m.cluster.GetID()
 	eligibleLeader := false
 	for _, replica := range replicas {
@@ -76,7 +76,7 @@ func (m *Manager) ExecuteInstructions(instructions []*store.Instruction, replica
 		panic("Forward to eligible replica not implemented yet")
 	} else {
 		scope := m.getScope(key)
-		val, err := scope.ExecuteInstructions(instructions, replicas)
+		val, err := scope.ExecuteQuery(instructions, replicas)
 		return val, err
 	}
 

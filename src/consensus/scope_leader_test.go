@@ -8,7 +8,7 @@ import (
 )
 
 // tests that execution will fail if the command leader
-// (the node running ExecuteInstructions) can't find
+// (the node running ExecuteQuery can't find
 // itself in the list of given replicas
 func TestNonReplicaLeaderFailure(t *testing.T) {
 
