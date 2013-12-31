@@ -18,7 +18,7 @@ func TestInstanceCreation(t *testing.T) {
 	instance := scope.makeInstance(instructions)
 
 	testing_helpers.AssertEqual(t, "Ballot", 0, int(instance.MaxBallot))
-	testing_helpers.AssertEqual(t, "LeaderID", scope.GetLocalID(), int(instance.MaxBallot))
+	testing_helpers.AssertEqual(t, "LeaderID", scope.GetLocalID(), instance.LeaderID)
 }
 
 func TestGetCurrentDeps(t *testing.T) {
