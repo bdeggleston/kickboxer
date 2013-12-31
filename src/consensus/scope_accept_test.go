@@ -42,6 +42,7 @@ func TestAcceptInstanceSuccess(t *testing.T) {
 	} else if !accepted {
 		t.Error("Acceptance unexpectedly skipped")
 	}
+	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, replicaInstance.Status)
 	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
@@ -84,6 +85,7 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 	replicaInstance := scope.instances[leaderInstance.InstanceID]
+	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, replicaInstance.Status)
 	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(5), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(5), scope.maxSeq)

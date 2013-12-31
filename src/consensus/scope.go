@@ -314,6 +314,7 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) (bool, error) {
 		if existing.Status >= INSTANCE_ACCEPTED {
 			return false, nil
 		} else {
+			existing.Status = INSTANCE_ACCEPTED
 			existing.Dependencies = instance.Dependencies
 			existing.Sequence = instance.Sequence
 			existing.MaxBallot = instance.MaxBallot
