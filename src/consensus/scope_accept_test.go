@@ -42,7 +42,8 @@ func TestAcceptInstanceSuccess(t *testing.T) {
 	} else if !accepted {
 		t.Error("Acceptance unexpectedly skipped")
 	}
-	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, replicaInstance.Status)
+	testing_helpers.AssertEqual(t, "replica Status", INSTANCE_ACCEPTED, replicaInstance.Status)
+	testing_helpers.AssertEqual(t, "leader Status", INSTANCE_ACCEPTED, leaderInstance.Status)
 	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
@@ -60,13 +61,13 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 	leaderInstance.Sequence = scope.maxSeq + 2
 
 	// sanity checks
-	if _, exists := scope.instances[leaderInstance.InstanceID]; exists {
+	if scope.instances.Contains(leaderInstance) {
 		t.Fatalf("Unexpectedly found instance in scope instances")
 	}
-	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
+	if scope.inProgress.Contains(leaderInstance) {
 		t.Fatalf("Unexpectedly found instance in scope inProgress")
 	}
-	if _, exists := scope.committed[leaderInstance.InstanceID]; exists {
+	if scope.committed.Contains(leaderInstance) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 
@@ -75,17 +76,18 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 	} else if !accepted {
 		t.Error("Acceptance unexpectedly skipped")
 	}
-	if _, exists := scope.instances[leaderInstance.InstanceID]; !exists {
+	if !scope.instances.Contains(leaderInstance) {
 		t.Fatalf("Expected to find instance in scope instance")
 	}
-	if _, exists := scope.inProgress[leaderInstance.InstanceID]; !exists {
+	if !scope.inProgress.Contains(leaderInstance) {
 		t.Fatalf("Expected to find instance in scope inProgress")
 	}
-	if _, exists := scope.committed[leaderInstance.InstanceID]; exists {
+	if scope.committed.Contains(leaderInstance) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 	replicaInstance := scope.instances[leaderInstance.InstanceID]
-	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, replicaInstance.Status)
+	testing_helpers.AssertEqual(t, "replica Status", INSTANCE_ACCEPTED, replicaInstance.Status)
+	testing_helpers.AssertEqual(t, "leader Status", INSTANCE_ACCEPTED, leaderInstance.Status)
 	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(5), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(5), scope.maxSeq)
@@ -168,6 +170,15 @@ func TestSendAcceptSuccess(t *testing.T) {
 	err := scope.sendAccept(instance, transformMockNodeArray(replicas))
 	if err != nil {
 		t.Errorf("Unexpected error receiving responses: %v", err)
+	}
+
+	// test that the nodes received the correct message
+	for _, replica := range replicas {
+		testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages))
+		msg := replica.sentMessages[0]
+		if _, ok := msg.(*AcceptRequest); !ok {
+			fmt.Errorf("Wrong message type received: %T", msg)
+		}
 	}
 }
 

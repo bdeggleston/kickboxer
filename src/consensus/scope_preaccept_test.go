@@ -110,6 +110,15 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 		t.Errorf("Less than quorum received")
 	}
 
+	// test that the nodes received the correct message
+	for _, replica := range replicas {
+		testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages))
+		msg := replica.sentMessages[0]
+		if _, ok := msg.(*PreAcceptRequest); !ok {
+			fmt.Errorf("Wrong message type received: %T", msg)
+		}
+	}
+
 }
 
 func TestSendPreAcceptQuorumFailure(t *testing.T) {
