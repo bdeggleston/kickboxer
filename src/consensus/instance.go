@@ -138,6 +138,10 @@ func (i InstanceMap) ContainsID(id InstanceID) bool {
 	return exists
 }
 
+func (i InstanceMap) Contains(instance *Instance) bool {
+	return i.ContainsID(instance.InstanceID)
+}
+
 func (i InstanceMap) InstanceIDs() []InstanceID {
 	arr := make([]InstanceID, 0, len(i))
 	for key := range i {
