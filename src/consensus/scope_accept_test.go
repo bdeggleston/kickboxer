@@ -155,24 +155,158 @@ func TestSendAcceptBallotFailure(t *testing.T) {
 // an accept request is received, and there are no
 // problems with the request
 func TestHandleAcceptSuccessCase(t *testing.T) {
+	scope := setupScope()
+	instance := scope.makeInstance(getBasicInstruction())
 
-}
+	if success, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Error preaccepting instance: %v", err)
+	} else if !success {
+		t.Fatalf("Preaccept was not successful")
+	}
 
-// tests that accept messages fail if an higher
-// ballot number has been seen for this message
-func TestHandleAcceptOldBallotFailure(t *testing.T) {
+	leaderInstance := copyInstance(instance)
+	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
+	leaderInstance.Sequence += 5
+	leaderInstance.MaxBallot++
 
-}
+	request := &AcceptRequest{
+		Scope: scope.name,
+		Instance: leaderInstance,
+		MissingInstances: []*Instance{},
+	}
 
-// tests that handle accept adds any missing instances
-// in the missing instances message
-func TestHandleAcceptMissingInstanceBehavior(t *testing.T) {
+	response, err := scope.HandleAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling accept: %v", err)
+	}
 
+	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+
+	// check dependencies
+	expectedDeps := NewInstanceIDSet(leaderInstance.Dependencies)
+	actualDeps := NewInstanceIDSet(instance.Dependencies)
+	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
+	if !expectedDeps.Equal(actualDeps) {
+		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
+	}
+
+	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, instance.Sequence)
+	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, scope.maxSeq)
 }
 
 // tests that accepts are handled properly if
 // the commit if for an instance the node has
 // not been previously seen by this replica
 func TestHandleAcceptUnknownInstance(t *testing.T) {
+	scope := setupScope()
+
+	leaderID := node.NewNodeId()
+	leaderInstance := makeInstance(leaderID, scope.getCurrentDepsUnsafe())
+	leaderInstance.Sequence += 5
+
+	request := &AcceptRequest{
+		Scope: scope.name,
+		Instance: leaderInstance,
+		MissingInstances: []*Instance{},
+	}
+
+	// sanity checks
+	if scope.instances.ContainsID(leaderInstance.InstanceID) {
+		t.Fatalf("Unexpectedly found instance in scope instances")
+	}
+
+	response, err := scope.HandleAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling accept: %v", err)
+	}
+
+	if !scope.instances.ContainsID(leaderInstance.InstanceID) {
+		t.Fatalf("Expected instance in scope instances")
+	}
+	instance := scope.instances[leaderInstance.InstanceID]
+
+	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+
+	// check dependencies
+	expectedDeps := NewInstanceIDSet(leaderInstance.Dependencies)
+	actualDeps := NewInstanceIDSet(instance.Dependencies)
+	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
+	if !expectedDeps.Equal(actualDeps) {
+		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
+	}
+
+	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, instance.Sequence)
+	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, scope.maxSeq)
+}
+
+// tests that accept messages fail if an higher
+// ballot number has been seen for this message
+func TestHandleAcceptOldBallotFailure(t *testing.T) {
+	scope := setupScope()
+	instance := scope.makeInstance(getBasicInstruction())
+
+	if success, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Error preaccepting instance: %v", err)
+	} else if !success {
+		t.Fatalf("Preaccept was not successful")
+	}
+
+	leaderInstance := copyInstance(instance)
+	leaderInstance.Sequence += 5
+
+	request := &AcceptRequest{
+		Scope: scope.name,
+		Instance: leaderInstance,
+		MissingInstances: []*Instance{},
+	}
+
+	instance.MaxBallot++
+	response, err := scope.HandleAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling accept: %v", err)
+	}
+
+	testing_helpers.AssertEqual(t, "Accepted", false, response.Accepted)
+	testing_helpers.AssertEqual(t, "MaxBallot", instance.MaxBallot, response.MaxBallot)
+}
+
+// tests that handle accept adds any missing instances
+// in the missing instances message
+func TestHandleAcceptMissingInstanceBehavior(t *testing.T) {
+	scope := setupScope()
+	instance := scope.makeInstance(getBasicInstruction())
+
+	if success, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Error preaccepting instance: %v", err)
+	} else if !success {
+		t.Fatalf("Preaccept was not successful")
+	}
+
+	leaderID := node.NewNodeId()
+	missingInstance := makeInstance(leaderID, instance.Dependencies)
+	leaderInstance := copyInstance(instance)
+	leaderInstance.Dependencies = append(leaderInstance.Dependencies, missingInstance.InstanceID)
+	leaderInstance.Sequence += 5
+	leaderInstance.MaxBallot++
+
+	// sanity checks
+	if scope.instances.ContainsID(missingInstance.InstanceID) {
+		t.Fatalf("Unexpectedly found missing instance in scope instances")
+	}
+
+	request := &AcceptRequest{
+		Scope: scope.name,
+		Instance: leaderInstance,
+		MissingInstances: []*Instance{missingInstance},
+	}
+
+	response, err := scope.HandleAccept(request)
+	if err != nil {
+		t.Fatalf("Error handling accept: %v", err)
+	}
+	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+	if !scope.instances.ContainsID(missingInstance.InstanceID) {
+		t.Fatalf("Expected instance in scope instances")
+	}
 
 }
