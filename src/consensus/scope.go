@@ -491,25 +491,16 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	id := request.Instance.InstanceID
-
-	// TODO: check if this is a late message (ie: this replica already knows about the instance)
-	if s.instances.ContainsID(id) {
-		panic("handling previously seen instance not handled yet")
-	}
 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	instance := request.Instance
-	instance.Status = INSTANCE_PREACCEPTED
-	instance.Sequence = s.getNextSeqUnsafe()
-	instance.Dependencies = s.getCurrentDepsUnsafe()
-	instance.commitTimeout = makePreAcceptCommitTimeout()
-
-	// add to scope
-	s.instances.Add(instance)
-	s.inProgress.Add(instance)
+	if success, err := s.preAcceptInstanceUnsafe(instance); err != nil {
+		return nil, err
+	} else if !success {
+		panic("handling previously seen instance not handled yet")
+	}
 
 	// check agreement on seq and deps with leader
 	newDeps := NewInstanceIDSet(instance.Dependencies)
@@ -541,6 +532,12 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
+		if instance.MaxBallot >= request.Instance.MaxBallot {
+			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
+		}
+	}
+
 	s.acceptInstanceUnsafe(request.Instance)
 
 	if len(request.MissingInstances) > 0 {
@@ -550,7 +547,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return &AcceptResponse{Accepted: true}, nil
 }
 
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
