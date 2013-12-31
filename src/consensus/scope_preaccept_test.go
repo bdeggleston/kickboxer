@@ -112,10 +112,12 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 
 	// test that the nodes received the correct message
 	for _, replica := range replicas {
-		testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages))
+		if !testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages)) {
+			continue
+		}
 		msg := replica.sentMessages[0]
 		if _, ok := msg.(*PreAcceptRequest); !ok {
-			fmt.Errorf("Wrong message type received: %T", msg)
+			t.Errorf("Wrong message type received: %T", msg)
 		}
 	}
 
