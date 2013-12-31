@@ -12,14 +12,34 @@ import (
 func setupScope() *Scope {
 	manager := NewManager(newMockCluster())
 	scope := NewScope("a", manager)
+	seq := uint64(0)
 	for i := 0; i < 4; i++ {
-		scope.inProgress[NewInstanceID()] = nil
+		seq++
+		instance := scope.makeInstance(getBasicInstruction())
+		instance.Status = INSTANCE_EXECUTED
+		instance.Sequence = seq
+		scope.instances.Add(instance)
+		scope.executed = append(scope.executed, instance.InstanceID)
 	}
 	for i := 0; i < 4; i++ {
-		scope.committed[NewInstanceID()] = nil
+		seq++
+		instance := scope.makeInstance(getBasicInstruction())
+		instance.Status = INSTANCE_COMMITTED
+		instance.Sequence = seq
+		scope.instances.Add(instance)
+		scope.committed.Add(instance)
 	}
 	for i := 0; i < 4; i++ {
-		scope.executed = append(scope.executed, NewInstanceID())
+		seq++
+		instance := scope.makeInstance(getBasicInstruction())
+		if i > 1 {
+			instance.Status = INSTANCE_ACCEPTED
+		} else {
+			instance.Status = INSTANCE_PREACCEPTED
+		}
+		instance.Sequence = seq
+		scope.instances.Add(instance)
+		scope.inProgress.Add(instance)
 	}
 	return scope
 }
