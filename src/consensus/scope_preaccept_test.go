@@ -12,6 +12,71 @@ import (
 	"testing_helpers"
 )
 
+/** preAcceptInstance **/
+
+func TestPreAcceptInstanceSuccess(t *testing.T) {
+	scope := setupScope()
+	instance := scope.makeInstance(getBasicInstruction())
+
+	// sanity check
+	if scope.instances.Contains(instance) {
+		t.Fatalf("Unexpectedly found new instance in scope instances")
+	}
+	if scope.inProgress.Contains(instance) {
+		t.Fatalf("Unexpectedly found new instance in scope inProgress")
+	}
+	if scope.committed.Contains(instance) {
+		t.Fatalf("Unexpectedly found new instance in scope committed")
+	}
+
+	seq := scope.maxSeq
+	if success, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Error preaccepting instance: %v", err)
+	} else if !success {
+		t.Fatalf("Preaccept was not successful")
+	}
+
+	if !scope.instances.Contains(instance) {
+		t.Fatalf("Expected to find new instance in scope instances")
+	}
+	if !scope.inProgress.Contains(instance) {
+		t.Fatalf("Expected to find new instance in scope inProgress")
+	}
+	if scope.committed.Contains(instance) {
+		t.Fatalf("Unexpectedly found new instance in scope committed")
+	}
+
+	testing_helpers.AssertEqual(t, "replica seq", seq + 1, instance.Sequence)
+	testing_helpers.AssertEqual(t, "scope seq", seq + 1, scope.maxSeq)
+}
+
+func TestPreAcceptInstanceHigherStatusFailure(t *testing.T) {
+	scope := setupScope()
+	instance := scope.makeInstance(getBasicInstruction())
+	instance.Status = INSTANCE_ACCEPTED
+	scope.instances.Add(instance)
+	scope.inProgress.Add(instance)
+
+	// sanity check
+	if !scope.instances.Contains(instance) {
+		t.Fatalf("Expected to find new instance in scope instances")
+	}
+	if !scope.inProgress.Contains(instance) {
+		t.Fatalf("Expected to find new instance in scope inProgress")
+	}
+	if scope.committed.Contains(instance) {
+		t.Fatalf("Unexpectedly found new instance in scope committed")
+	}
+
+	if success, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Error preaccepting instance: %v", err)
+	} else if success {
+		t.Fatalf("Expected pre accept to fail")
+	}
+
+	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, instance.Status)
+}
+
 /** Leader **/
 
 // tests all replicas returning results
