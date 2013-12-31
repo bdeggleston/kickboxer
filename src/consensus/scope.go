@@ -32,6 +32,16 @@ var (
 	ACCEPT_COMMIT_TIMEOUT = uint64(750)
 )
 
+/*
+TODO: fix these issues
+
+Problem: if a replica is added to, or removed from, the cluster mid transaction, the transaction will
+be executing against an out of date set of replicas.
+
+Solution: the scope needs to know the consistency level, and have a means of querying the cluster
+for the proper replicas each time it needs to send a message to the replicas
+ */
+
 func makePreAcceptCommitTimeout() time.Time {
 	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
@@ -410,6 +420,58 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
+// sets the given instance as committed
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
+	if existing, exists := s.instances[instance.InstanceID]; exists {
+		if existing.Status >= INSTANCE_COMMITTED {
+			return false, nil
+		} else {
+			// this replica may have missed an accept message
+			// so copy the seq & deps onto the existing instance
+			existing.Status = INSTANCE_COMMITTED
+			existing.Dependencies = instance.Dependencies
+			existing.Sequence = instance.Sequence
+			existing.MaxBallot = instance.MaxBallot
+		}
+	} else {
+		s.instances.Add(instance)
+	}
+
+	instance.Status = INSTANCE_COMMITTED
+	s.inProgress.Remove(instance)
+	s.committed.Add(instance)
+
+	if instance.Sequence > s.maxSeq {
+		s.maxSeq = instance.Sequence
+	}
+
+	if err := s.Persist(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// sets the given instance as committed
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) commitInstance(instance *Instance) (bool, error) {
+	s.lock.Lock()
+	s.lock.Unlock()
+
+	return s.commitInstanceUnsafe(instance)
+}
+
 // Mark the instance as committed locally, persist state to disk, then send
 // commit messages to the other replicas
 // We're not concerned with whether the replicas actually respond because, since
@@ -417,11 +479,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 // won't be able to do anything else without finding out about it. This method
 // will only return an error if persisting the committed state fails
 func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
-	if err := s.setInstanceStatus(instance, INSTANCE_COMMITTED); err != nil {
-		return err
-	}
-
-	msg := &CommitRequest{Scope: s.name, InstanceID: instance.InstanceID}
+	msg := &CommitRequest{Scope: s.name, Instance: instance}
 	sendCommit := func(n node.Node) { n.SendMessage(msg) }
 	for _, replica := range replicas {
 		go sendCommit(replica)
@@ -488,6 +546,11 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 	// if we've gotten this far, either all the pre accept instance attributes
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
+	if success, err := s.commitInstance(instance); err != nil {
+		return nil, err
+	} else if !success {
+		panic("instance already exists")
+	}
 	s.sendCommit(instance, replicas)
 
 	return s.executeInstance(instance, replicas)
@@ -543,7 +606,11 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		}
 	}
 
-	s.acceptInstanceUnsafe(request.Instance)
+	if success, err := s.acceptInstanceUnsafe(request.Instance); err != nil {
+		return nil, err
+	} else if !success {
+		panic("handling previously seen instance not handled yet")
+	}
 
 	if len(request.MissingInstances) > 0 {
 		s.addMissingInstancesUnsafe(request.MissingInstances...)
@@ -556,7 +623,16 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 }
 
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
-	return nil, nil
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if success, err := s.commitInstanceUnsafe(request.Instance); err != nil {
+		return nil, err
+	} else if !success {
+		panic("handling previously seen instance not handled yet")
+	}
+
+	return &CommitResponse{}, nil
 }
 
 func (s *Scope) HandleMessage(message ScopedMessage) (message.Message, error) {
