@@ -351,6 +351,9 @@ func (s *Scope) acceptInstance(instance *Instance) (bool, error) {
 }
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
+	oldTimeout := PREACCEPT_TIMEOUT
+	PREACCEPT_TIMEOUT = 50
+	defer func() { PREACCEPT_TIMEOUT = oldTimeout }()
 
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
@@ -359,9 +362,10 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		} else {
-			if accept, ok := response.(*AcceptResponse); !ok {
-				logger.Warning("Unexpected Accept response type: %T", response)
+			if accept, ok := response.(*AcceptResponse); ok {
 				recvChan <- accept
+			} else {
+				logger.Warning("Unexpected Accept response type: %T", response)
 			}
 		}
 	}
@@ -374,14 +378,14 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	timeoutEvent := time.After(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
 	var response *AcceptResponse
-	responses := make([]*AcceptResponse, len(replicas))
+	responses := make([]*AcceptResponse, 0, len(replicas))
 	for numReceived < quorumSize {
 		select {
 		case response = <-recvChan:
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
-			return fmt.Errorf("Timeout while awaiting pre accept responses")
+			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
 	}
 

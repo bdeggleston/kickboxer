@@ -1,10 +1,13 @@
 package consensus
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 import (
+	"message"
 	"node"
 	"testing_helpers"
 )
@@ -131,13 +134,91 @@ func TestAcceptInstanceHigherStatusFailure(t *testing.T) {
 
 // tests all replicas returning results
 func TestSendAcceptSuccess(t *testing.T) {
+	nodes := setupReplicaSet(5)
+	leader := nodes[0]
+	replicas := nodes[1:]
+	scope := leader.manager.getScope("a")
+	instance := scope.makeInstance(getBasicInstruction())
 
+	if accepted, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Unexpected error pre accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Pre accept unexpectedly skipped")
+	}
+	if accepted, err := scope.acceptInstance(instance); err != nil {
+		t.Fatalf("Unexpected error accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Accept unexpectedly skipped")
+	}
+
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &AcceptResponse{
+			Accepted:         true,
+			MaxBallot:        instance.MaxBallot,
+		}, nil
+	}
+
+	for _, replica := range replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	err := scope.sendAccept(instance, transformMockNodeArray(replicas))
+	if err != nil {
+		t.Errorf("Unexpected error receiving responses: %v", err)
+	}
 }
 
 // tests proper error is returned if
 // less than a quorum respond
 func TestSendAcceptQuorumFailure(t *testing.T) {
+	oldTimeout := ACCEPT_TIMEOUT
+	ACCEPT_TIMEOUT = 50
+	defer func() { ACCEPT_TIMEOUT = oldTimeout }()
 
+	nodes := setupReplicaSet(5)
+	leader := nodes[0]
+	replicas := nodes[1:]
+	scope := leader.manager.getScope("a")
+	instance := scope.makeInstance(getBasicInstruction())
+
+	if accepted, err := scope.preAcceptInstance(instance); err != nil {
+		t.Fatalf("Unexpected error pre accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Pre accept unexpectedly skipped")
+	}
+	if accepted, err := scope.acceptInstance(instance); err != nil {
+		t.Fatalf("Unexpected error accepting instance: %v", err)
+	} else if !accepted {
+		t.Error("Accept unexpectedly skipped")
+	}
+
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &AcceptResponse{
+			Accepted:         true,
+			MaxBallot:        instance.MaxBallot,
+		}, nil
+	}
+	hangResponse := func(n *mockNode, m message.Message) (message.Message, error) {
+		time.Sleep(1 * time.Second)
+		return nil, fmt.Errorf("nope")
+	}
+
+	for i, replica := range replicas {
+		if i == 0 {
+			replica.messageHandler = responseFunc
+		} else {
+			replica.messageHandler = hangResponse
+		}
+	}
+	err := scope.sendAccept(instance, transformMockNodeArray(replicas))
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+	if _, ok := err.(TimeoutError); !ok {
+		t.Errorf("Expected TimeoutError, got: %T", err)
+	}
 }
 
 func TestSendAcceptBallotFailure(t *testing.T) {
