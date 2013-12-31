@@ -100,8 +100,9 @@ type CommitRequest struct {
 	// is going to
 	Scope string
 
-	// the id of the messages to be committed
-	InstanceID InstanceID
+	// the instance the remote node is instructed
+	// to accept
+	Instance *Instance
 }
 
 func (m *CommitRequest) GetScope() string { return m.Scope }
