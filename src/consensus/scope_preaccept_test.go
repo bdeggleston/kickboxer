@@ -20,10 +20,7 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 	leader := nodes[0]
 	replicas := nodes[1:]
 	scope := leader.manager.getScope("a")
-	instance, err := scope.makeInstance(getBasicInstruction())
-	if err != nil {
-		t.Fatalf("There was a problem creating the instance: %v", err)
-	}
+	instance := scope.makeInstance(getBasicInstruction())
 
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
@@ -55,10 +52,7 @@ func TestSendPreAcceptQuorumFailure(t *testing.T) {
 	leader := nodes[0]
 	replicas := nodes[1:]
 	scope := leader.manager.getScope("a")
-	instance, err := scope.makeInstance(getBasicInstruction())
-	if err != nil {
-		t.Fatalf("There was a problem creating the instance: %v", err)
-	}
+	instance := scope.makeInstance(getBasicInstruction())
 
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
@@ -108,11 +102,8 @@ func TestSendPreAcceptBallotFailure(t *testing.T) {
 func TestMergePreAcceptAttributes(t *testing.T) {
 	leader := setupReplicaSet(1)[0]
 	scope := leader.manager.getScope("a")
-	instance, err := scope.makeInstance(getBasicInstruction())
+	instance := scope.makeInstance(getBasicInstruction())
 
-	if err != nil {
-		t.Fatalf("There was a problem creating the instance: %v", err)
-	}
 	for i := 0; i < 4; i++ {
 		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
 	}
@@ -164,11 +155,8 @@ func TestMergePreAcceptAttributes(t *testing.T) {
 func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 	leader := setupReplicaSet(1)[0]
 	scope := leader.manager.getScope("a")
-	instance, err := scope.makeInstance(getBasicInstruction())
+	instance := scope.makeInstance(getBasicInstruction())
 
-	if err != nil {
-		t.Fatalf("There was a problem creating the instance: %v", err)
-	}
 	for i := 0; i < 4; i++ {
 		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
 	}

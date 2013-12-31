@@ -123,30 +123,15 @@ func (s *Scope) getNextSeqUnsafe() uint64 {
 	return s.maxSeq
 }
 
-// creates an epaxos instance from the given instructions and adds it
-// to the scope's bookeeping containers
-func (s *Scope) makeInstance(instructions []*store.Instruction) (*Instance, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
+// creates a bare epaxos instance from the given instructions
+func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     s.GetLocalID(),
 		Commands:     instructions,
-		Dependencies: s.getCurrentDepsUnsafe(),
-		Sequence:     s.getNextSeqUnsafe(),
-		Status:       INSTANCE_PREACCEPTED,
 	}
 
-	// add to manager maps
-	s.instances.Add(instance)
-	s.inProgress.Add(instance)
-
-	if err := s.Persist(); err != nil {
-		return nil, err
-	}
-
-	return instance, nil
+	return instance
 }
 
 func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
@@ -203,6 +188,43 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 		return err
 	}
 	return nil
+}
+
+func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) (bool, error) {
+	if existing, exists := s.instances[instance.InstanceID]; exists {
+		if existing.Status >= INSTANCE_PREACCEPTED {
+			return false, nil
+		}
+	} else {
+		s.instances.Add(instance)
+	}
+
+	instance.Status = INSTANCE_PREACCEPTED
+	instance.Dependencies = s.getCurrentDepsUnsafe()
+	instance.Sequence = s.getNextSeqUnsafe()
+	instance.commitTimeout = makePreAcceptCommitTimeout()
+	s.inProgress.Add(instance)
+
+	if err := s.Persist(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// sets the given instance to preaccepted and updates, deps,
+// seq, and commit timeout
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) preAcceptInstance(instance *Instance) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.preAcceptInstanceUnsafe(instance)
 }
 
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned
@@ -427,10 +449,12 @@ func (s *Scope) ExecuteInstructions(instructions []*store.Instruction, replicas 
 		return nil, fmt.Errorf("remote replica size != replicas - 1. Are there duplicates?")
 	}
 
-	// create epaxos instance
-	instance, err := s.makeInstance(instructions)
-	if err != nil {
+	// create epaxos instance, and preaccept locally
+	instance := s.makeInstance(instructions)
+	if success, err := s.preAcceptInstance(instance); err != nil {
 		return nil, err
+	} else if !success {
+		panic("instance already exists")
 	}
 
 	// send instance pre-accept to replicas

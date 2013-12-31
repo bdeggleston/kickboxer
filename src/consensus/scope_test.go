@@ -14,25 +14,11 @@ import (
 func TestInstanceCreation(t *testing.T) {
 	// TODO: test new instances are added to inProgress
 	scope := setupScope()
-	scope.maxSeq = 4
 	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
-	instance, err := scope.makeInstance(instructions)
-	if err != nil {
-		t.Fatalf("Error creating instance: %v", err)
-	}
+	instance := scope.makeInstance(instructions)
 
-	testing_helpers.AssertEqual(t, "Sequence", 5, int(instance.Sequence))
 	testing_helpers.AssertEqual(t, "Ballot", 0, int(instance.MaxBallot))
-
-	if _, exists := scope.instances[instance.InstanceID]; !exists {
-		t.Errorf("Expected to find instance in `instances`")
-	}
-
-	if _, exists := scope.inProgress[instance.InstanceID]; !exists {
-		t.Errorf("Expected to find instance in `inProgress`")
-	}
-
-	// TODO: check persist is called
+	testing_helpers.AssertEqual(t, "LeaderID", scope.GetLocalID(), int(instance.MaxBallot))
 }
 
 func TestGetCurrentDeps(t *testing.T) {
