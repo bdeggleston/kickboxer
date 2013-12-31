@@ -37,6 +37,7 @@ type mockNode struct {
 	cluster        *mockCluster
 	manager        *Manager
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
+	sentMessages   []message.Message
 }
 
 func newMockNode() *mockNode {
@@ -47,6 +48,7 @@ func newMockNode() *mockNode {
 		cluster:        cluster,
 		manager:        NewManager(cluster),
 		messageHandler: mockNodeDefaultMessageHandler,
+		sentMessages:   make([]message.Message, 0),
 	}
 }
 
@@ -58,6 +60,7 @@ func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp
 }
 
 func (n *mockNode) SendMessage(msg message.Message) (message.Message, error) {
+	n.sentMessages = append(n.sentMessages, msg)
 	return n.messageHandler(n, msg)
 }
 
