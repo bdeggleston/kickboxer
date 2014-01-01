@@ -7,7 +7,6 @@ import (
 )
 
 import (
-	"message"
 	"node"
 	"store"
 )
@@ -644,16 +643,3 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	return &CommitResponse{}, nil
 }
 
-func (s *Scope) HandleMessage(message ScopedMessage) (message.Message, error) {
-	switch request := message.(type) {
-	case *PreAcceptRequest:
-		return s.HandlePreAccept(request)
-	case *CommitRequest:
-		return s.HandleCommit(request)
-	case *AcceptRequest:
-		return s.HandleAccept(request)
-	default:
-		return nil, fmt.Errorf("Unexpected message type: %T", message)
-	}
-	panic("unreachable")
-}

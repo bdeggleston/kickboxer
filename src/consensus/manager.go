@@ -84,10 +84,19 @@ func (m *Manager) ExecuteQuery(instructions []*store.Instruction, replicas []nod
 }
 
 func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
-	if request, ok := msg.(ScopedMessage); ok {
-		scope := m.getScope(request.GetScope())
-		return scope.HandleMessage(request)
+	if scopedRequest, ok := msg.(ScopedMessage); ok {
+		scope := m.getScope(scopedRequest.GetScope())
+		switch request := scopedRequest.(type) {
+		case *PreAcceptRequest:
+			return scope.HandlePreAccept(request)
+		case *AcceptRequest:
+			return scope.HandleAccept(request)
+		case *CommitRequest:
+			return scope.HandleCommit(request)
+		default:
+			return nil, fmt.Errorf("Unhandled scoped request type: %T", scopedRequest)
 
+		}
 	} else {
 		return nil, fmt.Errorf("Only scoped messages are handled")
 	}
