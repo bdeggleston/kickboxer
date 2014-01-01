@@ -494,6 +494,9 @@ func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store
 	return nil, nil
 }
 
+// executes a serialized query against the cluster
+// this method designates the node it's called on as the command leader for the given query
+// and therefore, should only be called once per client query
 func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
 	// replica setup
 	remoteReplicas := make([]node.Node, 0, len(replicas)-1)
@@ -556,6 +559,8 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 	return s.executeInstance(instance, replicas)
 }
 
+// handles a preaccept message from the command leader for an instance
+// this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -596,6 +601,8 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	return reply, nil
 }
 
+// handles an accept message from the command leader for an instance
+// this executes the replica accept phase for the given instance
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -622,6 +629,8 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	return &AcceptResponse{Accepted: true}, nil
 }
 
+// handles an commit message from the command leader for an instance
+// this executes the replica commit phase for the given instance
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
