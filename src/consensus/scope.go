@@ -32,13 +32,18 @@ var (
 )
 
 /*
-TODO: fix these issues
+TODO: ->
 
-Problem: if a replica is added to, or removed from, the cluster mid transaction, the transaction will
-be executing against an out of date set of replicas.
 
-Solution: the scope needs to know the consistency level, and have a means of querying the cluster
-for the proper replicas each time it needs to send a message to the replicas
+1) The scope needs to know the consistency level, and have a means of querying the cluster
+	for the proper replicas each time it needs to send a message to the replicas. If a replica
+	is added to, or removed from, the cluster mid transaction, the transaction will be executing
+	against an out of date set of replicas.
+
+2) query execution
+3) query repair
+
+
  */
 
 func makePreAcceptCommitTimeout() time.Time {
