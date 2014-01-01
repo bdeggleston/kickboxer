@@ -41,8 +41,31 @@ TODO: ->
 	against an out of date set of replicas.
 
 2) query execution
+
 3) query repair
 
+4) long running integration tests. Each integration iteration should run on one core, with
+	inter-node communication running through a message broker, which will randomly add failure
+	scenarios. At the beginning of each iteration, the random number generator should be seeded
+	with a value that can be recorded, so failures can be later played back and debugged. The
+	mockNode keeps a log of all instructions it has been given. Message logs between nodes
+	should be regularly compared. If any message lists are not equal, or one is not a subset
+	of the other, an error has occurred, and needs to be debugged.
+		Failure Scenarios:
+			* Network partition
+			* Unresponsive node
+			* Deloyed / Out of order messages
+			* Missing messages
+
+5) scope state persistence. Maybe add system state mutation method to store?
+	A triply nested hash table should do the trick for most applications.
+		ex:
+			consensus:
+				<consensus_state> [scope_id][instance_id] = serialized_instance
+			cluster state:
+				<cluster_state> [node_id][node_property] = node_metadata
+
+6) Workout a method for removing old nodes from the dependency graph
 
  */
 
