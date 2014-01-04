@@ -7,11 +7,6 @@ http://sigops.org/sosp/sosp13/papers/p358-moraru.pdf
 package consensus
 
 import (
-	"node"
-	"store"
-)
-
-import (
 	logging "github.com/op/go-logging"
 )
 
@@ -21,8 +16,3 @@ func init() {
 	logger = logging.MustGetLogger("consensus")
 }
 
-// defines relevant cluster methods
-type NodeCoordinator interface {
-	GetID() node.NodeId
-	GetStore() store.Store
-}

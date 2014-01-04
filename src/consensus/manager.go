@@ -6,6 +6,7 @@ import (
 )
 
 import (
+	cluster "clusterproto"
 	"message"
 	"node"
 	"store"
@@ -15,13 +16,13 @@ import (
 type Manager struct {
 	scopeMap map[string]*Scope
 	lock     sync.RWMutex
-	cluster  NodeCoordinator
+	cluster  cluster.Cluster
 }
 
-func NewManager(coordinator NodeCoordinator) *Manager {
+func NewManager(cluster cluster.Cluster) *Manager {
 	return &Manager{
 		scopeMap: make(map[string]*Scope),
-		cluster:  coordinator,
+		cluster:  cluster,
 	}
 }
 
