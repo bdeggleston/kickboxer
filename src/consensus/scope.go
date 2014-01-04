@@ -576,9 +576,16 @@ func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store
 // to other nodes. The increment/send should happen in a lock, the receive should not.
 // We don't want an incoming prepare request to increment the ballot before sending
 // a message out to the other replicas
-func (s *Scope) sendPrepare(instance *Instance) ([]*PrepareResponse, error) {
+func (s *Scope) sendPrepare(instance *Instance) (<-chan *PrepareResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	instance.MaxBallot++
+	if err := s.Persist(); err != nil {
+		return nil, nil
+	}
+	recvChan := make(chan *PreAcceptResponse, 10)
 
-	return nil, nil
+	return recvChan, nil
 }
 
 // runs explicit prepare phase on instances where a command leader failure is suspected
