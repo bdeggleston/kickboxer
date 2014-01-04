@@ -583,7 +583,7 @@ func (s *Scope) sendPrepare(instance *Instance) (<-chan *PrepareResponse, error)
 	if err := s.Persist(); err != nil {
 		return nil, nil
 	}
-	recvChan := make(chan *PreAcceptResponse, 10)
+	recvChan := make(chan *PrepareResponse, 10)
 
 	return recvChan, nil
 }
