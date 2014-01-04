@@ -29,6 +29,15 @@ var (
 	// on a message with a accept status
 	// before attempting to force a commit
 	ACCEPT_COMMIT_TIMEOUT = uint64(750)
+
+	// timeout receiving a quorum of
+	// prepare responses
+	PREPARE_TIMEOUT = uint64(500)
+
+	// the amount of time a replica will wait
+	// on a message with a an attempted prepare
+	// before attempting to force a commit again
+	PREPARE_COMMIT_TIMEOUT = uint64(750)
 )
 
 /*
@@ -561,6 +570,45 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
 func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store.Value, error) {
 	return nil, nil
+}
+
+// increments the instance ballot, and sends and explicit prepare request
+// to other nodes. The increment/send should happen in a lock, the receive should not.
+// We don't want an incoming prepare request to increment the ballot before sending
+// a message out to the other replicas
+func (s *Scope) sendPrepare(instance *Instance) ([]*PrepareResponse, error) {
+
+	return nil, nil
+}
+
+// runs explicit prepare phase on instances where a command leader failure is suspected
+// during execution,
+// TODO:
+//	what happens if 2 nodes send each other prepare messages at the same time?
+func (s *Scope) prepareInstance(instance *Instance) error {
+
+	// update instance ballot
+	updateBallot := func() error {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		instance.MaxBallot++
+		if err := s.Persist(); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := updateBallot(); err != nil {
+		return err
+	}
+
+	// increment the instance ballot, and send prepare messages
+	// to the replicas. By incrementing the instance ballot the
+	// leader is attempting to take control of the instance if
+	// more than one instance is attempting an explicit prepare
+	// (which is likely) the first one to get a quorum of accept
+	// messages wins.
+
+	return nil
 }
 
 // executes a serialized query against the cluster

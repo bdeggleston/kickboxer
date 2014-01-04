@@ -110,3 +110,21 @@ func (m *CommitRequest) GetScope() string { return m.Scope }
 type CommitResponse struct {
 	messageCheat
 }
+
+type PrepareRequest struct {
+	messageCheat
+
+	// the scope name the message
+	// is going to
+	Scope string
+
+	Ballot uint32
+
+	InstanceID InstanceID
+}
+
+type PrepareResponse struct {
+	messageCheat
+
+	Instance *Instance
+}
