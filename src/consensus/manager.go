@@ -43,6 +43,23 @@ func (m *Manager) getScope(key string) *Scope {
 	return instance
 }
 
+// returns the replicas for the scope's key, at the given  consistency level
+func (m *Manager) getScopeNodes(s *Scope, cl cluster.ConsistencyLevel) []node.Node {
+	return m.cluster.GetNodesForKey(s.name, cl)
+}
+
+// returns the replicas for the given scope's key, at the given
+// consistency level, excluding the local node
+func (m *Manager) getScopeReplicas(s *Scope, cl cluster.ConsistencyLevel) []node.Node {
+	nodes := m.getScopeNodes(s, cl)
+	replicas := make([]node.Node, 0, len(nodes))
+	for _, n := range nodes {
+		if n.GetId() == m.GetLocalID() { continue }
+		replicas = append(replicas, n)
+	}
+	return replicas
+}
+
 func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
