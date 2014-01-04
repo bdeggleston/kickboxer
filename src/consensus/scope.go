@@ -56,6 +56,9 @@ TODO: ->
 			* Unresponsive node
 			* Deloyed / Out of order messages
 			* Missing messages
+		Also to do:
+			* wrap timeout event creation in a method that can be mocked out so the
+				test runner can send out random, repeatable timeout events
 
 5) scope state persistence. Maybe add system state mutation method to store?
 	A triply nested hash table should do the trick for most applications.
@@ -67,6 +70,45 @@ TODO: ->
 
 6) Workout a method for removing old nodes from the dependency graph
 
+7) Add response expected param to execute instance, so queries that don't expect
+	a return value can return even if it's instance dependencies have not been committed
+
+8) Track metrics for:
+		- number of rejected requests (Ballot)
+		- number of explicit prepares (sent and received)
+		- number of times / length of time waiting on dependencies to commit
+		- quorum failures
+
+9) Add a broadcast mechanism to notify pending executions that an instance has been committed
+
+ */
+
+/*
+Notes:
+
+Explicit Prepare:
+	Prepare race condition. Since replicas have a common commit timeout, in the event of
+	a leader failure, it's likely that several will try to to take control of an instance
+	once it's commit timeout is up. In the worst case, each replica will increment it's
+	ballot and send out prepare responses at the same time, and then rejecting the other
+	prepare responses. with no replica successfully taking control of the instance. This
+	could conceivably result in the prepare process being deadlocked.
+
+	Possible solutions:
+		add some jitter into the commit timeout
+		on instance creation, the leader randomly sets an order of succession for prepare phase
+			problems:
+				if the immediate successor(s) fails, the prepare phase would be delayed
+
+
+Cluster Changes:
+	Joining nodes. When a node joins the cluster, it needs to get a snapshot of the data
+	for a key, the id of the last executed instance, as well as the instance set for that
+	key's consensus scope. That should allow it to start participating in the consensus
+	process without any inconsistencies. Nodes should probably forward consensus state to
+	the joining node while it's in the process of joining, since it probably wouldn't make
+	sense to have a half joined node start participating in consensus for some of it's keys,
+	but not for others.
  */
 
 func makePreAcceptCommitTimeout() time.Time {
