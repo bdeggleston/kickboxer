@@ -5,6 +5,7 @@ import (
 )
 
 import (
+	cluster "clusterproto"
 	"message"
 	"node"
 	"store"
@@ -12,16 +13,25 @@ import (
 
 type mockCluster struct {
 	id node.NodeId
+	nodes []node.Node
 }
 
 func newMockCluster() *mockCluster {
 	return &mockCluster{
 		id: node.NewNodeId(),
+		nodes: make([]node.Node, 0, 10),
 	}
+}
+
+func (c *mockCluster) addNodes(n ...node.Node) {
+	c.nodes = append(c.nodes, n...)
 }
 
 func (c *mockCluster) GetID() node.NodeId    { return c.id }
 func (c *mockCluster) GetStore() store.Store { return nil }
+func (c *mockCluster) GetNodesForKey(key string, cl cluster.ConsistencyLevel) []node.Node {
+	return c.nodes
+}
 
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
 	return mn.manager.HandleMessage(msg)
