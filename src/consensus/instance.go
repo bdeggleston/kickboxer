@@ -5,6 +5,7 @@ import (
 )
 
 import (
+	cluster "clusterproto"
 	"node"
 	"store"
 )
@@ -161,6 +162,8 @@ type Instance struct {
 	// the Instructions(s) to be executed
 	Commands []*store.Instruction
 
+	// a list of other instance ids that
+	// execution of this instance depends on
 	Dependencies []InstanceID
 
 	// the sequence number of this instance (like an array index)

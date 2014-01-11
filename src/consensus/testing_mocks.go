@@ -5,7 +5,6 @@ import (
 )
 
 import (
-	cluster "clusterproto"
 	"message"
 	"node"
 	"store"
@@ -29,7 +28,7 @@ func (c *mockCluster) addNodes(n ...node.Node) {
 
 func (c *mockCluster) GetID() node.NodeId    { return c.id }
 func (c *mockCluster) GetStore() store.Store { return nil }
-func (c *mockCluster) GetNodesForKey(key string, cl cluster.ConsistencyLevel) []node.Node {
+func (c *mockCluster) GetNodesForKey(key string) []node.Node {
 	return c.nodes
 }
 

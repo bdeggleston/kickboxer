@@ -28,8 +28,7 @@ type Cluster interface {
 	// returns the cluster's store
 	GetStore() store.Store
 
-
 	// returns the replicas for the given key
 	// at the given constistency level
-	GetNodesForKey(key string, cl ConsistencyLevel) []node.Node
+	GetNodesForKey(key string) []node.Node
 }

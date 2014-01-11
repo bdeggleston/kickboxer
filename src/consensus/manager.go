@@ -44,14 +44,24 @@ func (m *Manager) getScope(key string) *Scope {
 }
 
 // returns the replicas for the scope's key, at the given  consistency level
-func (m *Manager) getScopeNodes(s *Scope, cl cluster.ConsistencyLevel) []node.Node {
-	return m.cluster.GetNodesForKey(s.name, cl)
+func (m *Manager) getScopeNodes(s *Scope) []node.Node {
+	return m.cluster.GetNodesForKey(s.name)
 }
 
-// returns the replicas for the given scope's key, at the given
-// consistency level, excluding the local node
-func (m *Manager) getScopeReplicas(s *Scope, cl cluster.ConsistencyLevel) []node.Node {
-	nodes := m.getScopeNodes(s, cl)
+func (m *Manager) checkLocalScopeEligibility(s *Scope) bool {
+	nodes := m.getScopeNodes(s)
+	localID := m.GetLocalID()
+	for _, n := range nodes {
+		if n.GetId() == localID {
+			return true
+		}
+	}
+	return false
+}
+
+// returns the replicas for the given scope's key, excluding the local node
+func (m *Manager) getScopeReplicas(s *Scope) []node.Node {
+	nodes := m.getScopeNodes(s)
 	replicas := make([]node.Node, 0, len(nodes))
 	for _, n := range nodes {
 		if n.GetId() == m.GetLocalID() { continue }
