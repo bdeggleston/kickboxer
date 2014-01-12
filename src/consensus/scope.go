@@ -115,7 +115,6 @@ Explicit Prepare:
 			problems:
 				if the immediate successor(s) fails, the prepare phase would be delayed
 
-
 Cluster Changes:
 	Joining nodes. When a node joins the cluster, it needs to get a snapshot of the data
 	for a key, the id of the last executed instance, as well as the instance set for that
@@ -124,6 +123,35 @@ Cluster Changes:
 	the joining node while it's in the process of joining, since it probably wouldn't make
 	sense to have a half joined node start participating in consensus for some of it's keys,
 	but not for others.
+
+Variable datacenter consistency:
+	Should it even be allowed? If it were, we'd have a situation where different datacenters
+	could diverge in their executed command history for queries without inter dc consistency,
+	and then have this unresolvable situation when queries were done *with* inter dc
+	consistency.
+		Solutions:
+			caveat emptor: Use interdc consistency. You can use local consistency if you want
+				but any inconsistencies are on you. Probably a bad idea?
+			force interdc consistency: don't allow local consensus. Kind of restrictive, but
+				may be desirable in situations where consistency is the priority
+			home dc: assign keys a 'home' datacenter. Probably the first dc to touch the key,
+				unless explicity assigned. Queries performed in the home dc only run consensus
+				in the local dcs, and remote dc nodes forward their queries to the home dc. The
+				home dc could be moved automatically based on query frequency. Reassigning a scope's
+				home would be an inter dc consensus operation.
+				Local consensus reads can be performed against the local cluster, with the understanding
+				that local consensus is not as consistent as inter dc consensus, and local consensus
+				writes are forwarded to the home dc. Interdc consistency from any datacenter, must
+				hear from a quorum of home dc nodes. This might not be a bad model to follow for
+				all consensus operations. But what if a datacenter becomes unavailable? That
+				key will basically be dead until it can be reached again.
+
+				problems:
+					selecting the key owner will require a interdc consensus round. This would
+					be ok for keys with regular r/w, but would be useless for keys that are
+					used only once
+
+			table replication: Have tables that are not replicated across datacenters.
  */
 
 func makePreAcceptCommitTimeout() time.Time {
