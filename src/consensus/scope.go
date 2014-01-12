@@ -1,9 +1,15 @@
 package consensus
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
+)
+
+import (
+	"github.com/looplab/tarjan"
 )
 
 import (
@@ -563,6 +569,80 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 		go sendCommit(replica)
 	}
 	return nil
+}
+
+// sorts the strongly connected subgraph components
+type iidSorter struct {
+	scope *Scope
+	iids []InstanceID
+}
+
+func (i *iidSorter) Len() int {
+	return len(i.iids)
+}
+
+// returns true if the item at index x is less than
+// the item and index y
+func (i *iidSorter) Less(x, y int) bool {
+	i0 := i.scope.instances[i.iids[x]]
+	i1 := i.scope.instances[i.iids[y]]
+
+	// first check the sequence#
+	if i0.Sequence != i1.Sequence {
+		return i0.Sequence < i1.Sequence
+	} else {
+		// then the embedded timestamp
+		t0, _ := i0.InstanceID.UUID().Time()
+		t1, _ := i1.InstanceID.UUID().Time()
+		if t0 != t1 {
+			return t0 < t1
+		} else {
+			// finally the lexicographic comparison
+			return bytes.Compare(i0.InstanceID, i1.InstanceID) == -1
+		}
+	}
+	return false
+}
+
+// switches the position of nodes at indices i & j
+func (i *iidSorter) Swap(x, y int) {
+	i.iids[x], i.iids[y] = i.iids[y], i.iids[x]
+}
+
+// topologically sorts instance dependencies, grouped by strongly
+// connected components
+func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
+	// build a directed graph
+	depGraph := make(map[interface {}][]interface {}, len(instance.Dependencies) + 1)
+	addInstance := func(inst *Instance) {
+		iids := make([]interface {}, len(inst.Dependencies))
+		for i, iid := range inst.Dependencies {
+			iids[i] = iid
+		}
+		depGraph[inst.InstanceID] = iids
+	}
+	addInstance(instance)
+	for _, iid := range instance.Dependencies {
+		inst := s.instances[iid]
+		if inst == nil { panic(fmt.Sprintf("Unknown instance id: %v", iid)) }
+		addInstance(inst)
+	}
+
+	// sort with tarjan's algorithm
+	tSorted := tarjan.Connections(depGraph)
+	_ = tSorted
+	exOrder := make([]InstanceID, 0, len(instance.Dependencies) + 1)
+	for _, set := range tSorted {
+		iids := make([]InstanceID, len(set))
+		for i, iid := range set {
+			iids[i] = iid.(InstanceID)
+		}
+		sorter := &iidSorter{scope:s, iids:iids}
+		sort.Sort(sorter)
+		exOrder = append(exOrder, sorter.iids...)
+	}
+
+	return exOrder
 }
 
 // applies an instance to the store
