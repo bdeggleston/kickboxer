@@ -598,7 +598,7 @@ func (i *iidSorter) Less(x, y int) bool {
 			return t0 < t1
 		} else {
 			// finally the lexicographic comparison
-			return bytes.Compare(i0.InstanceID, i1.InstanceID) == -1
+			return bytes.Compare([]byte(i0.InstanceID), []byte(i1.InstanceID)) == -1
 		}
 	}
 	return false
