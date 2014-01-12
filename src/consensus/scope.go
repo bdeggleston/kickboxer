@@ -630,7 +630,6 @@ func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
 
 	// sort with tarjan's algorithm
 	tSorted := tarjan.Connections(depGraph)
-	_ = tSorted
 	exOrder := make([]InstanceID, 0, len(instance.Dependencies) + 1)
 	for _, set := range tSorted {
 		iids := make([]InstanceID, len(set))
