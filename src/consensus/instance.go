@@ -5,7 +5,6 @@ import (
 )
 
 import (
-	cluster "clusterproto"
 	"node"
 	"store"
 )
