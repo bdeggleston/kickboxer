@@ -640,6 +640,9 @@ func (i *iidSorter) Swap(x, y int) {
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
 func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	// build a directed graph
 	depGraph := make(map[interface {}][]interface {}, len(instance.Dependencies) + 1)
 	addInstance := func(inst *Instance) {
@@ -672,10 +675,42 @@ func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
 	return exOrder
 }
 
+func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	instances := make([]*Instance, 0)
+	for _, iid := range iids {
+		instance := s.instances[iid]
+		if instance.Status < INSTANCE_COMMITTED {
+			instances = append(instances, instance)
+		}
+	}
+
+	return instances
+}
+
+//
+func (s *Scope) executeDependencyChain(iids []InstanceID) (store.Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// TODO: don't execute instances 'out from under' client requests. Use an execution grace period
+
+	return nil, nil
+}
+
 // applies an instance to the store
 // first it will resolve all dependencies, then wait for them to commit/reject, or force them
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
 func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store.Value, error) {
+	// get dependency instance ids, sorted in execution order
+	exOrder := s.getExecutionOrder(instance)
+
+	uncommitted := s.getUncommittedInstances(exOrder)
+	if len(uncommitted) > 0 {
+		panic("explicit prepare not implemented yet")
+	}
+
 	return nil, nil
 }
 
@@ -871,6 +906,9 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	} else if !success {
 		panic("handling previously seen instance not handled yet")
 	}
+
+	// asynchronously apply mutation
+	// TODO: go s.executeInstance(s.instances[request.Instance.InstanceID])
 
 	return &CommitResponse{}, nil
 }

@@ -262,3 +262,9 @@ func TestHandleCommitUnknownInstance(t *testing.T) {
 
 	testing_helpers.AssertEqual(t, "Status", INSTANCE_COMMITTED, instance.Status)
 }
+
+// when a commit message is received, the instance should
+// be asynchronously executed against the store
+func TestHandleCommitAsyncExecute(t *testing.T) {
+	// TODO:
+}
