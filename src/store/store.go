@@ -65,6 +65,9 @@ type Store interface {
 	// executes a write instruction against the node's store
 	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error)
 
+	// executes a query instruction against the node's store
+	ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (Value, error)
+
 	// reconciles multiple values and returns instructions for correcting
 	// the values on inaccurate nodes
 	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
