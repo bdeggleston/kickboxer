@@ -44,6 +44,12 @@ var (
 	// on a message with a an attempted prepare
 	// before attempting to force a commit again
 	PREPARE_COMMIT_TIMEOUT = uint64(750)
+
+	// the amount of time other goroutines will
+	// wait for the local leader goroutine to
+	// execute it's instance before it's assumed
+	// to have failed, and they execute it
+	EXECUTE_TIMEOUT = uint64(50)
 )
 
 /*
@@ -162,6 +168,10 @@ func makeAcceptCommitTimeout() time.Time {
 	return time.Now().Add(time.Duration(ACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
+func makeExecuteTimeout() time.Time {
+	return time.Now().Add(time.Duration(EXECUTE_TIMEOUT) * time.Millisecond)
+}
+
 type TimeoutError struct {
 	message string
 }
@@ -185,6 +195,12 @@ type Scope struct {
 	cmdLock      sync.Mutex
 	manager      *Manager
 	persistCount uint64
+
+	// wakes up goroutines waiting on instance commits
+	commitNotify map[InstanceID]*sync.Cond
+
+	// wakes up goroutines waiting on instance executions
+	executeNotify map[InstanceID]*sync.Cond
 }
 
 func NewScope(name string, manager *Manager) *Scope {
@@ -195,6 +211,8 @@ func NewScope(name string, manager *Manager) *Scope {
 		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 		manager:    manager,
+		commitNotify: make(map[InstanceID]*sync.Cond),
+		executeNotify: make(map[InstanceID]*sync.Cond),
 	}
 }
 
@@ -206,6 +224,12 @@ func (s *Scope) GetLocalID() node.NodeId {
 func (s *Scope) Persist() error {
 	s.persistCount++
 	return nil
+}
+
+func (s *Scope) getInstance(iid InstanceID) *Instance {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.instances[iid]
 }
 
 func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) error {
@@ -563,6 +587,8 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
 		s.maxSeq = instance.Sequence
 	}
 
+	instance.executeTimeout = makeExecuteTimeout()
+
 	if err := s.Persist(); err != nil {
 		return false, err
 	}
@@ -689,14 +715,128 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 	return instances
 }
 
-//
-func (s *Scope) executeDependencyChain(iids []InstanceID) (store.Value, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+// executes and instance against the store
+func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
+	if instance.Status != INSTANCE_COMMITTED {
+		return nil, fmt.Errorf("instance not committed")
+	}
+	var val store.Value
+	var err error
+	localStore := s.manager.cluster.GetStore()
+	for _, instruction := range instance.Commands {
+		val, err = localStore.ExecuteQuery(
+			instruction.Cmd,
+			instruction.Key,
+			instruction.Args,
+			instruction.Timestamp,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// wake up any goroutines waiting on this instance,
+	// and remove the conditional from the notify map
+	if cond, ok := s.executeNotify[instance.InstanceID]; ok {
+		cond.Broadcast()
+		delete(s.executeNotify, instance.InstanceID)
+	}
 
+	// update scope bookkeeping
+	instance.Status = INSTANCE_EXECUTED
+	delete(s.committed, instance.InstanceID)
+	s.executed = append(s.executed, instance.InstanceID)
+	if err := s.Persist(); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+// executes the dependencies up to the given instance
+func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
 	// TODO: don't execute instances 'out from under' client requests. Use an execution grace period
+	// first, check the leader id, if it's not this node, go ahead and execute it
+	// if it is, wait for the execution timeout
+	var val store.Value
+	var err error
 
-	return nil, nil
+	// applies the instance and unlocks the lock, even if the apply
+	// call panics. The lock must be aquired before calling this
+	applyAndUnlock := func(instance *Instance) (store.Value, error) {
+		defer s.lock.Unlock()
+		return s.applyInstance(instance)
+	}
+
+	for _, iid := range iids {
+		val = nil
+		err = nil
+		s.lock.Lock()
+		instance := s.getInstance(iid)
+		switch instance.Status {
+		case INSTANCE_COMMITTED:
+			//
+			if instance.InstanceID == target.InstanceID {
+				// execute
+				val, err = applyAndUnlock(instance)
+				if err != nil { return nil, err }
+			} else if instance.LeaderID != s.manager.GetLocalID() {
+				// execute
+				val, err = applyAndUnlock(instance)
+				if err != nil { return nil, err }
+			} else {
+				// wait for the execution grace period to end
+				if time.Now().After(instance.executeTimeout) {
+					val, err = applyAndUnlock(instance)
+					if err != nil { return nil, err }
+				} else {
+					// get or create broadcast object
+					cond, ok := s.executeNotify[instance.InstanceID]
+					if !ok {
+						cond = sync.NewCond(&sync.Mutex{})
+						s.executeNotify[instance.InstanceID] = cond
+					}
+
+					// wait on broadcast event or timeout
+					broadcastEvent := make(chan bool)
+					go func() {
+						cond.Wait()
+						broadcastEvent <- true
+					}()
+					timeoutEvent := time.After(instance.executeTimeout.Sub(time.Now()))
+					s.lock.Unlock()
+
+					select {
+					case <- broadcastEvent:
+						// instance was executed by another goroutine
+					case <- timeoutEvent:
+						// execution timed out
+						s.lock.Lock()
+
+						// check that instance was not executed by another
+						// waking goroutine
+						if instance.Status != INSTANCE_COMMITTED {
+							// unlock and continue if it was
+							s.lock.Unlock()
+						} else {
+							val, err = applyAndUnlock(instance)
+							if err != nil { return nil, err }
+						}
+					}
+				}
+			}
+		case INSTANCE_EXECUTED, INSTANCE_REJECTED:
+			s.lock.Unlock()
+			continue
+		default:
+			return nil, fmt.Errorf("Uncommitted dependencies should be handled before executeDependencyChain")
+		}
+
+		// only execute up to the target instance
+		if instance.InstanceID == target.InstanceID {
+			break
+		}
+	}
+
+	return val, nil
 }
 
 // applies an instance to the store

@@ -34,10 +34,6 @@ func TestExecutionUncommittedDependencies(t *testing.T) {
 }
 
 func TestExecutionOrdering(t *testing.T) {
-
-}
-
-func TestExecutionOrderingSequenceTieBreaking(t *testing.T) {
 	manager := NewManager(newMockCluster())
 	scope := NewScope("a", manager)
 	if !testing_helpers.AssertEqual(t, "Initial instances size", 0, len(scope.instances)) { t.FailNow() }
@@ -85,5 +81,52 @@ func TestExecutionOrderingSequenceTieBreaking(t *testing.T) {
 	for i := range expected {
 		testing_helpers.AssertEqual(t, fmt.Sprintf("Execution Order [%v]", i), expected[i], actual[i])
 	}
+}
+
+// tests that instances up to and including the given
+// instance are executed
+func TestExecuteDependencyChainSuccess(t *testing.T) {
+
+}
+
+// tests that an error is returned if an uncommitted instance id is provided
+func TestExecuteDependenceyChainUncommittedFailure(t *testing.T) {
+
+}
+
+func TestExecuteDependencyChainWaitOnUnexecuted(t *testing.T) {
+
+}
+
+// tests that execute dependency chain only executes up
+// to the target instance
+func TestExecuteDependencyChainStop(t *testing.T) {
+
+}
+
+// tests that, if
+func TestExecuteDependencySkipExecuted(t *testing.T) {
+
+}
+
+func TestApplyInstanceSuccess(t *testing.T) {
+
+}
+
+// tests the executing an instance against the store
+// broadcasts to an existing notify instance, and
+// removes it from the executeNotify map
+func TestApplyInstanceNotifyHandling(t *testing.T) {
+
+}
+
+// tests that apply instance marks the instance as
+// executed, and moves it into the executed container
+func TestApplyInstanceBookeeping(t *testing.T) {
+
+}
+
+// tests that apply instance fails if the instance is not committed
+func TestApplyInstanceUncommittedFailure(t *testing.T) {
 
 }

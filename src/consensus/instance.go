@@ -179,6 +179,11 @@ type Instance struct {
 	// * not message serialized *
 	commitTimeout time.Time
 
+	// indicates the time that we can stop waiting for the
+	// the command to be executed by ExecuteQuery
+	// * not message serialized *
+	executeTimeout time.Time
+
 	// indicates that the dependencies from the leader
 	// matched the replica's local dependencies. This
 	// is used when there are only 3 replicas and another

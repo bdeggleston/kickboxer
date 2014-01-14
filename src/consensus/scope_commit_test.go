@@ -59,6 +59,8 @@ func TestCommitInstanceSuccess(t *testing.T) {
 	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
 	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
+
+	// TODO: check execution timeout
 }
 
 // tests that an instance is marked as committed,
