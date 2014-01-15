@@ -108,10 +108,6 @@ func (s *ExecuteDependencyChanTest) TestUncommittedFailure(c *gocheck.C) {
 
 }
 
-func (s *ExecuteDependencyChanTest) TestWaitOnUnexecuted(c *gocheck.C) {
-
-}
-
 // tests that execute dependency chain only executes up
 // to the target instance
 func (s *ExecuteDependencyChanTest) TestStopOnInstance(c *gocheck.C) {
@@ -120,6 +116,25 @@ func (s *ExecuteDependencyChanTest) TestStopOnInstance(c *gocheck.C) {
 
 // tests that instances are not executed twice
 func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
+
+}
+
+// tests that unexecuted dependencies, where the command leader
+// is the local node, waits for the owning goroutine to execute
+// before continuing
+func (s *ExecuteDependencyChanTest) TestUnexecutedLocal(c *gocheck.C) {
+
+}
+
+// tests that unexecuted dependencies, where the command leader
+// is the local node, waits until the execute timeout before executing
+func (s *ExecuteDependencyChanTest) TestUnexecutedLocalTimeout(c *gocheck.C) {
+
+}
+
+// tests that unexecuted dependencies, where the command leader
+// is not the local node, executes dependencies as soon as it finds them
+func (s *ExecuteDependencyChanTest) TestUnexecutedRemote(c *gocheck.C) {
 
 }
 
