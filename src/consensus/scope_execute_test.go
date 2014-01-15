@@ -6,11 +6,19 @@ package consensus
 import (
 	"fmt"
 	"testing"
+	"time"
+)
+
+import (
+	"launchpad.net/gocheck"
 )
 
 import (
 	"testing_helpers"
+	"store"
 )
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { gocheck.TestingT(t) }
 
 // tests the successful execution of commands
 // for instances where all of the dependencies
@@ -128,5 +136,56 @@ func TestApplyInstanceBookeeping(t *testing.T) {
 
 // tests that apply instance fails if the instance is not committed
 func TestApplyInstanceUncommittedFailure(t *testing.T) {
+
+}
+
+type ApplyInstanceTest struct {
+	cluster *mockCluster
+	manager *Manager
+	scope *Scope
+}
+
+var _ = gocheck.Suite(&ApplyInstanceTest{})
+
+func (s *ApplyInstanceTest) SetUpTest(c *gocheck.C) {
+	s.cluster = newMockCluster()
+	s.manager = NewManager(s.cluster)
+	s.scope = NewScope("a", s.manager)
+}
+
+func (s *ApplyInstanceTest) getInstances(values ...int) []*store.Instruction {
+	instructions := make([]*store.Instruction, len(values))
+	for i, val := range values {
+		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
+	}
+	return instructions
+}
+
+func (s *ApplyInstanceTest) TestApplyInstanceSuccess(c *gocheck.C) {
+	instance := s.scope.makeInstance(s.getInstances(5))
+	committed, err := s.scope.commitInstance(instance)
+	c.Assert(committed, gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+	val, err := s.scope.applyInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.FitsTypeOf, &intVal{})
+	c.Assert(val.(*intVal).value, gocheck.Equals, 5)
+}
+
+// tests the executing an instance against the store
+// broadcasts to an existing notify instance, and
+// removes it from the executeNotify map
+func (s *ApplyInstanceTest) TestApplyInstanceNotifyHandling(c *gocheck.C) {
+
+}
+
+// tests that apply instance marks the instance as
+// executed, and moves it into the executed container
+func (s *ApplyInstanceTest) TestApplyInstanceBookeeping(c *gocheck.C) {
+
+}
+
+// tests that apply instance fails if the instance is not committed
+func (s *ApplyInstanceTest) TestApplyInstanceUncommittedFailure(c *gocheck.C) {
 
 }
