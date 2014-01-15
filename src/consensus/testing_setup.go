@@ -5,6 +5,10 @@ import (
 )
 
 import (
+	"launchpad.net/gocheck"
+)
+
+import (
 	"node"
 	"store"
 )
@@ -102,4 +106,16 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	return instance
+}
+
+type baseScopeTest struct {
+	cluster *mockCluster
+	manager *Manager
+	scope *Scope
+}
+
+func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
+	s.cluster = newMockCluster()
+	s.manager = NewManager(s.cluster)
+	s.scope = NewScope("a", s.manager)
 }

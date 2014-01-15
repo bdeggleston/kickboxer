@@ -90,9 +90,7 @@ func TestExecutionOrdering(t *testing.T) {
 }
 
 type ExecuteDependencyChanTest struct {
-	cluster *mockCluster
-	manager *Manager
-	scope *Scope
+	baseScopeTest
 }
 
 var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
@@ -140,18 +138,10 @@ func (s *ExecuteDependencyChanTest) TestUnexecutedRemote(c *gocheck.C) {
 
 
 type ApplyInstanceTest struct {
-	cluster *mockCluster
-	manager *Manager
-	scope *Scope
+	baseScopeTest
 }
 
 var _ = gocheck.Suite(&ApplyInstanceTest{})
-
-func (s *ApplyInstanceTest) SetUpTest(c *gocheck.C) {
-	s.cluster = newMockCluster()
-	s.manager = NewManager(s.cluster)
-	s.scope = NewScope("a", s.manager)
-}
 
 func (s *ApplyInstanceTest) getInstances(values ...int) []*store.Instruction {
 	instructions := make([]*store.Instruction, len(values))
