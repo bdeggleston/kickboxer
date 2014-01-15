@@ -851,7 +851,7 @@ func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store
 		panic("explicit prepare not implemented yet")
 	}
 
-	return nil, nil
+	return s.executeDependencyChain(exOrder, instance)
 }
 
 // increments the instance ballot, and sends and explicit prepare request
