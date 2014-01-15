@@ -4,6 +4,10 @@ Defines types and interfaces used by libraries working with the cluster
 package clusterproto
 
 import (
+	"time"
+)
+
+import (
 	"node"
 	"store"
 )
@@ -31,4 +35,10 @@ type Cluster interface {
 	// returns the replicas for the given key
 	// at the given constistency level
 	GetNodesForKey(key string) []node.Node
+
+	// executes a distributed query against cluster
+	ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
+
+	// executes a query against the local store
+	ApplyQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
 }
