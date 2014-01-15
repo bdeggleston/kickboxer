@@ -722,9 +722,8 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	}
 	var val store.Value
 	var err error
-	localStore := s.manager.cluster.GetStore()
 	for _, instruction := range instance.Commands {
-		val, err = localStore.ExecuteQuery(
+		val, err = s.manager.cluster.ApplyQuery(
 			instruction.Cmd,
 			instruction.Key,
 			instruction.Args,
