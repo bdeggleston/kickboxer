@@ -6,9 +6,16 @@ import (
 )
 
 import (
+	. "launchpad.net/gocheck"
+)
+
+import (
 	"store"
 	"testing_helpers"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { TestingT(t) }
 
 // test that instances are created properly
 func TestInstanceCreation(t *testing.T) {

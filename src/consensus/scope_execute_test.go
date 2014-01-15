@@ -17,8 +17,6 @@ import (
 	"testing_helpers"
 	"store"
 )
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { gocheck.TestingT(t) }
 
 // tests the successful execution of commands
 // for instances where all of the dependencies
