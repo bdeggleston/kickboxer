@@ -161,7 +161,7 @@ func (s *ApplyInstanceTest) getInstances(values ...int) []*store.Instruction {
 	return instructions
 }
 
-func (s *ApplyInstanceTest) TestApplyInstanceSuccess(c *gocheck.C) {
+func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstances(5))
 	committed, err := s.scope.commitInstance(instance)
 	c.Assert(committed, gocheck.Equals, true)
@@ -175,17 +175,17 @@ func (s *ApplyInstanceTest) TestApplyInstanceSuccess(c *gocheck.C) {
 // tests the executing an instance against the store
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map
-func (s *ApplyInstanceTest) TestApplyInstanceNotifyHandling(c *gocheck.C) {
+func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 
 }
 
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
-func (s *ApplyInstanceTest) TestApplyInstanceBookeeping(c *gocheck.C) {
+func (s *ApplyInstanceTest) TestBookeeping(c *gocheck.C) {
 
 }
 
 // tests that apply instance fails if the instance is not committed
-func (s *ApplyInstanceTest) TestApplyInstanceUncommittedFailure(c *gocheck.C) {
+func (s *ApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
 
 }
