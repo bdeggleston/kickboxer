@@ -91,53 +91,40 @@ func TestExecutionOrdering(t *testing.T) {
 	}
 }
 
+type ExecuteDependencyChanTest struct {
+	cluster *mockCluster
+	manager *Manager
+	scope *Scope
+}
+
+var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
+
 // tests that instances up to and including the given
 // instance are executed
-func TestExecuteDependencyChainSuccess(t *testing.T) {
+func (s *ExecuteDependencyChanTest) TestSuccess(c *gocheck.C) {
 
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
-func TestExecuteDependenceyChainUncommittedFailure(t *testing.T) {
+func (s *ExecuteDependencyChanTest) TestUncommittedFailure(c *gocheck.C) {
 
 }
 
-func TestExecuteDependencyChainWaitOnUnexecuted(t *testing.T) {
+func (s *ExecuteDependencyChanTest) TestWaitOnUnexecuted(c *gocheck.C) {
 
 }
 
 // tests that execute dependency chain only executes up
 // to the target instance
-func TestExecuteDependencyChainStop(t *testing.T) {
+func (s *ExecuteDependencyChanTest) TestStopOnInstance(c *gocheck.C) {
 
 }
 
-// tests that, if
-func TestExecuteDependencySkipExecuted(t *testing.T) {
+// tests that instances are not executed twice
+func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
 
 }
 
-func TestApplyInstanceSuccess(t *testing.T) {
-
-}
-
-// tests the executing an instance against the store
-// broadcasts to an existing notify instance, and
-// removes it from the executeNotify map
-func TestApplyInstanceNotifyHandling(t *testing.T) {
-
-}
-
-// tests that apply instance marks the instance as
-// executed, and moves it into the executed container
-func TestApplyInstanceBookeeping(t *testing.T) {
-
-}
-
-// tests that apply instance fails if the instance is not committed
-func TestApplyInstanceUncommittedFailure(t *testing.T) {
-
-}
 
 type ApplyInstanceTest struct {
 	cluster *mockCluster
