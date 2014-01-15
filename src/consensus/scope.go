@@ -172,6 +172,10 @@ func makeExecuteTimeout() time.Time {
 	return time.Now().Add(time.Duration(EXECUTE_TIMEOUT) * time.Millisecond)
 }
 
+func makeConditional() *sync.Cond {
+	return sync.NewCond(&sync.Mutex{})
+}
+
 type TimeoutError struct {
 	message string
 }
@@ -790,7 +794,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 					// get or create broadcast object
 					cond, ok := s.executeNotify[instance.InstanceID]
 					if !ok {
-						cond = sync.NewCond(&sync.Mutex{})
+						cond = makeConditional()
 						s.executeNotify[instance.InstanceID] = cond
 					}
 
