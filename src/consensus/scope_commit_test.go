@@ -153,6 +153,12 @@ func TestCommitInstanceExecutedFailure(t *testing.T) {
 	testing_helpers.AssertEqual(t, "replica status", INSTANCE_EXECUTED, replicaInstance.Status)
 }
 
+// tests that instances with a commitNotify Cond object
+// calls broadcast when the instance is committed
+func TestCommitInstanceBroadcast(t *testing.T) {
+
+}
+
 /** leader **/
 
 // tests that calling sendCommit sends commit requests
