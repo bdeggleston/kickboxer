@@ -12,6 +12,7 @@ _test
 # Dependencies
 code.google.*/
 github.*/
+launchpad.*/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
