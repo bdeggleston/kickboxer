@@ -155,6 +155,9 @@ func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.FitsTypeOf, &intVal{})
 	c.Assert(val.(*intVal).value, gocheck.Equals, 5)
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
+	c.Check(len(s.cluster.instructions), gocheck.Equals, 1)
+	c.Check(s.cluster.values["a"].value, gocheck.Equals, 5)
 }
 
 // tests the executing an instance against the store
