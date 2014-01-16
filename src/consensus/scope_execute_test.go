@@ -5,6 +5,7 @@ package consensus
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -169,7 +170,26 @@ func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map
 func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
+	instance := s.scope.makeInstance(s.getInstructions(5))
+	s.scope.commitInstance(instance)
+	s.scope.executeNotify[instance.InstanceID] = makeConditional()
 
+	broadcast := false
+	broadcastListener := func() {
+		cond := s.scope.executeNotify[instance.InstanceID]
+		c.Check(cond, gocheck.NotNil)
+		cond.Wait()
+		broadcast = true
+	}
+	go broadcastListener()
+	runtime.Gosched() // yield goroutine
+
+	c.Check(broadcast, gocheck.Equals, false)
+	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.NotNil)
+	s.scope.applyInstance(instance)
+	runtime.Gosched() // yield goroutine
+	c.Check(broadcast, gocheck.Equals, true)
+	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.IsNil)
 }
 
 // tests that apply instance marks the instance as

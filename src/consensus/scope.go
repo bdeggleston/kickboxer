@@ -173,7 +173,9 @@ func makeExecuteTimeout() time.Time {
 }
 
 func makeConditional() *sync.Cond {
-	return sync.NewCond(&sync.Mutex{})
+	lock := &sync.Mutex{}
+	lock.Lock()
+	return sync.NewCond(lock)
 }
 
 type TimeoutError struct {
