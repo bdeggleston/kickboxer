@@ -1,11 +1,6 @@
 package consensus
 
 import (
-	"fmt"
-)
-
-
-import (
 	"launchpad.net/gocheck"
 )
 
@@ -27,7 +22,7 @@ func (c *instMapContainsKeyChecker) Check(params []interface{}, names []string) 
 	}
 	_, ok = mapObj[expectedKey]
 	if !ok {
-		return false, fmt.Sprintf("map does not contain %v", expectedKey)
+		return false, ""
 	}
 	return true, ""
 }
@@ -57,7 +52,7 @@ func (c *instIdSliceContainsChecker) Check(params []interface{}, names []string)
 	}
 	for _, obj := range sliceObj {
 		if obj == expectedKey {
-			return true, fmt.Sprintf("slice contains %v", expectedKey)
+			return true, ""
 		}
 	}
 	return false, ""
