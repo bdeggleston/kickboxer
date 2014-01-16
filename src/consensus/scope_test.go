@@ -6,7 +6,7 @@ import (
 )
 
 import (
-	. "launchpad.net/gocheck"
+	"launchpad.net/gocheck"
 )
 
 import (
@@ -15,7 +15,10 @@ import (
 )
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { TestingT(t) }
+func Test(t *testing.T) {
+	gocheck.TestingT(t)
+}
+
 
 // test that instances are created properly
 func TestInstanceCreation(t *testing.T) {

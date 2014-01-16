@@ -143,7 +143,7 @@ type ApplyInstanceTest struct {
 
 var _ = gocheck.Suite(&ApplyInstanceTest{})
 
-func (s *ApplyInstanceTest) getInstances(values ...int) []*store.Instruction {
+func (s *ApplyInstanceTest) getInstructions(values ...int) []*store.Instruction {
 	instructions := make([]*store.Instruction, len(values))
 	for i, val := range values {
 		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
@@ -152,7 +152,7 @@ func (s *ApplyInstanceTest) getInstances(values ...int) []*store.Instruction {
 }
 
 func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstances(5))
+	instance := s.scope.makeInstance(s.getInstructions(5))
 	committed, err := s.scope.commitInstance(instance)
 	c.Assert(committed, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
@@ -174,7 +174,7 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
-func (s *ApplyInstanceTest) TestBookeeping(c *gocheck.C) {
+func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 
 }
 
