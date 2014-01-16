@@ -186,8 +186,11 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 
 	c.Check(broadcast, gocheck.Equals, false)
 	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.NotNil)
-	s.scope.applyInstance(instance)
+
+	_, err := s.scope.applyInstance(instance)
 	runtime.Gosched() // yield goroutine
+	c.Assert(err, gocheck.IsNil)
+
 	c.Check(broadcast, gocheck.Equals, true)
 	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.IsNil)
 }
@@ -195,7 +198,22 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
 func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
+	instance := s.scope.makeInstance(s.getInstructions(5))
+	iid := instance.InstanceID
+	s.scope.commitInstance(instance)
 
+	// sanity check
+	c.Check(s.scope.committed, instMapContainsKey, iid)
+	c.Check(s.scope.executed, gocheck.Not(instIdSliceContains), iid)
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+	_, err := s.scope.applyInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	// check expected state
+	c.Check(s.scope.committed, gocheck.Not(instMapContainsKey), iid)
+	c.Check(s.scope.executed, instIdSliceContains, iid)
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
 
 // tests that apply instance fails if the instance is not committed
