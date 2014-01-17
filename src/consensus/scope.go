@@ -207,6 +207,29 @@ type Scope struct {
 
 	// wakes up goroutines waiting on instance executions
 	executeNotify map[InstanceID]*sync.Cond
+
+	// ------------- runtime stats -------------
+
+	// number of times a local instance was not executed
+	// by it's originating goroutine because it's execution
+	// grace period had passed
+	statExecuteLocalTimeout uint64
+
+	// number of times a local instance was not executed
+	// by it's originating goroutine because it timed out
+	// while another goroutine was waiting on it
+	statExecuteLocalTimeoutWait uint64
+
+	// number of times a local instances was executed
+	// by it's originating goroutine
+	statExecuteLocalSuccess uint64
+
+	// number of times a goroutine was waiting on a local
+	// instance to execute
+	statExecuteLocalSuccessWait uint64
+
+	// number of remote instances executed
+	statExecuteRemote uint64
 }
 
 func NewScope(name string, manager *Manager) *Scope {
@@ -783,15 +806,18 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 				// execute
 				val, err = applyAndUnlock(instance)
 				if err != nil { return nil, err }
+				s.statExecuteLocalSuccess++
 			} else if instance.LeaderID != s.manager.GetLocalID() {
 				// execute
 				val, err = applyAndUnlock(instance)
 				if err != nil { return nil, err }
+				s.statExecuteRemote++
 			} else {
 				// wait for the execution grace period to end
 				if time.Now().After(instance.executeTimeout) {
 					val, err = applyAndUnlock(instance)
 					if err != nil { return nil, err }
+					s.statExecuteLocalTimeout++
 				} else {
 					// get or create broadcast object
 					cond, ok := s.executeNotify[instance.InstanceID]
@@ -812,6 +838,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 					select {
 					case <- broadcastEvent:
 						// instance was executed by another goroutine
+						s.statExecuteLocalSuccessWait++
 					case <- timeoutEvent:
 						// execution timed out
 						s.lock.Lock()
@@ -824,6 +851,8 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 						} else {
 							val, err = applyAndUnlock(instance)
 							if err != nil { return nil, err }
+							s.statExecuteLocalTimeout++
+							s.statExecuteLocalTimeoutWait++
 						}
 					}
 				}
