@@ -264,41 +264,34 @@ func (s *ExecuteDependencyChanTest) TestLocalDependencyBroadcastSuccess(c *goche
 	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
 
+// tests that instances are not executed twice
+func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
+	s.commitInstances()
+	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx]]
+
+	// execute all but the target dependency
+	for i:=0; i<s.maxIdx; i++ {
+		instance := s.scope.instances[s.expectedOrder[i]]
+		instance.Status = INSTANCE_EXECUTED
+	}
+
+	val, err := s.scope.executeInstance(targetInst)
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+
+	// the target instance should have been executed
+	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
+
+	// and the cluster should have received only one instruction
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
+	c.Check(s.cluster.instructions[0].Args[0], gocheck.Equals, fmt.Sprint(s.maxIdx))
+}
+
 // tests that an error is returned if an uncommitted instance id is provided
 func (s *ExecuteDependencyChanTest) TestUncommittedFailure(c *gocheck.C) {
 
 }
-
-// tests that execute dependency chain only executes up
-// to the target instance
-func (s *ExecuteDependencyChanTest) TestStopOnInstance(c *gocheck.C) {
-
-}
-
-// tests that instances are not executed twice
-func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
-
-}
-
-// tests that unexecuted dependencies, where the command leader
-// is the local node, waits for the owning goroutine to execute
-// before continuing
-func (s *ExecuteDependencyChanTest) TestUnexecutedLocal(c *gocheck.C) {
-
-}
-
-// tests that unexecuted dependencies, where the command leader
-// is the local node, waits until the execute timeout before executing
-func (s *ExecuteDependencyChanTest) TestUnexecutedLocalTimeout(c *gocheck.C) {
-
-}
-
-// tests that unexecuted dependencies, where the command leader
-// is not the local node, executes dependencies as soon as it finds them
-func (s *ExecuteDependencyChanTest) TestUnexecutedRemote(c *gocheck.C) {
-
-}
-
 
 type ApplyInstanceTest struct {
 	baseScopeTest
