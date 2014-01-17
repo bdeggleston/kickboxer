@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -112,6 +113,14 @@ type baseScopeTest struct {
 	cluster *mockCluster
 	manager *Manager
 	scope *Scope
+}
+
+func (s *baseScopeTest) getInstructions(values ...int) []*store.Instruction {
+	instructions := make([]*store.Instruction, len(values))
+	for i, val := range values {
+		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
+	}
+	return instructions
 }
 
 func (s *baseScopeTest) SetUpTest(c *gocheck.C) {

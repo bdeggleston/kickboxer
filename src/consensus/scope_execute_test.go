@@ -144,14 +144,6 @@ type ApplyInstanceTest struct {
 
 var _ = gocheck.Suite(&ApplyInstanceTest{})
 
-func (s *ApplyInstanceTest) getInstructions(values ...int) []*store.Instruction {
-	instructions := make([]*store.Instruction, len(values))
-	for i, val := range values {
-		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
-	}
-	return instructions
-}
-
 func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	committed, err := s.scope.commitInstance(instance)
