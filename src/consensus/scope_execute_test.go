@@ -290,7 +290,12 @@ func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
 
 // tests that an error is returned if an uncommitted instance id is provided
 func (s *ExecuteDependencyChanTest) TestUncommittedFailure(c *gocheck.C) {
+	targetInst := s.scope.instances[s.expectedOrder[0]]
 
+	val, err := s.scope.executeDependencyChain(s.expectedOrder, targetInst)
+
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(val, gocheck.IsNil)
 }
 
 type ApplyInstanceTest struct {
