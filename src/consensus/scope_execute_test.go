@@ -4,52 +4,38 @@ tests the execution of committed commands
 package consensus
 
 import (
-	"fmt"
 	"runtime"
-	"testing"
-	"time"
 )
 
 import (
 	"launchpad.net/gocheck"
 )
 
-import (
-	"testing_helpers"
-	"store"
-)
-
-// tests the successful execution of commands
-// for instances where all of the dependencies
-// have been executed
-func TestExecutionSuccessCase(t *testing.T) {
-
+type ExecuteDependencyChanTest struct {
+	baseScopeTest
+	expectedOrder []InstanceID
 }
 
-// tests that executing an instance moves the instance
-// from committed to executed
-func TestExecuteMovesInstance(t *testing.T) {
+var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
 
-}
+// makes a set of interdependent instances, and sets
+// their expected ordering
+func (s *ExecuteDependencyChanTest) SetUpTest(c *gocheck.C) {
+	s.baseScopeTest.SetUpTest(c)
+	s.expectedOrder  = make([]InstanceID, 0)
+	lastVal := 0
 
-func TestExecutionUnexecutedDependencies(t *testing.T) {
-
-}
-
-func TestExecutionUncommittedDependencies(t *testing.T) {
-
-}
-
-func TestExecutionOrdering(t *testing.T) {
-	manager := NewManager(newMockCluster())
-	scope := NewScope("a", manager)
-	if !testing_helpers.AssertEqual(t, "Initial instances size", 0, len(scope.instances)) { t.FailNow() }
+	// sets up a new instance, and appends it to the expected order needs
+	// to be called in the same order as the expected dependency ordering
 	addInst := func() *Instance {
-		inst := scope.makeInstance(getBasicInstruction())
-		scope.preAcceptInstanceUnsafe(inst)
-		scope.commitInstanceUnsafe(inst)
+		inst := s.scope.makeInstance(s.getInstructions(lastVal))
+		lastVal++
+		s.scope.preAcceptInstanceUnsafe(inst)
+		s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 		return inst
 	}
+
+	// adds additional dependecies to the given instance
 	addDeps := func(inst *Instance, deps ...*Instance) {
 		for _, dep := range deps {
 			inst.Dependencies = append(inst.Dependencies, dep.InstanceID)
@@ -71,30 +57,25 @@ func TestExecutionOrdering(t *testing.T) {
 	addDeps(i4, i5)
 	i3.Sequence = i5.Sequence
 	i4.Sequence = i5.Sequence
+}
 
-	expected := []InstanceID{
-		i0.InstanceID,
-		i1.InstanceID,
-		i2.InstanceID,
-		i3.InstanceID,
-		i4.InstanceID,
-		i5.InstanceID,
-	}
-	actual := scope.getExecutionOrder(i5)
-	if !testing_helpers.AssertEqual(t, "Execution Order Length", len(expected), len(actual)) {
-		t.FailNow()
-	}
-
-	for i := range expected {
-		testing_helpers.AssertEqual(t, fmt.Sprintf("Execution Order [%v]", i), expected[i], actual[i])
+// commits all instances
+func (s *ExecuteDependencyChanTest) commitInstances() {
+	for _, iid := range s.expectedOrder {
+		s.scope.commitInstance(s.scope.instances[iid])
 	}
 }
 
-type ExecuteDependencyChanTest struct {
-	baseScopeTest
-}
+func (s *ExecuteDependencyChanTest) TestDependencyOrdering(c *gocheck.C) {
+	s.commitInstances()
 
-var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
+	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
+	actual := s.scope.getExecutionOrder(lastInstance)
+	c.Assert(len(s.expectedOrder), gocheck.Equals, len(actual))
+	for i := range s.expectedOrder {
+		c.Check(s.expectedOrder[i], gocheck.Equals, actual[i], gocheck.Commentf("iid %v", i))
+	}
+}
 
 // tests that instances up to and including the given
 // instance are executed
