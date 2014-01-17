@@ -847,7 +847,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 // applies an instance to the store
 // first it will resolve all dependencies, then wait for them to commit/reject, or force them
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
-func (s *Scope) executeInstance(instance *Instance, replicas []node.Node) (store.Value, error) {
+func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
 	// get dependency instance ids, sorted in execution order
 	exOrder := s.getExecutionOrder(instance)
 
@@ -967,7 +967,7 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 	}
 	s.sendCommit(instance, replicas)
 
-	return s.executeInstance(instance, replicas)
+	return s.executeInstance(instance)
 }
 
 // handles a preaccept message from the command leader for an instance
