@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 )
 
@@ -13,6 +14,10 @@ import (
 	"node"
 	"store"
 )
+
+func setBreakpoint() {
+	runtime.Breakpoint()
+}
 
 func setupScope() *Scope {
 	manager := NewManager(newMockCluster())
