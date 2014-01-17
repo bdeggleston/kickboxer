@@ -108,6 +108,7 @@ func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) 
 	// check stats
 	c.Check(int(s.scope.statExecuteRemote), gocheck.Equals, 4)
 	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 5)
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -154,6 +155,7 @@ func (s *ExecuteDependencyChanTest) TestTimedOutLocalDependencySuccess(c *gochec
 	c.Check(int(s.scope.statExecuteLocalTimeout), gocheck.Equals, 4)
 	c.Check(int(s.scope.statExecuteLocalTimeoutWait), gocheck.Equals, 0)
 	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 5)
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -184,7 +186,34 @@ func (s *ExecuteDependencyChanTest) TestTimedOutLocalDependencySuccess(c *gochec
 // before the wait period times out, the called executeDependencyChain will execute it,
 // and continue executing instances
 func (s *ExecuteDependencyChanTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
+	s.commitInstances()
+	depInst := s.scope.instances[s.expectedOrder[0]]
+	depInst.executeTimeout = time.Now().Add(time.Duration(10) * time.Millisecond)
+	targetInst := s.scope.instances[s.expectedOrder[1]]
 
+	val, err := s.scope.executeInstance(targetInst)
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+
+	// check stats
+	c.Check(int(s.scope.statExecuteLocalTimeout), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteLocalTimeoutWait), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 2)
+
+	// check the number of instructions
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, 2)
+
+	// check all the instances, instructions, etc
+	for i:=0; i<2; i++ {
+		instance := s.scope.instances[s.expectedOrder[i]]
+
+		// executed instances
+		c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
+		instruction := s.cluster.instructions[i]
+		c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
+	}
 }
 
 // tests that, if a dependency's grace period has not passed, execute dependency chain
