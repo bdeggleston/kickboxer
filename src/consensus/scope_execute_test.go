@@ -4,11 +4,16 @@ tests the execution of committed commands
 package consensus
 
 import (
+	"fmt"
 	"runtime"
 )
 
 import (
 	"launchpad.net/gocheck"
+)
+
+import (
+	"node"
 )
 
 type ExecuteDependencyChanTest struct {
@@ -78,9 +83,47 @@ func (s *ExecuteDependencyChanTest) TestDependencyOrdering(c *gocheck.C) {
 }
 
 // tests that instances up to and including the given
-// instance are executed
-func (s *ExecuteDependencyChanTest) TestSuccess(c *gocheck.C) {
+// instance are executed when the dependencies all
+// have a remote instance id
+func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) {
+	s.commitInstances()
+	targetInst := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 2]]
 
+	// set non-target dependency leaders to a remote node
+	remoteID := node.NewNodeId()
+	for i, iid := range s.expectedOrder {
+		if i > 3 { break }
+		instance := s.scope.instances[iid]
+		instance.LeaderID = remoteID
+	}
+
+	val, err := s.scope.executeInstance(targetInst)
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+
+	// check returned value
+	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
+	c.Check(4, gocheck.Equals, val.(*intVal).value)
+
+	// check the number of instructions
+	c.Assert(len(s.expectedOrder) - 1, gocheck.Equals, len(s.cluster.instructions))
+
+	// check all the instances, instructions, etc
+	for i:=0; i<len(s.expectedOrder); i++ {
+		instance := s.scope.instances[s.expectedOrder[i]]
+
+		if i == len(s.expectedOrder) - 1 {
+			// unexecuted instance
+			c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+		} else {
+			// executed instances
+			c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
+			instruction := s.cluster.instructions[i]
+			c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
+		}
+	}
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
