@@ -218,5 +218,15 @@ func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 
 // tests that apply instance fails if the instance is not committed
 func (s *ApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
+	instance := s.scope.makeInstance(s.getInstructions(5))
+	iid := instance.InstanceID
+	s.scope.acceptInstance(instance)
 
+	// sanity check
+	c.Check(s.scope.inProgress, instMapContainsKey, iid)
+	c.Check(s.scope.executed, gocheck.Not(instIdSliceContains), iid)
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+
+	_, err := s.scope.applyInstance(instance)
+	c.Assert(err, gocheck.NotNil)
 }
