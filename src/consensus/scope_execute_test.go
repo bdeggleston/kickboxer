@@ -19,6 +19,7 @@ import (
 type ExecuteDependencyChanTest struct {
 	baseScopeTest
 	expectedOrder []InstanceID
+	maxIdx int
 }
 
 var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
@@ -37,6 +38,7 @@ func (s *ExecuteDependencyChanTest) SetUpTest(c *gocheck.C) {
 		lastVal++
 		s.scope.preAcceptInstanceUnsafe(inst)
 		s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
+		s.maxIdx = len(s.expectedOrder) - 1
 		return inst
 	}
 
@@ -87,12 +89,12 @@ func (s *ExecuteDependencyChanTest) TestDependencyOrdering(c *gocheck.C) {
 // have a remote instance id
 func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 2]]
+	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx - 1]]
 
 	// set non-target dependency leaders to a remote node
 	remoteID := node.NewNodeId()
 	for i, iid := range s.expectedOrder {
-		if i > 3 { break }
+		if i > (s.maxIdx - 2) { break }
 		instance := s.scope.instances[iid]
 		instance.LeaderID = remoteID
 	}
@@ -101,6 +103,34 @@ func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) 
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
+
+	// check stats
+	c.Check(int(s.scope.statExecuteRemote), gocheck.Equals, 4)
+	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+
+	// check returned value
+	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
+	c.Check(4, gocheck.Equals, val.(*intVal).value)
+
+	// check the number of instructions
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, len(s.expectedOrder) - 1)
+
+	// check all the instances, instructions, etc
+	for i:=0; i<len(s.expectedOrder); i++ {
+		instance := s.scope.instances[s.expectedOrder[i]]
+
+		if i == len(s.expectedOrder) - 1 {
+			// unexecuted instance
+			c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+		} else {
+			// executed instances
+			c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
+			instruction := s.cluster.instructions[i]
+			c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
+		}
+	}
+}
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
