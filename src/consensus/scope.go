@@ -210,6 +210,9 @@ type Scope struct {
 
 	// ------------- runtime stats -------------
 
+	// total number of executed instances
+	statExecuteCount uint64
+
 	// number of times a local instance was not executed
 	// by it's originating goroutine because it's execution
 	// grace period had passed
@@ -776,6 +779,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
+	s.statExecuteCount++
 
 	return val, nil
 }
