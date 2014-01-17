@@ -15,6 +15,7 @@ import (
 
 import (
 	"node"
+	"store"
 )
 
 type ExecuteDependencyChanTest struct {
@@ -221,7 +222,46 @@ func (s *ExecuteDependencyChanTest) TestLocalDependencyTimeoutSuccess(c *gocheck
 // the wait period times out, the called executeDependencyChain will skip it, and
 // continue executing instances
 func (s *ExecuteDependencyChanTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
+	s.commitInstances()
+	depInst := s.scope.instances[s.expectedOrder[0]]
+	depInst.executeTimeout = time.Now().Add(time.Duration(1) * time.Minute)
+	targetInst := s.scope.instances[s.expectedOrder[1]]
 
+	var val store.Value
+	var err error
+
+	depNotify := makeConditional()
+	s.scope.executeNotify[depInst.InstanceID] = depNotify
+
+	go func() { val, err = s.scope.executeInstance(targetInst) }()
+	runtime.Gosched()  // yield
+
+	// goroutine should be waiting
+	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 0)
+
+	// release wait
+	depNotify.Broadcast()
+	runtime.Gosched()
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+
+	// check stats
+	c.Check(int(s.scope.statExecuteLocalSuccessWait), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteLocalTimeout), gocheck.Equals, 0)
+	c.Check(int(s.scope.statExecuteLocalTimeoutWait), gocheck.Equals, 0)
+	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 1)
+
+	// depInst should not have been executed, by receiving the broadcastEvent,
+	// it should have assumed that another goroutine executed the instance
+	c.Check(depInst.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+	// check the number of instructions
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
+
+	// the target instance should have been executed though
+	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
