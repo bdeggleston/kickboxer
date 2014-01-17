@@ -6,6 +6,7 @@ package consensus
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 import (
@@ -132,12 +133,34 @@ func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) 
 	}
 }
 
+// tests the execution of dependency chains when all of the target dependencies
+// have are past their execution grace period
+func (s *ExecuteDependencyChanTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
+	s.commitInstances()
+	targetInst := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 2]]
+
+	for i, iid := range s.expectedOrder {
+		if i > (s.maxIdx - 2) { break }
+		instance := s.scope.instances[iid]
+		instance.executeTimeout = time.Now().Add(time.Duration(-1) * time.Second)
+	}
+
+	val, err := s.scope.executeInstance(targetInst)
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+
+	// check stats
+	c.Check(int(s.scope.statExecuteLocalTimeout), gocheck.Equals, 4)
+	c.Check(int(s.scope.statExecuteLocalTimeoutWait), gocheck.Equals, 0)
+	c.Check(int(s.scope.statExecuteLocalSuccess), gocheck.Equals, 1)
+
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
 	c.Check(4, gocheck.Equals, val.(*intVal).value)
 
 	// check the number of instructions
-	c.Assert(len(s.expectedOrder) - 1, gocheck.Equals, len(s.cluster.instructions))
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, len(s.expectedOrder) - 1)
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
@@ -154,6 +177,22 @@ func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) 
 			c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
 		}
 	}
+}
+
+// tests that, if a dependency's grace period has not passed, execute dependency chain
+// will wait on it's notify cond. If another gorouting does not executes the instance
+// before the wait period times out, the called executeDependencyChain will execute it,
+// and continue executing instances
+func (s *ExecuteDependencyChanTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
+
+}
+
+// tests that, if a dependency's grace period has not passed, execute dependency chain
+// will wait on it's notify cond. If another gorouting executes the instance before
+// the wait period times out, the called executeDependencyChain will skip it, and
+// continue executing instances
+func (s *ExecuteDependencyChanTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
+
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
