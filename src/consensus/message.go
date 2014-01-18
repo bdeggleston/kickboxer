@@ -126,5 +126,9 @@ type PrepareRequest struct {
 type PrepareResponse struct {
 	messageCheat
 
+	// indicates the remote node ignored the
+	// preaccept due to an out of date ballot
+	Accepted bool
+
 	Instance *Instance
 }
