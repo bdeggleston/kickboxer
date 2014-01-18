@@ -55,15 +55,14 @@ var (
 /*
 TODO: ->
 
+1) explicit prepare
 
-1) The scope needs to know the consistency level, and have a means of querying the cluster
+2) Workout a method for nullifying an instance
+
+3) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
 	is added to, or removed from, the cluster mid transaction, the transaction will be executing
 	against an out of date set of replicas.
-
-2) query execution
-
-3) query repair
 
 4) long running integration tests. Each integration iteration should run on one core, with
 	inter-node communication running through a message broker, which will randomly add failure
@@ -101,6 +100,9 @@ TODO: ->
 		- quorum failures
 
 9) Add a broadcast mechanism to notify pending executions that an instance has been committed
+
+DONE:
+	query execution
 
  */
 
@@ -426,7 +428,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		go sendMsg(replica)
 	}
 
-	numReceived := 1 // this node counts as a response
+	numReceived := 1  // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	var response *PreAcceptResponse
@@ -625,6 +627,13 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
 		return false, err
 	}
 
+	// wake up any goroutines waiting on this instance,
+	// and remove the conditional from the notify map
+	if cond, ok := s.commitNotify[instance.InstanceID]; ok {
+		cond.Broadcast()
+		delete(s.commitNotify, instance.InstanceID)
+	}
+
 	return true, nil
 }
 
@@ -765,12 +774,6 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 			return nil, err
 		}
 	}
-	// wake up any goroutines waiting on this instance,
-	// and remove the conditional from the notify map
-	if cond, ok := s.executeNotify[instance.InstanceID]; ok {
-		cond.Broadcast()
-		delete(s.executeNotify, instance.InstanceID)
-	}
 
 	// update scope bookkeeping
 	instance.Status = INSTANCE_EXECUTED
@@ -780,6 +783,13 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		return nil, err
 	}
 	s.statExecuteCount++
+
+	// wake up any goroutines waiting on this instance,
+	// and remove the conditional from the notify map
+	if cond, ok := s.executeNotify[instance.InstanceID]; ok {
+		cond.Broadcast()
+		delete(s.executeNotify, instance.InstanceID)
+	}
 
 	return val, nil
 }
@@ -964,12 +974,15 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 	if success, err := s.preAcceptInstance(instance); err != nil {
 		return nil, err
 	} else if !success {
+		// how would this even happen?
 		panic("instance already exists")
 	}
 
 	// send instance pre-accept to replicas
 	paResponses, err := s.sendPreAccept(instance, remoteReplicas)
 	if err != nil {
+		// quorum failed, a later explicit prepare may
+		// fix it but nothing can be done now
 		return nil, err
 	}
 
@@ -996,7 +1009,8 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 	if success, err := s.commitInstance(instance); err != nil {
 		return nil, err
 	} else if !success {
-		panic("instance already exists")
+		// instance was already committed
+		panic("instance status is greater than commit")
 	}
 	s.sendCommit(instance, replicas)
 
