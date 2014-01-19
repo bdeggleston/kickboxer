@@ -18,6 +18,19 @@ import (
 	"store"
 )
 
+type ExecuteInstanceTest struct {
+	baseScopeTest
+}
+
+var _ = gocheck.Suite(&ExecuteInstanceTest{})
+
+// tests that an explicit prepare is initiated on any uncommitted
+// instance in the instance's dependency graph
+func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
+
+}
+
+
 type ExecuteDependencyChanTest struct {
 	baseScopeTest
 	expectedOrder []InstanceID
