@@ -707,6 +707,21 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
+func (s *Scope) commitPhase(instance *Instance) error {
+	replicas := s.manager.getScopeReplicas(s)
+
+	if success, err := s.commitInstance(instance); err != nil {
+		return err
+	} else if !success {
+		// instance was already committed
+		panic("instance status is greater than commit")
+	}
+	if err := s.sendCommit(instance, replicas); err != nil {
+		return err
+	}
+	return nil
+}
+
 // sorts the strongly connected subgraph components
 type iidSorter struct {
 	scope *Scope
@@ -1098,13 +1113,9 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 	// if we've gotten this far, either all the pre accept instance attributes
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
-	if success, err := s.commitInstance(instance); err != nil {
+	if err := s.commitPhase(instance); err != nil {
 		return nil, err
-	} else if !success {
-		// instance was already committed
-		panic("instance status is greater than commit")
 	}
-	s.sendCommit(instance, replicas)
 
 	return s.executeInstance(instance)
 }
