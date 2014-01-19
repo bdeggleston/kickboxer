@@ -51,13 +51,13 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 	}
 
 	// finally, receive any additional responses
-drain: for {
-	select {
-	case response = <-recvChan:
-		responses = append(responses, response)
-		numReceived++
-	default:
-		break drain
+	drain: for {
+		select {
+		case response = <-recvChan:
+			responses = append(responses, response)
+			numReceived++
+		default:
+			break drain
 	}
 }
 
