@@ -8,6 +8,10 @@ import (
 	"node"
 )
 
+func makePreAcceptCommitTimeout() time.Time {
+	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
+}
+
 func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) (bool, error) {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_PREACCEPTED {

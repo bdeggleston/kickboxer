@@ -8,6 +8,10 @@ import (
 	"node"
 )
 
+func makeAcceptCommitTimeout() time.Time {
+	return time.Now().Add(time.Duration(ACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
+}
+
 // sets the given instance as accepted
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either

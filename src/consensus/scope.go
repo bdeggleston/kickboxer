@@ -3,7 +3,6 @@ package consensus
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
 import (
@@ -158,18 +157,6 @@ Variable datacenter consistency:
 
 			table replication: Have tables that are not replicated across datacenters.
  */
-
-func makePreAcceptCommitTimeout() time.Time {
-	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
-}
-
-func makeAcceptCommitTimeout() time.Time {
-	return time.Now().Add(time.Duration(ACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
-}
-
-func makeExecuteTimeout() time.Time {
-	return time.Now().Add(time.Duration(EXECUTE_TIMEOUT) * time.Millisecond)
-}
 
 func makeConditional() *sync.Cond {
 	lock := &sync.Mutex{}

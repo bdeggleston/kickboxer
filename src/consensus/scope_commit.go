@@ -1,8 +1,17 @@
 package consensus
 
 import (
+	"time"
+)
+
+
+import (
 	"node"
 )
+
+func makeExecuteTimeout() time.Time {
+	return time.Now().Add(time.Duration(EXECUTE_TIMEOUT) * time.Millisecond)
+}
 
 // sets the given instance as committed
 // in the case of handling messages from leaders to replicas
