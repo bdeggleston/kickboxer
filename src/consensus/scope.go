@@ -1073,23 +1073,10 @@ func (s *Scope) prepareInstance(instance *Instance) error {
 // executes a serialized query against the cluster
 // this method designates the node it's called on as the command leader for the given query
 // and therefore, should only be called once per client query
-func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
-	// TODO: remove all this replica logic
-	// replica setup
-	remoteReplicas := make([]node.Node, 0, len(replicas)-1)
-	localReplicaFound := false
-	for _, replica := range replicas {
-		if replica.GetId() != s.GetLocalID() {
-			remoteReplicas = append(remoteReplicas, replica)
-		} else {
-			localReplicaFound = true
-		}
-	}
-	if !localReplicaFound {
-		return nil, fmt.Errorf("Local replica not found in replica list, is this node a replica of the specified key?")
-	}
-	if len(remoteReplicas) != len(replicas)-1 {
-		return nil, fmt.Errorf("remote replica size != replicas - 1. Are there duplicates?")
+func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
+
+	if !s.manager.checkLocalScopeEligibility(s) {
+		return nil, fmt.Errorf("This node is not eligible to act as the command leader for this scope")
 	}
 
 	// create epaxos instance, and preaccept locally
