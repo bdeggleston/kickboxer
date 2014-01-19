@@ -616,6 +616,21 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
+func (s *Scope) acceptPhase(instance *Instance) error {
+	replicas := s.manager.getScopeReplicas(s)
+
+	if success, err := s.acceptInstance(instance); err != nil {
+		return err
+	} else if !success {
+		// how would this even happen?
+		panic("instance already exists")
+	}
+	if err := s.sendAccept(instance, replicas); err != nil {
+		return err
+	}
+	return nil
+}
+
 // sets the given instance as committed
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
@@ -1075,12 +1090,7 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 		// some of the instance attributes received from the other replicas
 		// were different from what was sent to them. Run the multi-paxos
 		// accept phase
-
-		// mark the local instance as accepted
-		if err := s.setInstanceStatus(instance, INSTANCE_ACCEPTED); err != nil {
-			return nil, err
-		}
-		if err := s.sendAccept(instance, replicas); err != nil {
+		if err := s.acceptPhase(instance); err != nil {
 			return nil, err
 		}
 	}
