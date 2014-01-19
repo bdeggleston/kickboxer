@@ -64,11 +64,7 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 	return responses, nil
 }
 
-// runs explicit prepare phase on instances where a command leader failure is suspected
-// during execution,
-// TODO:
-//	what happens if 2 nodes send each other prepare messages at the same time?
-func (s *Scope) prepareInstance(instance *Instance) error {
+var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increments and sends the prepare messages in a single lock
@@ -118,5 +114,13 @@ func (s *Scope) prepareInstance(instance *Instance) error {
 
 	}
 	return nil
+}
+
+// runs explicit prepare phase on instances where a command leader failure is suspected
+// during execution,
+// TODO:
+//	what happens if 2 nodes send each other prepare messages at the same time?
+func (s *Scope) preparePhase(instance *Instance) error {
+	return scopePreparePhase(s, instance)
 }
 
