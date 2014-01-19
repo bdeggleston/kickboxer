@@ -48,8 +48,8 @@ func (m *Manager) getScopeNodes(s *Scope) []node.Node {
 	return m.cluster.GetNodesForKey(s.name)
 }
 
-func (m *Manager) checkLocalScopeEligibility(s *Scope) bool {
-	nodes := m.getScopeNodes(s)
+func (m *Manager) checkLocalKeyEligibility(key string) bool {
+	nodes := m.cluster.GetNodesForKey(key)
 	localID := m.GetLocalID()
 	for _, n := range nodes {
 		if n.GetId() == localID {
@@ -57,6 +57,10 @@ func (m *Manager) checkLocalScopeEligibility(s *Scope) bool {
 		}
 	}
 	return false
+}
+
+func (m *Manager) checkLocalScopeEligibility(s *Scope) bool {
+	return m.checkLocalKeyEligibility(s.name)
 }
 
 // returns the replicas for the given scope's key, excluding the local node
@@ -74,16 +78,7 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) ExecuteQuery(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
-	localId := m.cluster.GetID()
-	eligibleLeader := false
-	for _, replica := range replicas {
-		if replica.GetId() == localId {
-			eligibleLeader = true
-			break
-		}
-	}
-
+func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
 	// check that all the instruction keys are the same
 	if len(instructions) == 0 {
 		return nil, fmt.Errorf("need at least one instruction to execute")
@@ -98,13 +93,13 @@ func (m *Manager) ExecuteQuery(instructions []*store.Instruction, replicas []nod
 		}
 	}
 
-	if !eligibleLeader {
+	if !m.checkLocalKeyEligibility(key) {
 		// need to iterate over the possible replicas, allowing for
 		// some to be down
 		panic("Forward to eligible replica not implemented yet")
 	} else {
 		scope := m.getScope(key)
-		val, err := scope.ExecuteQuery(instructions, replicas)
+		val, err := scope.ExecuteQuery(instructions)
 		return val, err
 	}
 
