@@ -88,7 +88,8 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
-func (s *Scope) commitPhase(instance *Instance) error {
+// assigned to var for testing
+var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
 	if success, err := s.commitInstance(instance); err != nil {
@@ -101,6 +102,10 @@ func (s *Scope) commitPhase(instance *Instance) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Scope) commitPhase(instance *Instance) error {
+	return scopeCommitPhase(s, instance)
 }
 
 // handles an commit message from the command leader for an instance

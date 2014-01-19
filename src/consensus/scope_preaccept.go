@@ -124,9 +124,8 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	return changes, nil
 }
 
-// runs the full preaccept phase for the given instance, returning
-// a bool indicating if an accept phase is required or not
-func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
+// assigned to var for testing
+var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired bool, err error) {
 	replicas := s.manager.getScopeReplicas(s)
 
 	if success, err := s.preAcceptInstance(instance); err != nil {
@@ -145,6 +144,12 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 	}
 
 	return s.mergePreAcceptAttributes(instance, paResponses)
+}
+
+// runs the full preaccept phase for the given instance, returning
+// a bool indicating if an accept phase is required or not
+func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
+	return scopePreAcceptPhase(s, instance)
 }
 
 

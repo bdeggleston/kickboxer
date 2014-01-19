@@ -120,7 +120,8 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
-func (s *Scope) acceptPhase(instance *Instance) error {
+// assigned to var for testing
+var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
 	if success, err := s.acceptInstance(instance); err != nil {
@@ -133,6 +134,10 @@ func (s *Scope) acceptPhase(instance *Instance) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Scope) acceptPhase(instance *Instance) error {
+	return scopeAcceptPhase(s, instance)
 }
 
 // handles an accept message from the command leader for an instance
