@@ -485,6 +485,29 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	return changes, nil
 }
 
+// runs the full preaccept phase for the given instance, returning
+// a bool indicating if an accept phase is required or not
+func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
+	replicas := s.manager.getScopeReplicas(s)
+
+	if success, err := s.preAcceptInstance(instance); err != nil {
+		return false, err
+	} else if !success {
+		// how would this even happen?
+		panic("instance already exists")
+	}
+
+	// send instance pre-accept to replicas
+	paResponses, err := s.sendPreAccept(instance, replicas)
+	if err != nil {
+		// quorum failed, a later explicit prepare may
+		// fix it but nothing can be done now
+		return false, err
+	}
+
+	return s.mergePreAcceptAttributes(instance, paResponses)
+}
+
 // sets the given instance as accepted
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
@@ -1041,25 +1064,14 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.
 
 	// create epaxos instance, and preaccept locally
 	instance := s.makeInstance(instructions)
-	if success, err := s.preAcceptInstance(instance); err != nil {
-		return nil, err
-	} else if !success {
-		// how would this even happen?
-		panic("instance already exists")
-	}
 
-	// send instance pre-accept to replicas
-	paResponses, err := s.sendPreAccept(instance, remoteReplicas)
+	// run pre-accept
+	acceptRequired, err := s.preAcceptPhase(instance)
 	if err != nil {
-		// quorum failed, a later explicit prepare may
-		// fix it but nothing can be done now
 		return nil, err
 	}
 
-	if changes, err := s.mergePreAcceptAttributes(instance, paResponses); err != nil {
-		return nil, err
-
-	} else if changes {
+	if acceptRequired {
 		// some of the instance attributes received from the other replicas
 		// were different from what was sent to them. Run the multi-paxos
 		// accept phase
