@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -64,6 +65,41 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 	return responses, nil
 }
 
+// analyzes the responses to a prepare request, and returns an instance
+// the prepare phase should use to determine how to proceed
+func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse, numNodes int, quorumSize int) (*Instance) {
+	otherInstancesSeen := false
+
+	// find the highest response ballot
+	maxBallot := uint32(0)
+	for _, response := range responses {
+		if response.Instance != nil {
+			otherInstancesSeen = true
+			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
+				maxBallot = ballot
+			}
+		}
+	}
+
+	if !otherInstancesSeen {
+		return nil
+	}
+
+	// find the highest response status
+	maxStatus := InstanceStatus(byte(0))
+	var instance *Instance
+	for _, response := range responses {
+		if status := response.Instance.Status; status > maxStatus {
+			maxStatus = status
+			if response.Instance != nil {
+				instance = response.Instance
+			}
+		}
+	}
+
+	return instance
+}
+
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
@@ -85,34 +121,35 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	responses, err := s.receivePrepareResponseQuorum(recvChan, instance, quorumSize, len(replicas))
 	if err != nil { return err }
 
-	// find the highest response ballot
-	maxBallot := uint32(0)
-	for _, response := range responses {
-		if ballot := response.Instance.MaxBallot; ballot > maxBallot {
-			maxBallot = ballot
-		}
+	analyzeAndUpdateInstance := func() (*Instance, error) {
+		remoteInstance := s.analyzePrepareResponses(responses, len(replicas) + 1, quorumSize)
+		return remoteInstance, nil
 	}
+	remoteInstance, err := analyzeAndUpdateInstance()
 
-	// find the highest response status
-	maxStatus := InstanceStatus(byte(0))
-	for _, response := range responses {
-		if status := response.Instance.Status; status > maxStatus {
-			maxStatus = status
-		}
-	}
-
-	switch maxStatus {
+	acceptRequired := true
+	var err error
+	switch remoteInstance.Status {
 	case INSTANCE_PREACCEPTED:
 		// run pre accept phase
+		acceptRequired, err = s.preAcceptPhase(instance)
+		if err != nil { return err }
 		fallthrough
 	case INSTANCE_ACCEPTED:
 		// run accept phase
+		if acceptRequired {
+			err = s.acceptPhase(instance)
+			if err != nil { return err }
+		}
 		fallthrough
 	case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
 		// commit instance
-
-
+		err = s.commitPhase(instance)
+		if err != nil { return err }
+	default:
+		return fmt.Errorf("Unknown instance status: %v", remoteInstance.Status)
 	}
+
 	return nil
 }
 
