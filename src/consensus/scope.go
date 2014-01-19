@@ -958,7 +958,7 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 		}
 	}
 
-	return response, nil
+	return responses, nil
 }
 
 // runs explicit prepare phase on instances where a command leader failure is suspected
@@ -969,7 +969,7 @@ func (s *Scope) prepareInstance(instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increments and sends the prepare messages in a single lock
-	incrementInstanceAndSendPrepareMessage := func() (<-chan *PreAcceptResponse, error) {
+	incrementInstanceAndSendPrepareMessage := func() (<-chan *PrepareResponse, error) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		instance.MaxBallot++
@@ -987,7 +987,7 @@ func (s *Scope) prepareInstance(instance *Instance) error {
 	if err != nil { return err }
 
 	// find the highest response ballot
-	maxBallot := 0
+	maxBallot := uint32(0)
 	for _, response := range responses {
 		if ballot := response.Instance.MaxBallot; ballot > maxBallot {
 			maxBallot = ballot
@@ -1021,6 +1021,7 @@ func (s *Scope) prepareInstance(instance *Instance) error {
 // this method designates the node it's called on as the command leader for the given query
 // and therefore, should only be called once per client query
 func (s *Scope) ExecuteQuery(instructions []*store.Instruction, replicas []node.Node) (store.Value, error) {
+	// TODO: remove all this replica logic
 	// replica setup
 	remoteReplicas := make([]node.Node, 0, len(replicas)-1)
 	localReplicaFound := false
