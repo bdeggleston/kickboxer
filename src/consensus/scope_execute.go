@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -243,9 +244,39 @@ func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
 	// get dependency instance ids, sorted in execution order
 	exOrder := s.getExecutionOrder(instance)
 
+	// prepare uncommitted instances
 	uncommitted := s.getUncommittedInstances(exOrder)
 	if len(uncommitted) > 0 {
-		panic("explicit prepare not implemented yet")
+		wg := sync.WaitGroup{}
+		wg.Add(len(uncommitted))
+		errors := make(chan error, len(uncommitted))
+		prepare := func(inst *Instance) {
+			var err error
+			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+				if err = s.preparePhase(inst); err != nil {
+					if _, ok := err.(BallotMessage); ok {
+						// TODO: wait on the ballot timeout / commit notify and retry
+
+					} else {
+						break
+					}
+				} else {
+					break
+				}
+			}
+			errors <- err
+			wg.Done()
+		}
+		for _, inst := range uncommitted {
+			go prepare(inst)
+		}
+		wg.Wait()
+		for i:=0; i< len(uncommitted); i++ {
+			err := <- errors
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return s.executeDependencyChain(exOrder, instance)

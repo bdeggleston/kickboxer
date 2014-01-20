@@ -30,6 +30,17 @@ func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
 
 }
 
+// tests that an explicit prepare is retried if it fails due to
+// a ballot failure
+func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
+
+}
+
+// tests that an explicit prepare which is retried, will wait before
+// retrying, but will abort if a commit notify event is broadcasted
+func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
+
+}
 
 type ExecuteDependencyChanTest struct {
 	baseScopeTest
