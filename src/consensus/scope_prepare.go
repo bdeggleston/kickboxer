@@ -100,7 +100,12 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse, numNodes i
 	return instance
 }
 
-var scopePreparePhase = func(s *Scope, instance *Instance) error {
+// sends prepare messages to the replicas and returns an instance used
+// to determine how to proceed. This will succeed even if the local instance
+// is using an out of date ballot number. The prepare caller will have to work
+// out what to do (fail or retry)
+// assigned to a var to aid in testing
+var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increments and sends the prepare messages in a single lock
@@ -114,19 +119,22 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 		return s.sendPrepare(instance, replicas)
 	}
 	recvChan, err := incrementInstanceAndSendPrepareMessage()
-	if err != nil { return err }
+	if err != nil { return nil, err }
 
 	// receive responses from at least a quorum of nodes
 	quorumSize := ((len(replicas) + 1) / 2) + 1
 	responses, err := s.receivePrepareResponseQuorum(recvChan, instance, quorumSize, len(replicas))
-	if err != nil { return err }
+	if err != nil { return nil, err }
 
 	analyzeAndUpdateInstance := func() (*Instance, error) {
 		remoteInstance := s.analyzePrepareResponses(responses, len(replicas) + 1, quorumSize)
 		return remoteInstance, nil
 	}
-	remoteInstance, err := analyzeAndUpdateInstance()
+	return analyzeAndUpdateInstance()
+}
 
+// uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
+var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Instance) error {
 	acceptRequired := true
 	var err error
 	switch remoteInstance.Status {
@@ -151,6 +159,13 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	}
 
 	return nil
+}
+
+var scopePreparePhase = func(s *Scope, instance *Instance) error {
+	remoteInstance, err := scopePreparePhase1(s, instance)
+	if err != nil { return err }
+
+	return scopePreparePhase2(s, instance, remoteInstance)
 }
 
 // runs explicit prepare phase on instances where a command leader failure is suspected
