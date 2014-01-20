@@ -52,7 +52,7 @@ func (s *Scope) preAcceptInstance(instance *Instance) (bool, error) {
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
-	//
+	// TODO: preaccept sending needs to happen in a lock
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
 	msg := &PreAcceptRequest{Scope: s.name, Instance: instance}
 	sendMsg := func(n node.Node) {
@@ -101,8 +101,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			bmResponses[i] = BallotMessage(response)
 		}
 		s.updateInstanceBallotFromResponses(instance, bmResponses)
-		// TODO: what to do here... Try again?
-		panic("rejected pre-accept not handled yet")
+		return nil, NewBallotError("Ballot number rejected")
 	}
 
 	return responses, nil

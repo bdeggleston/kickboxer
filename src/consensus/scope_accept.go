@@ -114,8 +114,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 			bmResponses[i] = BallotMessage(response)
 		}
 		s.updateInstanceBallotFromResponses(instance, bmResponses)
-		// TODO: figure out what to do here. Try again?
-		panic("rejected accept not handled yet")
+		return NewBallotError("Ballot number rejected")
 	}
 	return nil
 }

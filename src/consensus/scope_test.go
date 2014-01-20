@@ -94,3 +94,25 @@ func TestGetNextSeq(t *testing.T) {
 func TestAddMissingInstanceNotPreviouslySeen(t *testing.T) {
 	// TODO: this
 }
+
+type ScopeExecuteQueryTest struct {
+	baseScopeTest
+}
+
+var _ = gocheck.Suite(&ScopeExecuteQueryTest{})
+
+func (s *ScopeExecuteQueryTest) TestPreAcceptSuccess(c *gocheck.C) {
+
+}
+
+func (s *ScopeExecuteQueryTest) TestPreAcceptBallotFailure(c *gocheck.C) {
+
+}
+
+func (s *ScopeExecuteQueryTest) TestAcceptSuccess(c *gocheck.C) {
+
+}
+
+func (s *ScopeExecuteQueryTest) TestAcceptBallotFailure(c *gocheck.C) {
+
+}
