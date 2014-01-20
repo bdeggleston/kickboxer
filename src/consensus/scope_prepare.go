@@ -173,6 +173,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 // TODO:
 //	what happens if 2 nodes send each other prepare messages at the same time?
 func (s *Scope) preparePhase(instance *Instance) error {
+	// TODO: add commit timeout and commit Cond logic
 	return scopePreparePhase(s, instance)
 }
 

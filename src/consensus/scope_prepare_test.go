@@ -32,14 +32,38 @@ type PreparePhaseTest struct {
 
 var _ = gocheck.Suite(&PreparePhaseTest{})
 
+// tests that the prepare phase immediately starts if the
+// given instance is past it's commit grace period
+func (s *PreparePhaseTest) TestCommitExpiredTimeout(c *gocheck.C) {
+
+}
+
+// tests that the prepare phase starts after the commit grace
+// period if another goroutine does not commit it first
+func (s *PreparePhaseTest) TestCommitTimeout(c *gocheck.C) {
+
+}
+
+// tests that the prepare phase will wait on the commit notify
+// cond if it's within the commit grace period, and will abort
+// the prepare if another goroutine commits the instance first
+func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
+
+}
+
+// tests that the prepare phase will check
+func (s *PreparePhaseTest) TestCommittedInstanceAbort(c *gocheck.C) {
+
+}
+
 // tests that the instance's ballot is updated if prepare
 // responses return higher ballot numbers
 func (s *PreparePhaseTest) TestBallotUpdate(c *gocheck.C) {
 
 }
 
-// tests that a noop is committed if less than a quorum of
-// instance is aware of the instance in the prepare phase
+// tests that a noop is committed if no other nodes are aware
+// of the instance in the prepare phase
 func (s *PreparePhaseTest) TestUnknownInstance(c *gocheck.C) {
 
 }
