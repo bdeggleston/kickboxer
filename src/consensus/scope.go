@@ -164,16 +164,6 @@ func makeConditional() *sync.Cond {
 	return sync.NewCond(lock)
 }
 
-type TimeoutError struct {
-	message string
-}
-
-func (t TimeoutError) Error() string  { return t.message }
-func (t TimeoutError) String() string { return t.message }
-func NewTimeoutError(format string, a ...interface{}) TimeoutError {
-	return TimeoutError{fmt.Sprintf(format, a...)}
-}
-
 // manages a subset of interdependent
 // consensus operations
 type Scope struct {
