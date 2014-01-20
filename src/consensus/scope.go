@@ -38,6 +38,15 @@ var (
 	// before attempting to force a commit again
 	PREPARE_COMMIT_TIMEOUT = uint64(750)
 
+	// wait period between retrying operations
+	// that failed due to ballot failures
+	BALLOT_FAILURE_WAIT_TIME = uint64(500)
+
+	// number of times an operation, which failed
+	// due to an out of date ballot, will be retried
+	// before the request fails
+	BALLOT_FAILURE_RETRIES = uint64(4)
+
 	// the amount of time other goroutines will
 	// wait for the local leader goroutine to
 	// execute it's instance before it's assumed
