@@ -19,10 +19,10 @@ func makeAcceptCommitTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstanceUnsafe(instance *Instance) (bool, error) {
+func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_ACCEPTED {
-			return false, nil
+			return NewInvalidStatusUpdateError(existing, INSTANCE_ACCEPTED)
 		} else {
 			existing.Status = INSTANCE_ACCEPTED
 			existing.Dependencies = instance.Dependencies
@@ -42,9 +42,9 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) (bool, error) {
 	}
 
 	if err := s.Persist(); err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // sets the given instance as accepted
@@ -54,7 +54,7 @@ func (s *Scope) acceptInstanceUnsafe(instance *Instance) (bool, error) {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstance(instance *Instance) (bool, error) {
+func (s *Scope) acceptInstance(instance *Instance) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -123,11 +123,10 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
-	if success, err := s.acceptInstance(instance); err != nil {
-		return err
-	} else if !success {
-		// how would this even happen?
-		panic("instance already exists")
+	if err := s.acceptInstance(instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return err
+		}
 	}
 	if err := s.sendAccept(instance, replicas); err != nil {
 		return err
@@ -151,10 +150,10 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		}
 	}
 
-	if success, err := s.acceptInstanceUnsafe(request.Instance); err != nil {
-		return nil, err
-	} else if !success {
-		panic("handling previously seen instance not handled yet")
+	if err := s.acceptInstanceUnsafe(request.Instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return nil, err
+		}
 	}
 
 	if len(request.MissingInstances) > 0 {

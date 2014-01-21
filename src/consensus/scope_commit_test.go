@@ -210,10 +210,8 @@ func TestHandleCommitSuccess(t *testing.T) {
 	scope := setupScope()
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if success, err := scope.acceptInstance(instance); err != nil {
+	if err := scope.acceptInstance(instance); err != nil {
 		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if !success {
-		t.Fatalf("Preaccept was not successful")
 	}
 
 	// sanity check

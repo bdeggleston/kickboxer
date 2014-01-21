@@ -37,10 +37,8 @@ func TestAcceptInstanceSuccess(t *testing.T) {
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
-	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
+	if err := scope.acceptInstance(leaderInstance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Acceptance unexpectedly skipped")
 	}
 	testing_helpers.AssertEqual(t, "replica Status", INSTANCE_ACCEPTED, replicaInstance.Status)
 	testing_helpers.AssertEqual(t, "leader Status", INSTANCE_ACCEPTED, leaderInstance.Status)
@@ -71,10 +69,8 @@ func TestAcceptInstanceUnseenSuccess(t *testing.T) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 
-	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
+	if err := scope.acceptInstance(leaderInstance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Acceptance unexpectedly skipped")
 	}
 	if !scope.instances.Contains(leaderInstance) {
 		t.Fatalf("Expected to find instance in scope instance")
@@ -118,10 +114,10 @@ func TestAcceptInstanceHigherStatusFailure(t *testing.T) {
 		t.Fatalf("Unexpectedly found instance in scope inProgress")
 	}
 
-	if accepted, err := scope.acceptInstance(leaderInstance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if accepted {
-		t.Error("Expected accept to be skipped")
+	if err := scope.acceptInstance(leaderInstance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			t.Fatalf("Unexpected error accepting instance: %v (expected InvalidStatusUpdateError)", err)
+		}
 	}
 
 	// check set memberships haven't changed
@@ -147,10 +143,8 @@ func TestSendAcceptSuccess(t *testing.T) {
 	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error pre accepting instance: %v", err)
 	}
-	if accepted, err := scope.acceptInstance(instance); err != nil {
+	if err := scope.acceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Accept unexpectedly skipped")
 	}
 
 	// all replicas agree
@@ -198,10 +192,8 @@ func TestSendAcceptQuorumFailure(t *testing.T) {
 	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error pre accepting instance: %v", err)
 	}
-	if accepted, err := scope.acceptInstance(instance); err != nil {
+	if err := scope.acceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Accept unexpectedly skipped")
 	}
 
 	// all replicas agree
