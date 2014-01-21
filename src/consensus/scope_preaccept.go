@@ -12,10 +12,10 @@ func makePreAcceptCommitTimeout() time.Time {
 	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
-func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) (bool, error) {
+func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) error {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_PREACCEPTED {
-			return false, nil
+			return NewInvalidStatusUpdateError(existing, INSTANCE_PREACCEPTED)
 		}
 	} else {
 		s.instances.Add(instance)
@@ -28,10 +28,10 @@ func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) (bool, error) {
 	s.inProgress.Add(instance)
 
 	if err := s.Persist(); err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 // sets the given instance to preaccepted and updates, deps,
@@ -42,7 +42,7 @@ func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) (bool, error) {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) preAcceptInstance(instance *Instance) (bool, error) {
+func (s *Scope) preAcceptInstance(instance *Instance) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -127,11 +127,11 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired bool, err error) {
 	replicas := s.manager.getScopeReplicas(s)
 
-	if success, err := s.preAcceptInstance(instance); err != nil {
-		return false, err
-	} else if !success {
-		// how would this even happen?
-		panic("instance already exists")
+	if err := s.preAcceptInstance(instance); err != nil {
+		// this may be possible during an explicit prepare
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return false, err
+		}
 	}
 
 	// send instance pre-accept to replicas
@@ -162,10 +162,10 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	instance := request.Instance
-	if success, err := s.preAcceptInstanceUnsafe(instance); err != nil {
-		return nil, err
-	} else if !success {
-		panic("handling previously seen instance not handled yet")
+	if err := s.preAcceptInstanceUnsafe(instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return nil, err
+		}
 	}
 
 	// check agreement on seq and deps with leader

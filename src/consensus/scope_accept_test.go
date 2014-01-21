@@ -144,10 +144,8 @@ func TestSendAcceptSuccess(t *testing.T) {
 	scope := leader.manager.getScope("a")
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if accepted, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error pre accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Pre accept unexpectedly skipped")
 	}
 	if accepted, err := scope.acceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
@@ -197,10 +195,8 @@ func TestSendAcceptQuorumFailure(t *testing.T) {
 	scope := leader.manager.getScope("a")
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if accepted, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error pre accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Pre accept unexpectedly skipped")
 	}
 	if accepted, err := scope.acceptInstance(instance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
@@ -254,10 +250,8 @@ func TestHandleAcceptSuccessCase(t *testing.T) {
 	scope := setupScope()
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if success, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if !success {
-		t.Fatalf("Preaccept was not successful")
 	}
 
 	leaderInstance := copyInstance(instance)
@@ -341,10 +335,8 @@ func TestHandleAcceptOldBallotFailure(t *testing.T) {
 	scope := setupScope()
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if success, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if !success {
-		t.Fatalf("Preaccept was not successful")
 	}
 
 	leaderInstance := copyInstance(instance)
@@ -372,10 +364,8 @@ func TestHandleAcceptMissingInstanceBehavior(t *testing.T) {
 	scope := setupScope()
 	instance := scope.makeInstance(getBasicInstruction())
 
-	if success, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if !success {
-		t.Fatalf("Preaccept was not successful")
 	}
 
 	leaderID := node.NewNodeId()

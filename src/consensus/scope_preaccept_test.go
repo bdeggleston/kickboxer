@@ -30,10 +30,8 @@ func TestPreAcceptInstanceSuccess(t *testing.T) {
 	}
 
 	seq := scope.maxSeq
-	if success, err := scope.preAcceptInstance(instance); err != nil {
+	if err := scope.preAcceptInstance(instance); err != nil {
 		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if !success {
-		t.Fatalf("Preaccept was not successful")
 	}
 
 	if !scope.instances.Contains(instance) {
@@ -68,10 +66,13 @@ func TestPreAcceptInstanceHigherStatusFailure(t *testing.T) {
 		t.Fatalf("Unexpectedly found new instance in scope committed")
 	}
 
-	if success, err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Error preaccepting instance: %v", err)
-	} else if success {
-		t.Fatalf("Expected pre accept to fail")
+	if err := scope.preAcceptInstance(instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			t.Fatalf("Error preaccepting instance: %v", err)
+		} else {
+			t.Log("InvalidStatusUpdateError returned as expected")
+
+		}
 	}
 
 	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, instance.Status)
