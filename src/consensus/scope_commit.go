@@ -19,10 +19,10 @@ func makeExecuteTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
+func (s *Scope) commitInstanceUnsafe(instance *Instance) error {
 	if existing, exists := s.instances[instance.InstanceID]; exists {
 		if existing.Status >= INSTANCE_COMMITTED {
-			return false, nil
+			return NewInvalidStatusUpdateError(existing, INSTANCE_COMMITTED)
 		} else {
 			// this replica may have missed an accept message
 			// so copy the seq & deps onto the existing instance
@@ -46,7 +46,7 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
 	instance.executeTimeout = makeExecuteTimeout()
 
 	if err := s.Persist(); err != nil {
-		return false, err
+		return err
 	}
 
 	// wake up any goroutines waiting on this instance,
@@ -56,7 +56,7 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
 		delete(s.commitNotify, instance.InstanceID)
 	}
 
-	return true, nil
+	return nil
 }
 
 // sets the given instance as committed
@@ -66,7 +66,7 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) (bool, error) {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstance(instance *Instance) (bool, error) {
+func (s *Scope) commitInstance(instance *Instance) error {
 	s.lock.Lock()
 	s.lock.Unlock()
 
@@ -88,15 +88,13 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
-// assigned to var for testing
 var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
-	if success, err := s.commitInstance(instance); err != nil {
-		return err
-	} else if !success {
-		// instance was already committed
-		panic("instance status is greater than commit")
+	if err := s.commitInstance(instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return err
+		}
 	}
 	if err := s.sendCommit(instance, replicas); err != nil {
 		return err
@@ -114,10 +112,10 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if success, err := s.commitInstanceUnsafe(request.Instance); err != nil {
-		return nil, err
-	} else if !success {
-		panic("handling previously seen instance not handled yet")
+	if err := s.commitInstanceUnsafe(request.Instance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			return nil, err
+		}
 	}
 
 	// asynchronously apply mutation

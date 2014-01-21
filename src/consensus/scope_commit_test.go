@@ -39,10 +39,8 @@ func TestCommitInstanceSuccess(t *testing.T) {
 	testing_helpers.AssertEqual(t, "replica seq", uint64(3), replicaInstance.Sequence)
 	testing_helpers.AssertEqual(t, "scope seq", uint64(3), scope.maxSeq)
 
-	if accepted, err := scope.commitInstance(leaderInstance); err != nil {
+	if err := scope.commitInstance(leaderInstance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Acceptance unexpectedly skipped")
 	}
 
 	// test move
@@ -84,10 +82,8 @@ func TestCommitInstanceUnseenSuccess(t *testing.T) {
 		t.Fatalf("Unexpectedly found instance in scope committed")
 	}
 
-	if accepted, err := scope.commitInstance(leaderInstance); err != nil {
+	if err := scope.commitInstance(leaderInstance); err != nil {
 		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if !accepted {
-		t.Error("Acceptance unexpectedly skipped")
 	}
 	if !scope.instances.Contains(leaderInstance) {
 		t.Fatalf("Expected to find instance in scope instance")
@@ -134,10 +130,10 @@ func TestCommitInstanceExecutedFailure(t *testing.T) {
 		t.Fatalf("Expected to find instance in scope executed")
 	}
 
-	if accepted, err := scope.commitInstance(leaderInstance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	} else if accepted {
-		t.Error("Expected accept to be skipped")
+	if err := scope.commitInstance(leaderInstance); err != nil {
+		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			t.Fatalf("Unexpected error accepting instance: %v", err)
+		}
 	}
 
 	// check set memberships haven't changed

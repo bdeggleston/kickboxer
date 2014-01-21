@@ -330,8 +330,7 @@ var _ = gocheck.Suite(&ApplyInstanceTest{})
 
 func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
-	committed, err := s.scope.commitInstance(instance)
-	c.Assert(committed, gocheck.Equals, true)
+	err := s.scope.commitInstance(instance)
 	c.Assert(err, gocheck.IsNil)
 	val, err := s.scope.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
