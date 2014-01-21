@@ -7,45 +7,50 @@ import (
 )
 
 import (
+	"launchpad.net/gocheck"
+)
+
+import (
 	"message"
 	"node"
 	"testing_helpers"
 )
 
-/** acceptInstance **/
+type AcceptInstanceTest struct {
+	baseScopeTest
+}
+
+var _ = gocheck.Suite(&AcceptInstanceTest{})
 
 // tests that an instance is marked as accepted,
 // added to the inProgress set, has it's seq & deps
 // updated and persisted if it's only preaccepted
-func TestAcceptInstanceSuccess(t *testing.T) {
-	scope := setupScope()
-
+func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
-	scope.maxSeq = 3
-	replicaInstance.Sequence = scope.maxSeq
+	s.scope.maxSeq = 3
+	replicaInstance.Sequence = s.scope.maxSeq
 
-	scope.instances.Add(replicaInstance)
-	scope.inProgress.Add(replicaInstance)
-	scope.maxSeq = replicaInstance.Sequence
+	s.scope.instances.Add(replicaInstance)
+	s.scope.inProgress.Add(replicaInstance)
+	s.scope.maxSeq = replicaInstance.Sequence
 
 	// sanity checks
-	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
-	testing_helpers.AssertEqual(t, "replica seq", uint64(3), replicaInstance.Sequence)
-	testing_helpers.AssertEqual(t, "scope seq", uint64(3), scope.maxSeq)
+	c.Assert(4, gocheck.Equals, len(replicaInstance.Dependencies))
+	c.Assert(uint64(3), gocheck.Equals, replicaInstance.Sequence)
+	c.Assert(uint64(3), gocheck.Equals, s.scope.maxSeq)
 
 	leaderInstance := copyInstance(replicaInstance)
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
-	if err := scope.acceptInstance(leaderInstance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	}
-	testing_helpers.AssertEqual(t, "replica Status", INSTANCE_ACCEPTED, replicaInstance.Status)
-	testing_helpers.AssertEqual(t, "leader Status", INSTANCE_ACCEPTED, leaderInstance.Status)
-	testing_helpers.AssertEqual(t, "replica deps", 5, len(replicaInstance.Dependencies))
-	testing_helpers.AssertEqual(t, "replica seq", uint64(4), replicaInstance.Sequence)
-	testing_helpers.AssertEqual(t, "scope seq", uint64(4), scope.maxSeq)
+	err := s.scope.acceptInstance(leaderInstance)
+	c.Assert(err, gocheck.IsNil)
 
+	c.Check(INSTANCE_ACCEPTED, gocheck.Equals, replicaInstance.Status)
+	c.Check(INSTANCE_ACCEPTED, gocheck.Equals, leaderInstance.Status)
+	c.Check(5, gocheck.Equals, len(replicaInstance.Dependencies))
+	c.Check(uint64(4), gocheck.Equals, replicaInstance.Sequence)
+	c.Check(uint64(4), gocheck.Equals, s.scope.maxSeq)
 }
 
 // tests that an instance is marked as accepted,
