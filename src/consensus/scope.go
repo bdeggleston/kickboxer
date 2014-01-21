@@ -45,7 +45,7 @@ var (
 	// number of times an operation, which failed
 	// due to an out of date ballot, will be retried
 	// before the request fails
-	BALLOT_FAILURE_RETRIES = uint64(4)
+	BALLOT_FAILURE_RETRIES = 4
 
 	// the amount of time other goroutines will
 	// wait for the local leader goroutine to
