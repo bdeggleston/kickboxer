@@ -133,3 +133,27 @@ func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
 	s.manager = NewManager(s.cluster)
 	s.scope = NewScope("a", s.manager)
 }
+
+type baseReplicaTest struct {
+	baseScopeTest
+	nodes []*mockNode
+	leader *mockNode
+	replicas []*mockNode
+
+	numNodes int
+}
+
+func (s *baseReplicaTest) SetUpSuite(c *gocheck.C) {
+	s.numNodes = 5
+}
+
+func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
+	c.Assert(s.numNodes > 2, gocheck.Equals, true)
+	s.nodes = setupReplicaSet(s.numNodes)
+	s.leader = s.nodes[0]
+	s.replicas = s.nodes[1:]
+
+	s.manager = s.leader.manager
+	s.cluster = s.manager.cluster.(*mockCluster)
+	s.scope = s.manager.getScope("a")
+}

@@ -4,6 +4,25 @@ import (
 	"launchpad.net/gocheck"
 )
 
+type basePrepareTest struct {
+	oldScopePreparePhase func(*Scope, *Instance) error
+	oldScopePreparePhase1 func(*Scope, *Instance) (*Instance, error)
+	oldScopePreparePhase2 func(*Scope, *Instance, *Instance) error
+
+}
+
+func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
+	s.oldScopePreparePhase = scopePreparePhase
+	s.oldScopePreparePhase1 = scopePreparePhase1
+	s.oldScopePreparePhase2 = scopePreparePhase2
+}
+
+func (s *basePrepareTest) TearDownTest(c *gocheck.C) {
+	scopePreparePhase = s.oldScopePreparePhase
+	scopePreparePhase1 = s.oldScopePreparePhase1
+	scopePreparePhase2 = s.oldScopePreparePhase2
+}
+
 // tests the send prepare method
 type PreparePhaseSendTest struct {
 	baseScopeTest
@@ -13,7 +32,7 @@ var _ = gocheck.Suite(&PreparePhaseSendTest{})
 
 // tests the receive prepare response method
 type PreparePhaseReceiveTest struct {
-	baseScopeTest
+	basePrepareTest
 }
 
 var _ = gocheck.Suite(&PreparePhaseSendTest{})
@@ -27,10 +46,16 @@ var _ = gocheck.Suite(&PreparePhaseTest{})
 
 // tests the prepare phase method
 type PreparePhaseTest struct {
-	baseScopeTest
+	basePrepareTest
 }
 
 var _ = gocheck.Suite(&PreparePhaseTest{})
+
+// tests that the preparePhase doesn't actually do anything
+// if the instance has been committed
+func (s *PreparePhaseTest) TestInstanceCommitted(c *gocheck.C) {
+
+}
 
 // tests that the prepare phase immediately starts if the
 // given instance is past it's commit grace period
