@@ -174,6 +174,56 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 //	what happens if 2 nodes send each other prepare messages at the same time?
 func (s *Scope) preparePhase(instance *Instance) error {
 	// TODO: add commit timeout and commit Cond logic
+	s.lock.Lock()
+	status := instance.Status
+	if status >= INSTANCE_COMMITTED {
+		s.lock.Unlock()
+		return nil
+	}
+	if time.Now().After(instance.commitTimeout) {
+		// proceed, the instance's commit grace period
+		// has expired
+		s.statCommitTimeout++
+		s.lock.Unlock()
+	} else {
+		// get or create broadcast object
+		cond, ok := s.commitNotify[instance.InstanceID]
+		if !ok {
+			cond = makeConditional()
+			s.commitNotify[instance.InstanceID] = cond
+		}
+
+		// wait on broadcast event or timeout
+		broadcastEvent := make(chan bool)
+		go func() {
+			cond.Wait()
+			broadcastEvent <- true
+		}()
+		timeoutEvent := time.After(instance.commitTimeout.Sub(time.Now()))
+		s.lock.Unlock()
+		select {
+		case <- broadcastEvent:
+			// instance was executed by another goroutine
+			s.statExecuteLocalSuccessWait++
+			return nil
+		case <- timeoutEvent:
+			// execution timed out
+			s.lock.Lock()
+
+			// check that instance was not executed by another
+			// waking goroutine
+			if instance.Status >= INSTANCE_COMMITTED {
+				// unlock and continue if it was
+				s.lock.Unlock()
+				return nil
+			} else {
+				s.statExecuteLocalTimeout++
+				s.statExecuteLocalTimeoutWait++
+				s.lock.Unlock()
+			}
+		}
+	}
+
 	return scopePreparePhase(s, instance)
 }
 
