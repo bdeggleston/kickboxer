@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"fmt"
-	"testing"
 	"time"
 )
 
@@ -13,7 +12,6 @@ import (
 import (
 	"message"
 	"node"
-	"testing_helpers"
 )
 
 type AcceptInstanceTest struct {
@@ -56,156 +54,122 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 // tests that an instance is marked as accepted,
 // added to the instances and inProgress set, and
 // persisted if the instance hasn't been seen before
-func TestAcceptInstanceUnseenSuccess(t *testing.T) {
-	scope := setupScope()
-	scope.maxSeq = 3
+func (s *AcceptInstanceTest) TestNewInstanceSuccess(c *gocheck.C) {
+	s.scope.maxSeq = 3
 
 	leaderInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
-	leaderInstance.Sequence = scope.maxSeq + 2
+	leaderInstance.Sequence = s.scope.maxSeq + 2
 
 	// sanity checks
-	if scope.instances.Contains(leaderInstance) {
-		t.Fatalf("Unexpectedly found instance in scope instances")
-	}
-	if scope.inProgress.Contains(leaderInstance) {
-		t.Fatalf("Unexpectedly found instance in scope inProgress")
-	}
-	if scope.committed.Contains(leaderInstance) {
-		t.Fatalf("Unexpectedly found instance in scope committed")
-	}
+	c.Assert(s.scope.instances.Contains(leaderInstance), gocheck.Equals, false)
+	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
+	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, false)
 
-	if err := scope.acceptInstance(leaderInstance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	}
-	if !scope.instances.Contains(leaderInstance) {
-		t.Fatalf("Expected to find instance in scope instance")
-	}
-	if !scope.inProgress.Contains(leaderInstance) {
-		t.Fatalf("Expected to find instance in scope inProgress")
-	}
-	if scope.committed.Contains(leaderInstance) {
-		t.Fatalf("Unexpectedly found instance in scope committed")
-	}
-	replicaInstance := scope.instances[leaderInstance.InstanceID]
-	testing_helpers.AssertEqual(t, "replica Status", INSTANCE_ACCEPTED, replicaInstance.Status)
-	testing_helpers.AssertEqual(t, "leader Status", INSTANCE_ACCEPTED, leaderInstance.Status)
-	testing_helpers.AssertEqual(t, "replica deps", 4, len(replicaInstance.Dependencies))
-	testing_helpers.AssertEqual(t, "replica seq", uint64(5), replicaInstance.Sequence)
-	testing_helpers.AssertEqual(t, "scope seq", uint64(5), scope.maxSeq)
+	err := s.scope.acceptInstance(leaderInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.scope.instances.Contains(leaderInstance), gocheck.Equals, true)
+	c.Check(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, true)
+	c.Check(s.scope.committed.Contains(leaderInstance), gocheck.Equals, false)
+
+	replicaInstance := s.scope.instances[leaderInstance.InstanceID]
+	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+	c.Check(leaderInstance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 4)
+	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(5))
+	c.Check(s.scope.maxSeq, gocheck.Equals, uint64(5))
 }
 
 // tests that an instance is not marked as accepted,
 // or added to the inProgress set if it already has
 // a higher status
-func TestAcceptInstanceHigherStatusFailure(t *testing.T) {
-	scope := setupScope()
-
+func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
-	scope.maxSeq = 3
-	replicaInstance.Sequence = scope.maxSeq
+	s.scope.maxSeq = 3
+	replicaInstance.Sequence = s.scope.maxSeq
 	replicaInstance.Status = INSTANCE_COMMITTED
 
-	scope.instances.Add(replicaInstance)
-	scope.committed.Add(replicaInstance)
+	s.scope.instances.Add(replicaInstance)
+	s.scope.committed.Add(replicaInstance)
 
 	leaderInstance := copyInstance(replicaInstance)
 	leaderInstance.Status = INSTANCE_ACCEPTED
 
 	// sanity checks
-	if _, exists := scope.committed[leaderInstance.InstanceID]; !exists {
-		t.Fatalf("Expected to find instance in scope committed")
-	}
-	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
-		t.Fatalf("Unexpectedly found instance in scope inProgress")
-	}
+	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
+	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 
-	if err := scope.acceptInstance(leaderInstance); err != nil {
-		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			t.Fatalf("Unexpected error accepting instance: %v (expected InvalidStatusUpdateError)", err)
-		}
-	}
+	err := s.scope.acceptInstance(leaderInstance)
+	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
 	// check set memberships haven't changed
-	if _, exists := scope.committed[leaderInstance.InstanceID]; !exists {
-		t.Fatalf("Expected to find instance in scope committed")
-	}
-	if _, exists := scope.inProgress[leaderInstance.InstanceID]; exists {
-		t.Fatalf("Unexpectedly found instance in scope inProgress")
-	}
-	testing_helpers.AssertEqual(t, "replica status", INSTANCE_COMMITTED, replicaInstance.Status)
+	c.Check(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
+	c.Check(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
+	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
-/** leader **/
+type AcceptLeaderTest struct {
+	baseReplicaTest
+	instance *Instance
+	oldAcceptTimeout uint64
+}
+
+var _ = gocheck.Suite(&AcceptLeaderTest{})
+
+func (s *AcceptLeaderTest) SetUpSuite(c *gocheck.C) {
+	s.baseReplicaTest.SetUpSuite(c)
+	s.oldAcceptTimeout = ACCEPT_TIMEOUT
+	ACCEPT_TIMEOUT = 50
+}
+
+func (s *AcceptLeaderTest) TearDownSuite(c *gocheck.C) {
+	ACCEPT_TIMEOUT = s.oldAcceptTimeout
+}
+
+func (s *AcceptLeaderTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+	var err error
+
+	err = s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
+	err = s.scope.acceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
+}
 
 // tests all replicas returning results
-func TestSendAcceptSuccess(t *testing.T) {
-	nodes := setupReplicaSet(5)
-	leader := nodes[0]
-	replicas := nodes[1:]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Unexpected error pre accepting instance: %v", err)
-	}
-	if err := scope.acceptInstance(instance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	}
-
+func (s *AcceptLeaderTest) TestSendAcceptSuccess(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		return &AcceptResponse{
 			Accepted:         true,
-			MaxBallot:        instance.MaxBallot,
+			MaxBallot:        s.instance.MaxBallot,
 		}, nil
 	}
 
-	for _, replica := range replicas {
+	for _, replica := range s.replicas {
 		replica.messageHandler = responseFunc
 	}
 
-	err := scope.sendAccept(instance, transformMockNodeArray(replicas))
-	if err != nil {
-		t.Errorf("Unexpected error receiving responses: %v", err)
-	}
+	err := s.scope.sendAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.IsNil)
 
 	// test that the nodes received the correct message
-	for _, replica := range replicas {
-		if !testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages)) {
-			continue
-		}
+	for _, replica := range s.replicas {
+		c.Assert(len(replica.sentMessages), gocheck.Equals, 1)
 		msg := replica.sentMessages[0]
-		if _, ok := msg.(*AcceptRequest); !ok {
-			t.Errorf("Wrong message type received: %T", msg)
-		}
+		c.Check(msg, gocheck.FitsTypeOf, &AcceptRequest{})
 	}
 }
 
 // tests proper error is returned if
 // less than a quorum respond
-func TestSendAcceptQuorumFailure(t *testing.T) {
-	oldTimeout := ACCEPT_TIMEOUT
-	ACCEPT_TIMEOUT = 50
-	defer func() { ACCEPT_TIMEOUT = oldTimeout }()
-
-	nodes := setupReplicaSet(5)
-	leader := nodes[0]
-	replicas := nodes[1:]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Unexpected error pre accepting instance: %v", err)
-	}
-	if err := scope.acceptInstance(instance); err != nil {
-		t.Fatalf("Unexpected error accepting instance: %v", err)
-	}
-
+func (s *AcceptLeaderTest) TestQuorumFailure(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		return &AcceptResponse{
 			Accepted:         true,
-			MaxBallot:        instance.MaxBallot,
+			MaxBallot:        s.instance.MaxBallot,
 		}, nil
 	}
 	hangResponse := func(n *mockNode, m message.Message) (message.Message, error) {
@@ -213,183 +177,162 @@ func TestSendAcceptQuorumFailure(t *testing.T) {
 		return nil, fmt.Errorf("nope")
 	}
 
-	for i, replica := range replicas {
+	for i, replica := range s.replicas {
 		if i == 0 {
 			replica.messageHandler = responseFunc
 		} else {
 			replica.messageHandler = hangResponse
 		}
 	}
-	err := scope.sendAccept(instance, transformMockNodeArray(replicas))
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-	if _, ok := err.(TimeoutError); !ok {
-		t.Errorf("Expected TimeoutError, got: %T", err)
-	}
+
+	err := s.scope.sendAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.NotNil)
+	c.Check(err, gocheck.FitsTypeOf, TimeoutError{})
 }
 
-func TestSendAcceptBallotFailure(t *testing.T) {
+func (s *AcceptLeaderTest) TestSendAcceptBallotFailure(c *gocheck.C) {
 	// TODO: figure out what to do in this situation
 	// the only way this would happen if is the command
 	// was taken over by another replica, in which case,
 	// should we just wait for the other leader to
 	// execute it?
-	t.Skip("figure out the expected behavior")
+	c.Skip("figure out the expected behavior")
 }
 
 /** replica **/
 
+type AcceptReplicaTest struct {
+	baseScopeTest
+	instance *Instance
+}
+
+var _ = gocheck.Suite(&AcceptReplicaTest{})
+
+func (s *AcceptReplicaTest) SetUpTest(c *gocheck.C) {
+	s.baseScopeTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+}
+
 // test that instances are marked as accepted when
 // an accept request is received, and there are no
 // problems with the request
-func TestHandleAcceptSuccessCase(t *testing.T) {
-	scope := setupScope()
-	instance := scope.makeInstance(getBasicInstruction())
+func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
+	var err error
 
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Error preaccepting instance: %v", err)
-	}
+	err = s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
 
-	leaderInstance := copyInstance(instance)
+	leaderInstance := copyInstance(s.instance)
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 	leaderInstance.Sequence += 5
 	leaderInstance.MaxBallot++
 
 	request := &AcceptRequest{
-		Scope: scope.name,
+		Scope: s.scope.name,
 		Instance: leaderInstance,
 		MissingInstances: []*Instance{},
 	}
 
-	response, err := scope.HandleAccept(request)
-	if err != nil {
-		t.Fatalf("Error handling accept: %v", err)
-	}
-
-	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+	response, err := s.scope.HandleAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(response.Accepted, gocheck.Equals, true)
 
 	// check dependencies
 	expectedDeps := NewInstanceIDSet(leaderInstance.Dependencies)
-	actualDeps := NewInstanceIDSet(instance.Dependencies)
-	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
-	if !expectedDeps.Equal(actualDeps) {
-		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
-	}
+	actualDeps := NewInstanceIDSet(s.instance.Dependencies)
+	c.Check(len(actualDeps), gocheck.Equals, len(expectedDeps))
+	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 
-	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, instance.Sequence)
-	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, scope.maxSeq)
+	c.Check(leaderInstance.Sequence, gocheck.Equals, s.instance.Sequence)
+	c.Check(leaderInstance.Sequence, gocheck.Equals, s.scope.maxSeq)
 }
 
 // tests that accepts are handled properly if
 // the commit if for an instance the node has
 // not been previously seen by this replica
-func TestHandleAcceptUnknownInstance(t *testing.T) {
-	scope := setupScope()
-
+func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
 	leaderID := node.NewNodeId()
-	leaderInstance := makeInstance(leaderID, scope.getCurrentDepsUnsafe())
+	leaderInstance := makeInstance(leaderID, s.scope.getCurrentDepsUnsafe())
 	leaderInstance.Sequence += 5
 
 	request := &AcceptRequest{
-		Scope: scope.name,
+		Scope: s.scope.name,
 		Instance: leaderInstance,
 		MissingInstances: []*Instance{},
 	}
 
 	// sanity checks
-	if scope.instances.ContainsID(leaderInstance.InstanceID) {
-		t.Fatalf("Unexpectedly found instance in scope instances")
-	}
+	c.Assert(s.scope.instances.ContainsID(leaderInstance.InstanceID), gocheck.Equals, false)
 
-	response, err := scope.HandleAccept(request)
-	if err != nil {
-		t.Fatalf("Error handling accept: %v", err)
-	}
+	response, err := s.scope.HandleAccept(request)
+	c.Assert(err, gocheck.IsNil)
 
-	if !scope.instances.ContainsID(leaderInstance.InstanceID) {
-		t.Fatalf("Expected instance in scope instances")
-	}
-	instance := scope.instances[leaderInstance.InstanceID]
+	c.Assert(s.scope.instances.ContainsID(leaderInstance.InstanceID), gocheck.Equals, true)
+	s.instance = s.scope.instances[leaderInstance.InstanceID]
 
-	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+	c.Check(response.Accepted, gocheck.Equals, true)
 
 	// check dependencies
 	expectedDeps := NewInstanceIDSet(leaderInstance.Dependencies)
-	actualDeps := NewInstanceIDSet(instance.Dependencies)
-	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
-	if !expectedDeps.Equal(actualDeps) {
-		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
-	}
+	actualDeps := NewInstanceIDSet(s.instance.Dependencies)
+	c.Check(len(actualDeps), gocheck.Equals, len(expectedDeps))
+	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 
-	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, instance.Sequence)
-	testing_helpers.AssertEqual(t, "Sequence", leaderInstance.Sequence, scope.maxSeq)
+	c.Check(s.instance.Sequence, gocheck.Equals,  leaderInstance.Sequence)
+	c.Check(s.scope.maxSeq, gocheck.Equals,  leaderInstance.Sequence)
 }
 
 // tests that accept messages fail if an higher
 // ballot number has been seen for this message
-func TestHandleAcceptOldBallotFailure(t *testing.T) {
-	scope := setupScope()
-	instance := scope.makeInstance(getBasicInstruction())
+func (s *AcceptReplicaTest) TestOldBallotFailure(c *gocheck.C) {
+	var err error
+	err = s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
 
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Error preaccepting instance: %v", err)
-	}
-
-	leaderInstance := copyInstance(instance)
+	leaderInstance := copyInstance(s.instance)
 	leaderInstance.Sequence += 5
 
 	request := &AcceptRequest{
-		Scope: scope.name,
+		Scope: s.scope.name,
 		Instance: leaderInstance,
 		MissingInstances: []*Instance{},
 	}
 
-	instance.MaxBallot++
-	response, err := scope.HandleAccept(request)
-	if err != nil {
-		t.Fatalf("Error handling accept: %v", err)
-	}
+	s.instance.MaxBallot++
+	response, err := s.scope.HandleAccept(request)
+	c.Assert(err, gocheck.IsNil)
 
-	testing_helpers.AssertEqual(t, "Accepted", false, response.Accepted)
-	testing_helpers.AssertEqual(t, "MaxBallot", instance.MaxBallot, response.MaxBallot)
+	c.Check(response.Accepted, gocheck.Equals, false)
+	c.Check(s.instance.MaxBallot, gocheck.Equals, response.MaxBallot)
 }
 
 // tests that handle accept adds any missing instances
 // in the missing instances message
-func TestHandleAcceptMissingInstanceBehavior(t *testing.T) {
-	scope := setupScope()
-	instance := scope.makeInstance(getBasicInstruction())
-
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Error preaccepting instance: %v", err)
-	}
+func (s *AcceptReplicaTest) TestMissingInstanceSuccess(c *gocheck.C) {
+	var err error
+	err = s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
 
 	leaderID := node.NewNodeId()
-	missingInstance := makeInstance(leaderID, instance.Dependencies)
-	leaderInstance := copyInstance(instance)
+	missingInstance := makeInstance(leaderID, s.instance.Dependencies)
+	leaderInstance := copyInstance(s.instance)
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, missingInstance.InstanceID)
 	leaderInstance.Sequence += 5
 	leaderInstance.MaxBallot++
 
 	// sanity checks
-	if scope.instances.ContainsID(missingInstance.InstanceID) {
-		t.Fatalf("Unexpectedly found missing instance in scope instances")
-	}
+	c.Check(s.scope.instances.ContainsID(missingInstance.InstanceID), gocheck.Equals, false)
 
 	request := &AcceptRequest{
-		Scope: scope.name,
+		Scope: s.scope.name,
 		Instance: leaderInstance,
 		MissingInstances: []*Instance{missingInstance},
 	}
 
-	response, err := scope.HandleAccept(request)
-	if err != nil {
-		t.Fatalf("Error handling accept: %v", err)
-	}
-	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
-	if !scope.instances.ContainsID(missingInstance.InstanceID) {
-		t.Fatalf("Expected instance in scope instances")
-	}
+	response, err := s.scope.HandleAccept(request)
+	c.Assert(err, gocheck.IsNil)
 
+	c.Check(response.Accepted, gocheck.Equals, true)
+	c.Check(s.scope.instances.ContainsID(missingInstance.InstanceID), gocheck.Equals, true)
 }
+
