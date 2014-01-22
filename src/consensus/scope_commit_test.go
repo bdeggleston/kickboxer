@@ -17,6 +17,7 @@ import (
 // inProgress set, and persisted if it hasn't
 // already been executed
 func TestCommitInstanceSuccess(t *testing.T) {
+	// TODO: test statCommitCount is incremented
 	scope := setupScope()
 
 	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))

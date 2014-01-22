@@ -195,6 +195,20 @@ type Scope struct {
 
 	// ------------- runtime stats -------------
 
+	// ------------- commit stats -------------
+
+	// total number of committed instances
+	statCommitCount uint64
+
+	// total number of timed out commits
+	statCommitTimeout uint64
+
+	// number of times a goroutine was waiting on
+	// an instance to execute
+	statCommitTimeoutWait uint64
+
+	// ------------- execution stats -------------
+
 	// total number of executed instances
 	statExecuteCount uint64
 

@@ -161,8 +161,8 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 	for _, iid := range iids {
 		val = nil
 		err = nil
-		instance := s.getInstance(iid)
 		s.lock.Lock()
+		instance := s.instances[iid]
 		switch instance.Status {
 		case INSTANCE_COMMITTED:
 			//

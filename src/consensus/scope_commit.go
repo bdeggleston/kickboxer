@@ -55,6 +55,7 @@ func (s *Scope) commitInstanceUnsafe(instance *Instance) error {
 		cond.Broadcast()
 		delete(s.commitNotify, instance.InstanceID)
 	}
+	s.statCommitCount++
 
 	return nil
 }
