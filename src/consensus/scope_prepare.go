@@ -204,7 +204,7 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		select {
 		case <- broadcastEvent:
 			// instance was executed by another goroutine
-			s.statExecuteLocalSuccessWait++
+			s.statCommitTimeoutWait++
 			return nil
 		case <- timeoutEvent:
 			// execution timed out
@@ -217,8 +217,8 @@ func (s *Scope) preparePhase(instance *Instance) error {
 				s.lock.Unlock()
 				return nil
 			} else {
-				s.statExecuteLocalTimeout++
-				s.statExecuteLocalTimeoutWait++
+				s.statCommitTimeout++
+				s.statCommitTimeoutWait++
 				s.lock.Unlock()
 			}
 		}
