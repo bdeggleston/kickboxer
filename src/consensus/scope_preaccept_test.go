@@ -375,6 +375,10 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 
 }
 
+func TestHandleNoopPreaccept(t *testing.T) {
+
+}
+
 // if the pre accept message reaches the replica
 // after the command has been accepted, or committed
 func TestHandlePreAcceptLate(t *testing.T) {

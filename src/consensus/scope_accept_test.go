@@ -247,6 +247,10 @@ func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
 	c.Check(leaderInstance.Sequence, gocheck.Equals, s.scope.maxSeq)
 }
 
+func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
+
+}
+
 // tests that accepts are handled properly if
 // the commit if for an instance the node has
 // not been previously seen by this replica
