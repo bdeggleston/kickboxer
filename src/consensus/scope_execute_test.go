@@ -42,17 +42,17 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 
 }
 
-type ExecuteDependencyChanTest struct {
+type ExecuteDependencyChainTest struct {
 	baseScopeTest
 	expectedOrder []InstanceID
 	maxIdx int
 }
 
-var _ = gocheck.Suite(&ExecuteDependencyChanTest{})
+var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
 
 // makes a set of interdependent instances, and sets
 // their expected ordering
-func (s *ExecuteDependencyChanTest) SetUpTest(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
 	s.expectedOrder  = make([]InstanceID, 0)
 	lastVal := 0
@@ -93,13 +93,13 @@ func (s *ExecuteDependencyChanTest) SetUpTest(c *gocheck.C) {
 }
 
 // commits all instances
-func (s *ExecuteDependencyChanTest) commitInstances() {
+func (s *ExecuteDependencyChainTest) commitInstances() {
 	for _, iid := range s.expectedOrder {
 		s.scope.commitInstance(s.scope.instances[iid])
 	}
 }
 
-func (s *ExecuteDependencyChanTest) TestDependencyOrdering(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
 	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
@@ -113,7 +113,7 @@ func (s *ExecuteDependencyChanTest) TestDependencyOrdering(c *gocheck.C) {
 // tests that instances up to and including the given
 // instance are executed when the dependencies all
 // have a remote instance id
-func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
 	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx - 1]]
 
@@ -161,7 +161,7 @@ func (s *ExecuteDependencyChanTest) TestExternalDependencySuccess(c *gocheck.C) 
 
 // tests the execution of dependency chains when all of the target dependencies
 // have are past their execution grace period
-func (s *ExecuteDependencyChanTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
 	targetInst := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 2]]
 
@@ -210,7 +210,7 @@ func (s *ExecuteDependencyChanTest) TestTimedOutLocalDependencySuccess(c *gochec
 // will wait on it's notify cond. If another gorouting does not executes the instance
 // before the wait period times out, the called executeDependencyChain will execute it,
 // and continue executing instances
-func (s *ExecuteDependencyChanTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
 	s.commitInstances()
 	depInst := s.scope.instances[s.expectedOrder[0]]
 	depInst.executeTimeout = time.Now().Add(time.Duration(10) * time.Millisecond)
@@ -245,7 +245,7 @@ func (s *ExecuteDependencyChanTest) TestLocalDependencyTimeoutSuccess(c *gocheck
 // will wait on it's notify cond. If another gorouting executes the instance before
 // the wait period times out, the called executeDependencyChain will skip it, and
 // continue executing instances
-func (s *ExecuteDependencyChanTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
 	s.commitInstances()
 	depInst := s.scope.instances[s.expectedOrder[0]]
 	depInst.executeTimeout = time.Now().Add(time.Duration(1) * time.Minute)
@@ -289,7 +289,7 @@ func (s *ExecuteDependencyChanTest) TestLocalDependencyBroadcastSuccess(c *goche
 }
 
 // tests that instances are not executed twice
-func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 	s.commitInstances()
 	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx]]
 
@@ -313,7 +313,7 @@ func (s *ExecuteDependencyChanTest) TestSkipExecuted(c *gocheck.C) {
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
-func (s *ExecuteDependencyChanTest) TestUncommittedFailure(c *gocheck.C) {
+func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
 	targetInst := s.scope.instances[s.expectedOrder[0]]
 
 	val, err := s.scope.executeDependencyChain(s.expectedOrder, targetInst)
