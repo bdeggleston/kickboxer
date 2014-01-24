@@ -162,7 +162,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	s.commitInstances()
 	rejectInst := s.scope.instances[s.expectedOrder[0]]
-	rejectInst.Status = INSTANCE_REJECTED
+	rejectInst.Noop = true
 	targetInst := s.scope.instances[s.expectedOrder[1]]
 
 	val, err := s.scope.executeInstance(targetInst)
@@ -360,11 +360,12 @@ func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 //
 func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
-	instance.Status = INSTANCE_REJECTED
+	instance.Status = INSTANCE_COMMITTED
+	instance.Noop = true
 	val, err := s.scope.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.IsNil)
-	c.Check(instance.Status, gocheck.Equals, INSTANCE_REJECTED)
+	c.Check(instance.Noop, gocheck.Equals, true)
 	c.Check(len(s.cluster.instructions), gocheck.Equals, 0)
 }
 

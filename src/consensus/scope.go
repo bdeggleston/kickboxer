@@ -321,8 +321,6 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 			case INSTANCE_ACCEPTED:
 				instance.commitTimeout = makeAcceptCommitTimeout()
 				s.inProgress.Add(instance)
-			case INSTANCE_REJECTED:
-				panic("rejected instances not handled yet")
 			case INSTANCE_COMMITTED:
 				s.committed.Add(instance)
 			case INSTANCE_EXECUTED:

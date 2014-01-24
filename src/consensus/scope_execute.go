@@ -108,22 +108,22 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 
 // executes and instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
-	if instance.Status == INSTANCE_REJECTED {
-		return nil, nil
-	} else if instance.Status != INSTANCE_COMMITTED {
+	if instance.Status != INSTANCE_COMMITTED {
 		return nil, fmt.Errorf("instance not committed")
 	}
 	var val store.Value
 	var err error
-	for _, instruction := range instance.Commands {
-		val, err = s.manager.cluster.ApplyQuery(
-			instruction.Cmd,
-			instruction.Key,
-			instruction.Args,
-			instruction.Timestamp,
-		)
-		if err != nil {
-			return nil, err
+	if !instance.Noop {
+		for _, instruction := range instance.Commands {
+			val, err = s.manager.cluster.ApplyQuery(
+				instruction.Cmd,
+				instruction.Key,
+				instruction.Args,
+				instruction.Timestamp,
+			)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -223,7 +223,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 					}
 				}
 			}
-		case INSTANCE_EXECUTED, INSTANCE_REJECTED:
+		case INSTANCE_EXECUTED:
 			s.lock.Unlock()
 			continue
 		default:

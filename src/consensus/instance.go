@@ -20,7 +20,6 @@ const (
 	INSTANCE_PREACCEPTED
 	INSTANCE_ACCEPTED
 	INSTANCE_COMMITTED
-	INSTANCE_REJECTED
 	INSTANCE_EXECUTED
 )
 
@@ -173,6 +172,11 @@ type Instance struct {
 
 	// the highest seen message number for this instance
 	MaxBallot uint32
+
+	// indicates that the paxos protocol
+	// for this instance failed, and this
+	// instance should be ignored
+	Noop bool
 
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
