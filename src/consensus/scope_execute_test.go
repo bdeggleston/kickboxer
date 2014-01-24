@@ -341,6 +341,17 @@ func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	c.Check(s.cluster.values["a"].value, gocheck.Equals, 5)
 }
 
+//
+func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
+	instance := s.scope.makeInstance(s.getInstructions(5))
+	instance.Status = INSTANCE_REJECTED
+	val, err := s.scope.applyInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.IsNil)
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_REJECTED)
+	c.Check(len(s.cluster.instructions), gocheck.Equals, 0)
+}
+
 // tests the executing an instance against the store
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map

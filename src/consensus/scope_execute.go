@@ -108,7 +108,9 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 
 // executes and instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
-	if instance.Status != INSTANCE_COMMITTED {
+	if instance.Status == INSTANCE_REJECTED {
+		return nil, nil
+	} else if instance.Status != INSTANCE_COMMITTED {
 		return nil, fmt.Errorf("instance not committed")
 	}
 	var val store.Value
