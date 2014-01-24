@@ -279,6 +279,15 @@ func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
 				return nil, err
 			}
 		}
+
+		// if the prepare phase came across instances
+		// that no other replica was aware of, it would
+		// have run a preaccept phase for it, changing the
+		// dependency chain, so the exOrder and uncommitted
+		// list need to be updated and reexamined before
+		// continuing
+		exOrder = s.getExecutionOrder(instance)
+		uncommitted = s.getUncommittedInstances(exOrder)
 	}
 
 	return s.executeDependencyChain(exOrder, instance)
