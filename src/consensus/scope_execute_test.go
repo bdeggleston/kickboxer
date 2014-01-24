@@ -159,6 +159,22 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 	}
 }
 
+func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
+	s.commitInstances()
+	rejectInst := s.scope.instances[s.expectedOrder[0]]
+	rejectInst.Status = INSTANCE_REJECTED
+	targetInst := s.scope.instances[s.expectedOrder[1]]
+
+	val, err := s.scope.executeInstance(targetInst)
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+	c.Check(val.(*intVal).value, gocheck.Equals, 1)
+
+	// check the number of instructions
+	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
+}
+
 // tests the execution of dependency chains when all of the target dependencies
 // have are past their execution grace period
 func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
