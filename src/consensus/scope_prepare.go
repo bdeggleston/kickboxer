@@ -135,6 +135,24 @@ var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
 var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Instance) error {
+	// checks the remote instance ballot against
+	// the local instance, and increases the local
+	// instance ballot if the remote is larget
+	checkAndMatchBallot := func() error {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		if remoteInstance.MaxBallot > instance.MaxBallot {
+			instance.MaxBallot = remoteInstance.MaxBallot
+			if err := s.Persist(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := checkAndMatchBallot(); err != nil {
+		return nil
+	}
+
 	acceptRequired := true
 	var err error
 	switch remoteInstance.Status {

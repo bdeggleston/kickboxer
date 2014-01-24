@@ -194,14 +194,13 @@ var _ = gocheck.Suite(&PreparePhase2Test{})
 
 // tests that receiving prepare responses, where the highest
 // balloted instance's status was preaccepted, a preaccept phase
-// is initiated, and the accept phase is skipped if there are no
-// dependency mismatches
+// is initiated
 func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 
 	// patch methods
-	s.patchPreAccept(false, nil)
+	s.patchPreAccept(true, nil)
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
@@ -209,7 +208,7 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
-	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 1)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
 }
 
@@ -365,12 +364,30 @@ func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 // tests that the instance's ballot is updated if prepare
 // responses return higher ballot numbers
 func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
+	s.instance.MaxBallot = 4
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_PREACCEPTED
+	remoteInstance.MaxBallot = 5
 
+	// patch methods
+	s.patchPreAccept(true, nil)
+	s.patchAccept(nil)
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
+	c.Check(s.acceptCalls, gocheck.Equals, 1)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+
+	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(5))
+	c.Check(remoteInstance.MaxBallot, gocheck.Equals, uint32(5))
 }
 
 // tests that a noop is committed if no other nodes are aware
 // of the instance in the prepare phase
 func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
-
+	c.Skip("Not implemented")
 }
 
