@@ -85,6 +85,7 @@ func copyInstance(i *Instance) *Instance {
 	copy(n.Commands, i.Commands)
 	n.Dependencies = make([]InstanceID, len(i.Dependencies))
 	copy(n.Dependencies, i.Dependencies)
+	n.Noop = i.Noop
 	return n
 }
 
