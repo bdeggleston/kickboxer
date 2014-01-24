@@ -162,6 +162,7 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 }
 
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
+	// TODO: add prepare notify?
 	remoteInstance, err := scopePreparePhase1(s, instance)
 	if err != nil { return err }
 

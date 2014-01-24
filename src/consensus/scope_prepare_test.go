@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 )
@@ -18,6 +19,10 @@ type basePrepareTest struct {
 	oldScopePreparePhase2 func(*Scope, *Instance, *Instance) error
 
 	instance *Instance
+
+	preAcceptCalls int
+	acceptCalls int
+	commitCalls int
 }
 
 func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
@@ -27,7 +32,33 @@ func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 	s.oldScopePreparePhase2 = scopePreparePhase2
 
 	s.instance = s.scope.makeInstance(getBasicInstruction())
+
+	s.preAcceptCalls = 0
+	s.acceptCalls = 0
+	s.commitCalls = 0
 }
+
+func (s *basePrepareTest) patchPreAccept(r bool, e error) {
+	scopePreAcceptPhase = func(_ *Scope, _ *Instance) (bool, error) {
+		s.preAcceptCalls++
+		return r, e
+	}
+}
+
+func (s *basePrepareTest) patchAccept(e error) {
+	scopeAcceptPhase = func(_ *Scope, _ *Instance) (error) {
+		s.acceptCalls++
+		return e
+	}
+}
+
+func (s *basePrepareTest) patchCommit(e error) {
+	scopeCommitPhase = func(_ *Scope, _ *Instance) (error) {
+		s.commitCalls++
+		return e
+	}
+}
+
 
 func (s *basePrepareTest) TearDownTest(c *gocheck.C) {
 	scopePreparePhase = s.oldScopePreparePhase
@@ -154,38 +185,192 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(1))
 }
 
-// tests that the instance's ballot is updated if prepare
-// responses return higher ballot numbers
-func (s *PreparePhaseTest) TestBallotUpdate(c *gocheck.C) {
-
+// tests the prepare phase method
+type PreparePhase2Test struct {
+	basePrepareTest
 }
 
-// tests that a noop is committed if no other nodes are aware
-// of the instance in the prepare phase
-func (s *PreparePhaseTest) TestUnknownInstance(c *gocheck.C) {
-
-}
+var _ = gocheck.Suite(&PreparePhase2Test{})
 
 // tests that receiving prepare responses, where the highest
 // balloted instance's status was preaccepted, a preaccept phase
 // is initiated, and the accept phase is skipped if there are no
 // dependency mismatches
-func (s *PreparePhaseTest) TestPreAcceptedSuccess(c *gocheck.C) {
+func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_PREACCEPTED
 
+	// patch methods
+	s.patchPreAccept(false, nil)
+	s.patchAccept(nil)
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
 }
 
 // tests that receiving prepare responses, where the highest
 // balloted instance's status was preaccepted, a preaccept phase
 // is initiated, and the accept phase is skipped if there are
 // dependency mismatches
-func (s *PreparePhaseTest) TestPreAcceptedChangeSuccess(c *gocheck.C) {
+func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_PREACCEPTED
 
+	// patch methods
+	s.patchPreAccept(false, nil)
+	s.patchAccept(nil)
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
 }
 
 // tests that receiving prepare responses, where the highest
 // balloted instance's status was preaccepted, a preaccept phase
 // is initiated, and the method returns if pre accept returns an
 // error
-func (s *PreparePhaseTest) TestPreAcceptedFailure(c *gocheck.C) {
+func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_PREACCEPTED
+
+	// patch methods
+	s.patchPreAccept(false, fmt.Errorf("Nope"))
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.NotNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 0)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was accepted, an accept phase
+// is initiated
+func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_ACCEPTED
+
+	// patch methods
+	s.patchAccept(nil)
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 1)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was accepted, an accept phase
+// is initiated, and the method returns if accept returns an error
+func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_ACCEPTED
+
+	// patch methods
+	s.patchAccept(fmt.Errorf("Nope"))
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.NotNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 1)
+	c.Check(s.commitCalls, gocheck.Equals, 0)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was committed, a commit phase
+// is initiated
+func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_COMMITTED
+
+	// patch methods
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was committed, a commit phase
+// is initiated, and the method returns if commit returns an error
+func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_COMMITTED
+
+	// patch methods
+	s.patchCommit(fmt.Errorf("Nope"))
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.NotNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was executed, a commit phase
+// is initiated
+func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_EXECUTED
+
+	// patch methods
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+}
+
+// tests that receiving prepare responses, where the highest
+// balloted instance's status was executed, a commit phase
+// is initiated, and the method returns if commit returns an error
+func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_EXECUTED
+
+	// patch methods
+	s.patchCommit(fmt.Errorf("Nope"))
+
+	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	c.Assert(err, gocheck.NotNil)
+
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
+}
+
+// tests that the instance's ballot is updated if prepare
+// responses return higher ballot numbers
+func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 
 }
+
+// tests that a noop is committed if no other nodes are aware
+// of the instance in the prepare phase
+func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
+
+}
+
