@@ -76,7 +76,49 @@ func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
 
 // tests that the addMissingInstance method works properly
 func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
-	// TODO: this
+	var err error
+	getInst := func(status InstanceStatus) *Instance {
+		inst := s.scope.makeInstance(getBasicInstruction())
+		inst.Status = status
+		return inst
+	}
+
+	// preaccepted
+	preAccepted := getInst(INSTANCE_PREACCEPTED)
+	c.Assert(s.scope.instances.Contains(preAccepted), gocheck.Equals, false)
+	err = s.scope.addMissingInstances(preAccepted)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.scope.instances.Contains(preAccepted), gocheck.Equals, true)
+	c.Assert(s.scope.inProgress.Contains(preAccepted), gocheck.Equals, true)
+	c.Assert(preAccepted.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+
+	// accepted
+	accepted := getInst(INSTANCE_ACCEPTED)
+	c.Assert(s.scope.instances.Contains(accepted), gocheck.Equals, false)
+	err = s.scope.addMissingInstances(accepted)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.scope.instances.Contains(accepted), gocheck.Equals, true)
+	c.Assert(s.scope.inProgress.Contains(accepted), gocheck.Equals, true)
+	c.Assert(accepted.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+
+	// committed
+	committed := getInst(INSTANCE_COMMITTED)
+	c.Assert(s.scope.instances.Contains(committed), gocheck.Equals, false)
+	err = s.scope.addMissingInstances(committed)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.scope.instances.Contains(committed), gocheck.Equals, true)
+	c.Assert(s.scope.committed.Contains(committed), gocheck.Equals, true)
+	c.Assert(committed.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+	// executed
+	executed := getInst(INSTANCE_EXECUTED)
+	c.Assert(s.scope.instances.Contains(executed), gocheck.Equals, false)
+	err = s.scope.addMissingInstances(executed)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.scope.instances.Contains(executed), gocheck.Equals, true)
+	c.Assert(s.scope.committed.Contains(executed), gocheck.Equals, true)
+	c.Assert(len(s.scope.executed), gocheck.Equals, 0)
+	c.Assert(executed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
 type ScopeExecuteQueryTest struct {

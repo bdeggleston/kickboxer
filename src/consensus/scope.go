@@ -316,16 +316,17 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 		if !s.instances.ContainsID(instance.InstanceID) {
 			switch instance.Status {
 			case INSTANCE_PREACCEPTED:
-				instance.commitTimeout = makePreAcceptCommitTimeout()
-				s.inProgress.Add(instance)
+				if err := s.preAcceptInstanceUnsafe(instance); err != nil {
+					return nil
+				}
 			case INSTANCE_ACCEPTED:
-				instance.commitTimeout = makeAcceptCommitTimeout()
-				s.inProgress.Add(instance)
-			case INSTANCE_COMMITTED:
-				s.committed.Add(instance)
-			case INSTANCE_EXECUTED:
-				instance.Status = INSTANCE_COMMITTED
-				s.committed.Add(instance)
+				if err := s.acceptInstanceUnsafe(instance); err != nil {
+					return err
+				}
+			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+				if err := s.commitInstanceUnsafe(instance); err != nil {
+					return err
+				}
 			}
 			s.instances.Add(instance)
 		}
