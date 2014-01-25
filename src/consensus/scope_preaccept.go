@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"runtime"
+	"sync"
 	"time"
 )
 
@@ -56,9 +58,9 @@ func (s *Scope) preAcceptInstance(instance *Instance) error {
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
-	// TODO: preaccept sending needs to happen in a lock
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
 	msg := &PreAcceptRequest{Scope: s.name, Instance: instance}
+
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
@@ -70,9 +72,18 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			}
 		}
 	}
-	for _, replica := range replicas {
-		go sendMsg(replica)
+
+	// lock the scope so other goroutines
+	// don't changes attributes on the instance
+	lockAndSend := func() {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		for _, replica := range replicas {
+			go sendMsg(replica)
+		}
+		runtime.Gosched()
 	}
+	lockAndSend()
 
 	numReceived := 1  // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
