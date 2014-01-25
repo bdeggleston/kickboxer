@@ -1,6 +1,11 @@
 package consensus
 
 import (
+	"time"
+)
+
+
+import (
 	"launchpad.net/gocheck"
 )
 
@@ -20,7 +25,6 @@ var _ = gocheck.Suite(&CommitInstanceTest{})
 // inProgress set, and persisted if it hasn't
 // already been executed
 func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
-	// TODO: test statCommitCount is incremented
 	replicaInstance := makeInstance(s.manager.GetLocalID(), makeDependencies(4))
 	s.scope.maxSeq = 3
 	replicaInstance.Sequence = s.scope.maxSeq
@@ -37,7 +41,9 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Assert(len(replicaInstance.Dependencies), gocheck.Equals, 4)
 	c.Assert(replicaInstance.Sequence, gocheck.Equals, uint64(3))
 	c.Assert(s.scope.maxSeq, gocheck.Equals, uint64(3))
+	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, true)
 
+	oldStatCommitCount := s.scope.statCommitCount
 	err := s.scope.commitInstance(leaderInstance)
 	c.Assert(err, gocheck.IsNil)
 
@@ -49,7 +55,9 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 5)
 	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(4))
 	c.Check(s.scope.maxSeq, gocheck.Equals, uint64(4))
-	// TODO: check execution timeout
+	c.Check(s.scope.statCommitCount, gocheck.Equals, oldStatCommitCount + 1)
+	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, false)
+	c.Check(replicaInstance.executeTimeout.After(time.Now()), gocheck.Equals, true)
 }
 
 // tests that an instance is marked as committed,
