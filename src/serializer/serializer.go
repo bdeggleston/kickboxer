@@ -48,6 +48,15 @@ func ReadFieldBytes(buf *bufio.Reader) ([]byte, error) {
 	return bytes, nil
 }
 
+func WriteFieldString(buf *bufio.Writer, str string) error {
+	return WriteFieldBytes(buf, []byte(str))
+}
+
+func ReadFieldString(buf *bufio.Reader) (string, error) {
+	bytes, err := ReadFieldBytes(buf)
+	return string(bytes), err
+}
+
 // writes a time value
 func WriteTime(buf *bufio.Writer, t time.Time) error {
 	b, err := t.GobEncode()
