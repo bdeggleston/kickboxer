@@ -14,6 +14,7 @@ import (
 
 import (
 	"store"
+	"runtime"
 )
 
 // sorts the strongly connected subgraph components
@@ -246,45 +247,92 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 	exOrder := s.getExecutionOrder(instance)
 
 	// prepare uncommitted instances
-	uncommitted := s.getUncommittedInstances(exOrder)
-	if len(uncommitted) > 0 {
+	var uncommitted []*Instance
+	uncommitted = s.getUncommittedInstances(exOrder)
+
+	getCommitNotify := func(inst *Instance) <- chan bool {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
+		// get or create broadcast object
+		cond, ok := s.commitNotify[inst.InstanceID]
+		if !ok {
+			cond = makeConditional()
+			s.commitNotify[inst.InstanceID] = cond
+		}
+
+		broadcastEvent := make(chan bool)
+		go func() {
+			cond.L.Lock()
+			cond.Wait()
+			cond.L.Unlock()
+			broadcastEvent <- true
+		}()
+		runtime.Gosched()
+		return broadcastEvent
+	}
+
+
+	for len(uncommitted) > 0 {
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))
 		prepare := func(inst *Instance) {
 			var err error
+			var success bool
+			var ballotErr bool
 			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+				ballotErr = false
 				if err = s.preparePhase(inst); err != nil {
-					if _, ok := err.(BallotMessage); ok {
-						// TODO: wait on the ballot timeout / commit notify and retry
+					if _, ok := err.(BallotError); ok {
+						ballotErr = true
+
+						// wait on broadcast event or timeout
+						broadcastEvent := getCommitNotify(inst)
+						timeoutEvent := time.After(time.Duration(BALLOT_FAILURE_WAIT_TIME) * time.Millisecond)
+						select {
+						case <-broadcastEvent:
+							// another goroutine committed
+							// the instance
+							success = true
+							break
+						case <-timeoutEvent:
+							// continue with the prepare
+						}
 
 					} else {
+						errors <- err
 						break
 					}
 				} else {
+					success = true
 					break
 				}
 			}
-			errors <- err
+			if !success && ballotErr {
+				errors <- fmt.Errorf("Prepare failed to commit instance in %v tries", BALLOT_FAILURE_RETRIES)
+			}
 			wg.Done()
 		}
 		for _, inst := range uncommitted {
 			go prepare(inst)
 		}
 		wg.Wait()
-		for i:=0; i< len(uncommitted); i++ {
-			err := <- errors
-			if err != nil {
-				return nil, err
-			}
+
+		// catch any errors, if any
+		var err error
+		select {
+		case err = <- errors:
+			return nil, err
+		default:
+			// everything's ok, continue
 		}
 
 		// if the prepare phase came across instances
 		// that no other replica was aware of, it would
 		// have run a preaccept phase for it, changing the
 		// dependency chain, so the exOrder and uncommitted
-		// list need to be updated and reexamined before
-		// continuing
+		// list need to be updated before continuing
 		exOrder = s.getExecutionOrder(instance)
 		uncommitted = s.getUncommittedInstances(exOrder)
 	}

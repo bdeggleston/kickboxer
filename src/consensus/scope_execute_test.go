@@ -18,41 +18,15 @@ import (
 	"store"
 )
 
-type ExecuteInstanceTest struct {
-	baseScopeTest
-}
-
-var _ = gocheck.Suite(&ExecuteInstanceTest{})
-
-// tests that an explicit prepare is initiated on any uncommitted
-// instance in the instance's dependency graph
-func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
-
-}
-
-// tests that an explicit prepare is retried if it fails due to
-// a ballot failure
-func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
-
-}
-
-// tests that an explicit prepare which is retried, will wait before
-// retrying, but will abort if a commit notify event is broadcasted
-func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
-
-}
-
-type ExecuteDependencyChainTest struct {
+type baseExecutionTest struct {
 	baseScopeTest
 	expectedOrder []InstanceID
 	maxIdx int
 }
 
-var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
-
 // makes a set of interdependent instances, and sets
 // their expected ordering
-func (s *ExecuteDependencyChainTest) SetUpTest(c *gocheck.C) {
+func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
 	s.expectedOrder  = make([]InstanceID, 0)
 	lastVal := 0
@@ -91,6 +65,185 @@ func (s *ExecuteDependencyChainTest) SetUpTest(c *gocheck.C) {
 	i3.Sequence = i5.Sequence
 	i4.Sequence = i5.Sequence
 }
+
+
+type ExecuteInstanceTest struct {
+	baseExecutionTest
+	oldPreparePhase func(*Scope, *Instance) error
+	oldBallotTimeout uint64
+	preparePhaseCalls int
+
+	toPrepare *Instance
+	toExecute *Instance
+}
+
+var _ = gocheck.Suite(&ExecuteInstanceTest{})
+
+func (s *ExecuteInstanceTest) SetUpSuite(c *gocheck.C) {
+	s.oldBallotTimeout = BALLOT_FAILURE_WAIT_TIME
+	BALLOT_FAILURE_WAIT_TIME = uint64(5)
+}
+
+func (s *ExecuteInstanceTest) TearDownSuite(c *gocheck.C) {
+	BALLOT_FAILURE_WAIT_TIME = s.oldBallotTimeout
+}
+
+func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
+	s.baseExecutionTest.SetUpTest(c)
+	s.oldPreparePhase = scopePreparePhase
+	s.preparePhaseCalls = 0
+
+	// make all instances 'timed out'
+	for _, iid := range s.expectedOrder {
+		instance := s.scope.instances[iid]
+		instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
+	}
+	s.toExecute = s.scope.instances[s.expectedOrder[2]]
+	exOrder := s.scope.getExecutionOrder(s.toExecute)
+	// commit all but the first instance
+	for _, iid := range exOrder[1:] {
+		instance := s.scope.instances[iid]
+		err := s.scope.commitInstance(instance)
+		c.Assert(err, gocheck.IsNil)
+	}
+	s.toPrepare = s.scope.instances[exOrder[0]]
+	c.Assert(len(s.scope.getUncommittedInstances(exOrder)), gocheck.Equals, 1)
+}
+
+func (s *ExecuteInstanceTest) TearDownTest(c *gocheck.C) {
+	scopePreparePhase = s.oldPreparePhase
+}
+
+func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
+	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+		s.preparePhaseCalls++
+		if commit {
+			scope.commitInstance(instance)
+		}
+		return err
+	}
+}
+
+// tests that an explicit prepare is initiated on any uncommitted
+// instance in the instance's dependency graph
+func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
+	s.patchPreparePhase(nil, true)
+	val, err := s.scope.executeInstance(s.toExecute)
+	c.Assert(val, gocheck.NotNil)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_EXECUTED)
+
+}
+
+// tests that an explicit prepare is retried if it fails due to
+// a ballot failure
+func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
+	// die once, succeed on second try
+	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+		if s.preparePhaseCalls > 0 {
+			scope.commitInstance(instance)
+		} else {
+			s.preparePhaseCalls++
+			return NewBallotError("nope")
+		}
+		s.preparePhaseCalls++
+		return nil
+	}
+
+	val, err := s.scope.executeInstance(s.toExecute)
+	c.Assert(val, gocheck.NotNil)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.preparePhaseCalls, gocheck.Equals, 2)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_EXECUTED)
+}
+
+// tests that an explicit prepare which is retried, will wait before
+// retrying, but will abort if a commit notify event is broadcasted
+func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
+	BALLOT_FAILURE_WAIT_TIME = uint64(10000)
+	s.patchPreparePhase(NewBallotError("nope"), false)
+
+	executeNotify := makeConditional()
+	s.scope.executeNotify[s.toExecute.InstanceID] = executeNotify
+	var val store.Value
+	var err error
+	go func() { val, err = s.scope.executeInstance(s.toExecute) }()
+	runtime.Gosched()
+
+	// 'commit' and notify while prepare waits
+	commitNotify := s.scope.commitNotify[s.toPrepare.InstanceID]
+	c.Assert(commitNotify, gocheck.NotNil)
+	cerr := s.scope.commitInstance(s.toPrepare)
+	c.Assert(cerr, gocheck.IsNil)
+	commitNotify.Broadcast()
+
+	executeNotify.L.Lock()
+	executeNotify.Wait()
+	executeNotify.L.Unlock()
+	c.Assert(val, gocheck.NotNil)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_EXECUTED)
+}
+
+// tests that execute will return an error if a prepare call returns
+// a non ballot related error
+func (s *ExecuteInstanceTest) TestExplicitPrepareFailure(c *gocheck.C) {
+	s.patchPreparePhase(fmt.Errorf("negative"), false)
+	c.Log("TestExplicitPrepareFailure")
+	val, err := s.scope.executeInstance(s.toExecute)
+	c.Assert(val, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
+
+// tests that execute will return an error if it receives more ballot
+// failures than the BALLOT_FAILURE_RETRIES value
+func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
+	s.patchPreparePhase(NewBallotError("nope"), false)
+	val, err := s.scope.executeInstance(s.toExecute)
+	c.Assert(val, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(s.preparePhaseCalls, gocheck.Equals, BALLOT_FAILURE_RETRIES)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
+
+// tests that if a prepare phase removes an instance from the target
+// instance's dependency graph, it's not executed
+func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
+	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+		instance.Sequence += 5
+		s.preparePhaseCalls++
+		scope.commitInstance(instance)
+		return nil
+	}
+
+	val, err := s.scope.executeInstance(s.toExecute)
+	c.Assert(val, gocheck.NotNil)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(s.preparePhaseCalls, gocheck.Equals, 1)
+
+	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_COMMITTED)
+	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_EXECUTED)
+}
+
+type ExecuteDependencyChainTest struct {
+	baseExecutionTest
+}
+
+var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
 
 // commits all instances
 func (s *ExecuteDependencyChainTest) commitInstances() {
@@ -381,7 +534,9 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 	broadcastListener := func() {
 		cond := s.scope.executeNotify[instance.InstanceID]
 		c.Check(cond, gocheck.NotNil)
+		cond.L.Lock()
 		cond.Wait()
+		cond.L.Unlock()
 		broadcast = true
 	}
 	go broadcastListener()
