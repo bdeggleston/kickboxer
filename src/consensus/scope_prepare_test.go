@@ -388,6 +388,17 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 // tests that a noop is committed if no other nodes are aware
 // of the instance in the prepare phase
 func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
-	c.Skip("Not implemented")
+	// patch methods
+	s.patchPreAccept(true, nil)
+	s.patchAccept(nil)
+	s.patchCommit(nil)
+
+	err := scopePreparePhase2(s.scope, s.instance, nil)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.instance.Noop, gocheck.Equals, true)
+	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
+	c.Check(s.acceptCalls, gocheck.Equals, 1)
+	c.Check(s.commitCalls, gocheck.Equals, 1)
 }
 

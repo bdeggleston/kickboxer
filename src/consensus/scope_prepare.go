@@ -149,13 +149,32 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 		}
 		return nil
 	}
-	if err := checkAndMatchBallot(); err != nil {
+
+	// sets the instance's noop flag to true
+	setNoop := func() error {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		instance.Noop = true
+		if err := s.Persist(); err != nil {
+			return err
+		}
 		return nil
+	}
+
+	var status InstanceStatus
+	if remoteInstance != nil {
+		if err := checkAndMatchBallot(); err != nil {
+			return nil
+		}
+		status = remoteInstance.Status
+	} else {
+		setNoop()
+		status = INSTANCE_PREACCEPTED
 	}
 
 	acceptRequired := true
 	var err error
-	switch remoteInstance.Status {
+	switch status {
 	case INSTANCE_PREACCEPTED:
 		// run pre accept phase
 		acceptRequired, err = s.preAcceptPhase(instance)
