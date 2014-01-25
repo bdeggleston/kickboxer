@@ -357,11 +357,3 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	c.Check(response.MissingInstances[0].InstanceID, gocheck.Equals, missingDep)
 }
 
-// if the pre accept message reaches the replica
-// after the command has been accepted, or committed
-func (s *PreAcceptReplicaTest) TestHandleLateMessage(c *gocheck.C) {
-	// TODO: does the replica need to do anything besides ignore it?
-	c.Skip("figure out the expected behavior")
-}
-
-
