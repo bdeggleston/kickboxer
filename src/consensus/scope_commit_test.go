@@ -1,9 +1,6 @@
 package consensus
 
 import (
-)
-
-import (
 	"launchpad.net/gocheck"
 )
 

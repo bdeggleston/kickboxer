@@ -11,7 +11,6 @@ import (
 
 import (
 	"store"
-	"testing_helpers"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -19,79 +18,64 @@ func Test(t *testing.T) {
 	gocheck.TestingT(t)
 }
 
-
-// test that instances are created properly
-func TestInstanceCreation(t *testing.T) {
-	// TODO: test new instances are added to inProgress
-	scope := setupScope()
-	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
-	instance := scope.makeInstance(instructions)
-
-	testing_helpers.AssertEqual(t, "Ballot", 0, int(instance.MaxBallot))
-	testing_helpers.AssertEqual(t, "LeaderID", scope.GetLocalID(), instance.LeaderID)
+type ScopeTest struct {
+	baseScopeTest
 }
 
-func TestGetCurrentDeps(t *testing.T) {
-	scope := setupScope()
-	expectedDeps := []InstanceID{}
-	for dep := range scope.inProgress {
-		expectedDeps = append(expectedDeps, dep)
-	}
-	for dep := range scope.committed {
-		expectedDeps = append(expectedDeps, dep)
-	}
-	expectedDeps = append(expectedDeps, scope.executed[len(scope.executed)-1])
+var _ = gocheck.Suite(&ScopeTest{})
+
+// test that instances are created properly
+func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
+	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
+	instance := s.scope.makeInstance(instructions)
+	c.Check(instance.MaxBallot, gocheck.Equals, uint32(0))
+	c.Check(instance.LeaderID, gocheck.Equals, s.scope.GetLocalID())
+}
+
+func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
+	setupDeps(s.scope)
+	expected := NewInstanceIDSet([]InstanceID{})
+	expected.Add(s.scope.inProgress.InstanceIDs()...)
+	expected.Add(s.scope.committed.InstanceIDs()...)
+	expected.Add(s.scope.executed[len(s.scope.executed)-1])
 
 	// sanity checks
-	testing_helpers.AssertEqual(t, "inProgress len", 4, len(scope.inProgress))
-	testing_helpers.AssertEqual(t, "committed len", 4, len(scope.committed))
-	testing_helpers.AssertEqual(t, "executed len", 4, len(scope.executed))
+	c.Assert(len(s.scope.inProgress), gocheck.Equals, 4)
+	c.Assert(len(s.scope.committed), gocheck.Equals, 4)
+	c.Assert(len(s.scope.executed), gocheck.Equals, 4)
 
-	expected := NewInstanceIDSet(expectedDeps)
-	actual := NewInstanceIDSet(scope.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())
 
-	testing_helpers.AssertEqual(t, "set lengths", len(expected), len(actual))
-	if !expected.Equal(actual) {
-		t.Errorf("Expected deps do not match actual deps.\nExpected: %v\nGot: %v", expected, actual)
-	}
+	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }
 
 // tests that scope doesn't try to add executed instances
 // if no instances have been executed yet
-func TestGetDepsNoExecutions(t *testing.T) {
-	scope := setupScope()
-	scope.executed = []InstanceID{}
-	expectedDeps := []InstanceID{}
-	for dep := range scope.inProgress {
-		expectedDeps = append(expectedDeps, dep)
-	}
-	for dep := range scope.committed {
-		expectedDeps = append(expectedDeps, dep)
-	}
+func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
+	setupDeps(s.scope)
+	s.scope.executed = []InstanceID{}
+	expected := NewInstanceIDSet(s.scope.inProgress.InstanceIDs())
+	expected.Add(s.scope.committed.InstanceIDs()...)
 
 	// sanity checks
-	testing_helpers.AssertEqual(t, "inProgress len", 4, len(scope.inProgress))
-	testing_helpers.AssertEqual(t, "committed len", 4, len(scope.committed))
-	testing_helpers.AssertEqual(t, "executed len", 0, len(scope.executed))
+	c.Assert(len(s.scope.inProgress), gocheck.Equals, 4)
+	c.Assert(len(s.scope.committed), gocheck.Equals, 4)
+	c.Assert(len(s.scope.executed), gocheck.Equals, 0)
 
-	expected := NewInstanceIDSet(expectedDeps)
-	actual := NewInstanceIDSet(scope.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())
 
-	testing_helpers.AssertEqual(t, "set lengths", len(expected), len(actual))
-	if !expected.Equal(actual) {
-		t.Errorf("Expected deps do not match actual deps.\nExpected: %v\nGot: %v", expected, actual)
-	}
+	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }
 
-func TestGetNextSeq(t *testing.T) {
-	scope := NewScope("a", nil)
-	scope.maxSeq = 5
-	nextSeq := scope.getNextSeqUnsafe()
-	testing_helpers.AssertEqual(t, "nextSeq", uint64(6), nextSeq)
+func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
+	s.scope.maxSeq = 5
+	nextSeq := s.scope.getNextSeqUnsafe()
+
+	c.Assert(nextSeq, gocheck.Equals, uint64(6))
 }
 
 // tests that the addMissingInstance method works properly
-func TestAddMissingInstanceNotPreviouslySeen(t *testing.T) {
+func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
 	// TODO: this
 }
 
