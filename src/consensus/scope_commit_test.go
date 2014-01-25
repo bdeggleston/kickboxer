@@ -12,6 +12,8 @@ import (
 import (
 	"message"
 	"node"
+	"runtime"
+	"store"
 )
 
 type CommitInstanceTest struct {
@@ -253,5 +255,33 @@ func (s *CommitLeaderTest) TestHandleNewSuccess(c *gocheck.C) {
 // when a commit message is received, the instance should
 // be asynchronously executed against the store
 func (s *CommitLeaderTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
-	// TODO:
+	oldExecute := scopeExecuteInstance
+	defer func() { scopeExecuteInstance = oldExecute }()
+
+	executeCalled := false
+	scopeExecuteInstance = func(s *Scope, i *Instance) (store.Value, error) {
+		executeCalled = true
+		return nil, nil
+	}
+
+	instance := s.scope.makeInstance(getBasicInstruction())
+	err := s.scope.acceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	// sanity check
+	c.Assert(instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+
+	request := &CommitRequest{
+		Scope: s.scope.name,
+		Instance: instance,
+	}
+
+	response, err := s.scope.HandleCommit(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+	c.Assert(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+
+	// yield to the execution thread
+	runtime.Gosched()
+	c.Assert(executeCalled, gocheck.Equals, true)
 }

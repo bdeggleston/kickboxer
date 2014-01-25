@@ -122,7 +122,7 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	}
 
 	// asynchronously apply mutation
-	// TODO: go s.executeInstance(s.instances[request.Instance.InstanceID])
+	go s.executeInstance(s.instances[request.Instance.InstanceID])
 
 	return &CommitResponse{}, nil
 }
