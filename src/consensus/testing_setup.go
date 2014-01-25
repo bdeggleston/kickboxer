@@ -19,9 +19,7 @@ func setBreakpoint() {
 	runtime.Breakpoint()
 }
 
-func setupScope() *Scope {
-	manager := NewManager(newMockCluster())
-	scope := NewScope("a", manager)
+func setupDeps(scope *Scope) {
 	seq := uint64(0)
 	for i := 0; i < 4; i++ {
 		seq++
@@ -51,6 +49,12 @@ func setupScope() *Scope {
 		scope.instances.Add(instance)
 		scope.inProgress.Add(instance)
 	}
+}
+
+func setupScope() *Scope {
+	manager := NewManager(newMockCluster())
+	scope := NewScope("a", manager)
+	setupDeps(scope)
 	return scope
 }
 
@@ -59,6 +63,15 @@ func setupReplicaSet(size int) []*mockNode {
 	replicas := make([]*mockNode, size)
 	for i := 0; i < size; i++ {
 		replicas[i] = newMockNode()
+	}
+	nodes := make([]node.Node, size)
+	for i:=0; i<size; i++ {
+		nodes[i] = replicas[i]
+	}
+
+	for _, replica := range replicas {
+		replica.cluster.nodes = make([]node.Node, size)
+		copy(replica.cluster.nodes, nodes)
 	}
 	return replicas
 }
@@ -142,6 +155,10 @@ type baseReplicaTest struct {
 	replicas []*mockNode
 
 	numNodes int
+}
+
+func (s *baseReplicaTest) quorumSize() int {
+	return (s.numNodes / 2) + 1
 }
 
 func (s *baseReplicaTest) SetUpSuite(c *gocheck.C) {
