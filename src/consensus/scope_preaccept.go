@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"runtime"
-	"sync"
 	"time"
 )
 

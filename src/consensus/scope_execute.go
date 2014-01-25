@@ -147,9 +147,6 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 }
 // executes the dependencies up to the given instance
 func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
-	// TODO: don't execute instances 'out from under' client requests. Use an execution grace period
-	// first, check the leader id, if it's not this node, go ahead and execute it
-	// if it is, wait for the execution timeout
 	var val store.Value
 	var err error
 
@@ -160,6 +157,9 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 		return s.applyInstance(instance)
 	}
 
+	// don't execute instances 'out from under' client requests. Use the
+	// execution grace period first, check the leader id, if it's not this
+	// node, go ahead and execute it if it is, wait for the execution timeout
 	for _, iid := range iids {
 		val = nil
 		err = nil

@@ -183,13 +183,40 @@ func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
 	c.Assert(responses, gocheck.IsNil)
 }
 
+// check that a ballot error is returned if the remote instance
+// rejects the message
 func (s *PreAcceptLeaderTest) TestSendBallotFailure(c *gocheck.C) {
-	// TODO: figure out what to do in this situation
-	// the only way this would happen if is the command
-	// was taken over by another replica, in which case,
-	// should we just wait for the other leader to
-	// execute it?
-	c.Skip("figure out the expected behavior")
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		newInst := copyInstance(s.instance)
+		return &PreAcceptResponse{
+			Accepted:         true,
+			MaxBallot:        newInst.MaxBallot,
+			Instance:         newInst,
+			MissingInstances: []*Instance{},
+		}, nil
+	}
+	rejectFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		newInst := copyInstance(s.instance)
+		return &PreAcceptResponse{
+			Accepted:         false,
+			MaxBallot:        newInst.MaxBallot + 1,
+			Instance:         newInst,
+			MissingInstances: []*Instance{},
+		}, nil
+	}
+
+	for i, replica := range s.replicas {
+		if i == 0 {
+			replica.messageHandler = responseFunc
+		} else {
+			replica.messageHandler = rejectFunc
+		}
+	}
+
+	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
+	c.Assert(responses, gocheck.IsNil)
 }
 
 func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {

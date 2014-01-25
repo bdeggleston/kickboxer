@@ -220,13 +220,34 @@ func (s *AcceptLeaderTest) TestQuorumFailure(c *gocheck.C) {
 	c.Check(err, gocheck.FitsTypeOf, TimeoutError{})
 }
 
+// check that a ballot error is returned if the remote instance
+// rejects the message
 func (s *AcceptLeaderTest) TestSendAcceptBallotFailure(c *gocheck.C) {
-	// TODO: figure out what to do in this situation
-	// the only way this would happen if is the command
-	// was taken over by another replica, in which case,
-	// should we just wait for the other leader to
-	// execute it?
-	c.Skip("figure out the expected behavior")
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &AcceptResponse{
+			Accepted:         true,
+			MaxBallot:        s.instance.MaxBallot,
+		}, nil
+	}
+	rejectFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &AcceptResponse{
+			Accepted:         false,
+			MaxBallot:        s.instance.MaxBallot + 1,
+		}, nil
+	}
+
+	for i, replica := range s.replicas {
+		if i == 0 {
+			replica.messageHandler = responseFunc
+		} else {
+			replica.messageHandler = rejectFunc
+		}
+	}
+
+	err := s.scope.sendAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.NotNil)
+	c.Check(err, gocheck.FitsTypeOf, BallotError{})
 }
 
 /** replica **/
