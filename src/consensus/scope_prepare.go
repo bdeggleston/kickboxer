@@ -263,3 +263,19 @@ func (s *Scope) preparePhase(instance *Instance) error {
 	return scopePreparePhase(s, instance)
 }
 
+// handles a prepare message from an instance attempting to take
+// control of an instance.
+func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	instance := s.instances[request.InstanceID]
+	response := &PrepareResponse{Instance: instance}
+	if instance == nil {
+		response.Accepted = true
+	} else {
+		response.Accepted = request.Ballot > instance.MaxBallot
+	}
+
+	return response, nil
+}

@@ -492,3 +492,76 @@ func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
 	c.Check(s.commitCalls, gocheck.Equals, 1)
 }
 
+// tests the handle prepare message method
+// TODO: this
+type PrepareReplicaTest struct {
+	baseScopeTest
+
+	instance *Instance
+}
+
+var _ = gocheck.Suite(&PrepareReplicaTest{})
+
+func (s *PrepareReplicaTest) SetUpTest(c *gocheck.C) {
+	s.baseScopeTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+}
+
+// tests that a prepare request with an incremented ballot
+// number is accepted
+func (s *PrepareReplicaTest) TestSuccessCase(c *gocheck.C) {
+	s.scope.preAcceptInstance(s.instance)
+	s.instance.MaxBallot = 5
+
+	request := &PrepareRequest{
+		Scope: s.scope.name,
+		Ballot: s.instance.MaxBallot + 1,
+		InstanceID: s.instance.InstanceID,
+	}
+
+	response, err := s.scope.HandlePrepare(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+
+	c.Assert(response.Accepted, gocheck.Equals, true)
+	c.Assert(response.Instance, gocheck.NotNil)
+	c.Assert(response.Instance.InstanceID, gocheck.Equals, s.instance.InstanceID)
+}
+
+// tests that a prepare request with an unincremented ballot
+// number is not accepted
+func (s *PrepareReplicaTest) TestBallotFailure(c *gocheck.C) {
+	s.scope.preAcceptInstance(s.instance)
+	s.instance.MaxBallot = 5
+
+	request := &PrepareRequest{
+		Scope: s.scope.name,
+		Ballot: s.instance.MaxBallot,
+		InstanceID: s.instance.InstanceID,
+	}
+
+	response, err := s.scope.HandlePrepare(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+
+	c.Assert(response.Accepted, gocheck.Equals, false)
+	c.Assert(response.Instance, gocheck.NotNil)
+	c.Assert(response.Instance.InstanceID, gocheck.Equals, s.instance.InstanceID)
+}
+
+// tests that a prepare request for an unknown instance is
+// accepted, and a nil instance is returned
+func (s *PrepareReplicaTest) TestUnknownInstance(c *gocheck.C) {
+	request := &PrepareRequest{
+		Scope: s.scope.name,
+		Ballot: uint32(4),
+		InstanceID: NewInstanceID(),
+	}
+
+	response, err := s.scope.HandlePrepare(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+
+	c.Assert(response.Accepted, gocheck.Equals, true)
+	c.Assert(response.Instance, gocheck.IsNil)
+}
