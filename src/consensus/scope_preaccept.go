@@ -12,13 +12,16 @@ func makePreAcceptCommitTimeout() time.Time {
 	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
-func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) error {
-	if existing, exists := s.instances[instance.InstanceID]; exists {
-		if existing.Status >= INSTANCE_PREACCEPTED {
+func (s *Scope) preAcceptInstanceUnsafe(inst *Instance) error {
+	var instance *Instance
+	if existing, exists := s.instances[inst.InstanceID]; exists {
+		if existing.Status > INSTANCE_PREACCEPTED {
 			return NewInvalidStatusUpdateError(existing, INSTANCE_PREACCEPTED)
 		}
+		instance = existing
+		instance.Noop = inst.Noop
 	} else {
-		s.instances.Add(instance)
+		instance = inst
 	}
 
 	instance.Status = INSTANCE_PREACCEPTED
@@ -26,6 +29,7 @@ func (s *Scope) preAcceptInstanceUnsafe(instance *Instance) error {
 	instance.Sequence = s.getNextSeqUnsafe()
 	instance.commitTimeout = makePreAcceptCommitTimeout()
 	s.inProgress.Add(instance)
+	s.instances.Add(instance)
 
 	if err := s.Persist(); err != nil {
 		return err

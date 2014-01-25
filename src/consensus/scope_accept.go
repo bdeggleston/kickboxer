@@ -19,22 +19,25 @@ func makeAcceptCommitTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstanceUnsafe(instance *Instance) error {
-	if existing, exists := s.instances[instance.InstanceID]; exists {
-		if existing.Status >= INSTANCE_ACCEPTED {
+func (s *Scope) acceptInstanceUnsafe(inst *Instance) error {
+	var instance *Instance
+	if existing, exists := s.instances[inst.InstanceID]; exists {
+		if existing.Status > INSTANCE_ACCEPTED {
 			return NewInvalidStatusUpdateError(existing, INSTANCE_ACCEPTED)
 		} else {
-			existing.Status = INSTANCE_ACCEPTED
-			existing.Dependencies = instance.Dependencies
-			existing.Sequence = instance.Sequence
-			existing.MaxBallot = instance.MaxBallot
+			existing.Dependencies = inst.Dependencies
+			existing.Sequence = inst.Sequence
+			existing.MaxBallot = inst.MaxBallot
+			existing.Noop = inst.Noop
 		}
+		instance = existing
 	} else {
-		s.instances.Add(instance)
+		instance = inst
 	}
 
 	instance.Status = INSTANCE_ACCEPTED
 	instance.commitTimeout = makeAcceptCommitTimeout()
+	s.instances.Add(instance)
 	s.inProgress.Add(instance)
 
 	if instance.Sequence > s.maxSeq {

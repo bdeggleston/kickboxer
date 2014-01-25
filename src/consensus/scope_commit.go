@@ -19,24 +19,26 @@ func makeExecuteTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstanceUnsafe(instance *Instance) error {
-	if existing, exists := s.instances[instance.InstanceID]; exists {
-		if existing.Status >= INSTANCE_COMMITTED {
+func (s *Scope) commitInstanceUnsafe(inst *Instance) error {
+	var instance *Instance
+	if existing, exists := s.instances[inst.InstanceID]; exists {
+		if existing.Status > INSTANCE_COMMITTED {
 			return NewInvalidStatusUpdateError(existing, INSTANCE_COMMITTED)
 		} else {
 			// this replica may have missed an accept message
 			// so copy the seq & deps onto the existing instance
-			existing.Status = INSTANCE_COMMITTED
-			existing.Dependencies = instance.Dependencies
-			existing.Sequence = instance.Sequence
-			existing.MaxBallot = instance.MaxBallot
+			existing.Dependencies = inst.Dependencies
+			existing.Sequence = inst.Sequence
+			existing.MaxBallot = inst.MaxBallot
 		}
+		instance = existing
 	} else {
-		s.instances.Add(instance)
+		instance = inst
 	}
 
 	instance.Status = INSTANCE_COMMITTED
 	s.inProgress.Remove(instance)
+	s.instances.Add(instance)
 	s.committed.Add(instance)
 
 	if instance.Sequence > s.maxSeq {
