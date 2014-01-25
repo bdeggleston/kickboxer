@@ -195,7 +195,9 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 					// wait on broadcast event or timeout
 					broadcastEvent := make(chan bool)
 					go func() {
+						cond.L.Lock()
 						cond.Wait()
+						cond.L.Unlock()
 						broadcastEvent <- true
 					}()
 					timeoutEvent := time.After(instance.executeTimeout.Sub(time.Now()))

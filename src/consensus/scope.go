@@ -169,7 +169,7 @@ Variable datacenter consistency:
 
 func makeConditional() *sync.Cond {
 	lock := &sync.Mutex{}
-	lock.Lock()
+//	lock.Lock()
 	return sync.NewCond(lock)
 }
 
