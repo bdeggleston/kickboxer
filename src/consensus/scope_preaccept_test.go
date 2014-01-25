@@ -2,95 +2,132 @@ package consensus
 
 import (
 	"fmt"
-	"testing"
 	"time"
+)
+
+import (
+	"launchpad.net/gocheck"
 )
 
 import (
 	"message"
 	"node"
-	"testing_helpers"
 )
 
-/** preAcceptInstance **/
-
-func TestPreAcceptInstanceSuccess(t *testing.T) {
-	scope := setupScope()
-	instance := scope.makeInstance(getBasicInstruction())
-
-	// sanity check
-	if scope.instances.Contains(instance) {
-		t.Fatalf("Unexpectedly found new instance in scope instances")
-	}
-	if scope.inProgress.Contains(instance) {
-		t.Fatalf("Unexpectedly found new instance in scope inProgress")
-	}
-	if scope.committed.Contains(instance) {
-		t.Fatalf("Unexpectedly found new instance in scope committed")
-	}
-
-	seq := scope.maxSeq
-	if err := scope.preAcceptInstance(instance); err != nil {
-		t.Fatalf("Error preaccepting instance: %v", err)
-	}
-
-	if !scope.instances.Contains(instance) {
-		t.Fatalf("Expected to find new instance in scope instances")
-	}
-	if !scope.inProgress.Contains(instance) {
-		t.Fatalf("Expected to find new instance in scope inProgress")
-	}
-	if scope.committed.Contains(instance) {
-		t.Fatalf("Unexpectedly found new instance in scope committed")
-	}
-
-	testing_helpers.AssertEqual(t, "replica seq", seq + 1, instance.Sequence)
-	testing_helpers.AssertEqual(t, "scope seq", seq + 1, scope.maxSeq)
+type PreAcceptInstanceTest struct {
+	baseScopeTest
 }
 
-func TestPreAcceptInstanceHigherStatusFailure(t *testing.T) {
-	scope := setupScope()
-	instance := scope.makeInstance(getBasicInstruction())
-	instance.Status = INSTANCE_ACCEPTED
-	scope.instances.Add(instance)
-	scope.inProgress.Add(instance)
+var _ = gocheck.Suite(&PreAcceptInstanceTest{})
+
+func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
+	instance := s.scope.makeInstance(getBasicInstruction())
 
 	// sanity check
-	if !scope.instances.Contains(instance) {
-		t.Fatalf("Expected to find new instance in scope instances")
-	}
-	if !scope.inProgress.Contains(instance) {
-		t.Fatalf("Expected to find new instance in scope inProgress")
-	}
-	if scope.committed.Contains(instance) {
-		t.Fatalf("Unexpectedly found new instance in scope committed")
-	}
+	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
 
-	if err := scope.preAcceptInstance(instance); err != nil {
-		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			t.Fatalf("Error preaccepting instance: %v", err)
-		} else {
-			t.Log("InvalidStatusUpdateError returned as expected")
+	seq := s.scope.maxSeq
+	err := s.scope.preAcceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
 
-		}
-	}
+	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
 
-	testing_helpers.AssertEqual(t, "Status", INSTANCE_ACCEPTED, instance.Status)
+	c.Check(instance.Sequence, gocheck.Equals, seq + 1)
+	c.Check(s.scope.maxSeq, gocheck.Equals, seq + 1)
 }
 
-/** Leader **/
+func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
+	var err error
+	instance := s.scope.makeInstance(getBasicInstruction())
+	err = s.scope.acceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+
+	// sanity check
+	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
+
+	err = s.scope.preAcceptInstance(instance)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
+
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
+}
+
+// if an instance is being preaccepted twice
+// which is possible if there's an explicit
+// prepare, it should copy some attributes,
+// (noop), and not overwrite any existing
+// instances references in the scope's containers
+func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
+	var err error
+	instance := s.scope.makeInstance(getBasicInstruction())
+	repeat := copyInstance(instance)
+
+	err = s.scope.preAcceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	err = s.scope.preAcceptInstance(repeat)
+	c.Assert(err, gocheck.IsNil)
+ 	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
+}
+
+// tests that the noop flag is recognized when
+// preaccepting new instances
+func (s *PreAcceptInstanceTest) TestNewNoopPreaccept(c *gocheck.C) {
+	var err error
+	instance := s.scope.makeInstance(getBasicInstruction())
+	instance.Noop = true
+
+	err = s.scope.preAcceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Assert(s.scope.instances[instance.InstanceID].Noop, gocheck.Equals, true)
+}
+
+// tests that the noop flag is recognized when
+// preaccepting previously seen instances
+func (s *PreAcceptInstanceTest) TestOldNoopPreaccept(c *gocheck.C) {
+	var err error
+	instance := s.scope.makeInstance(getBasicInstruction())
+	repeat := copyInstance(instance)
+
+	err = s.scope.preAcceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(instance.Noop, gocheck.Equals, false)
+
+	repeat.Noop = true
+	err = s.scope.preAcceptInstance(repeat)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(instance.Noop, gocheck.Equals, true)
+}
+
+type PreAcceptLeaderTest struct {
+	baseReplicaTest
+	instance *Instance
+}
+
+func (s *PreAcceptLeaderTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+	err := s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
+}
+
+var _ = gocheck.Suite(&PreAcceptLeaderTest{})
 
 // tests all replicas returning results
-func TestSendPreAcceptSuccess(t *testing.T) {
-	nodes := setupReplicaSet(5)
-	leader := nodes[0]
-	replicas := nodes[1:]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
+func (s *PreAcceptLeaderTest) TestSendSuccessCase(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(instance)
+		newInst := copyInstance(s.instance)
 		return &PreAcceptResponse{
 			Accepted:         true,
 			MaxBallot:        newInst.MaxBallot,
@@ -99,41 +136,27 @@ func TestSendPreAcceptSuccess(t *testing.T) {
 		}, nil
 	}
 
-	for _, replica := range replicas {
+	for _, replica := range s.replicas {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := scope.sendPreAccept(instance, transformMockNodeArray(replicas))
-	if err != nil {
-		t.Errorf("Unexpected error receiving responses: %v", err)
-	}
-	if len(responses) < 2 {
-		t.Errorf("Less than quorum received")
-	}
+	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.IsNil)
+	c.Log(len(s.replicas))
+	c.Log(len(responses))
+	c.Assert(len(responses) < s.quorumSize() - 1, gocheck.Equals, false)  // less than quorum received
 
 	// test that the nodes received the correct message
-	for _, replica := range replicas {
-		if !testing_helpers.AssertEqual(t, "num messages", 1, len(replica.sentMessages)) {
-			continue
-		}
-		msg := replica.sentMessages[0]
-		if _, ok := msg.(*PreAcceptRequest); !ok {
-			t.Errorf("Wrong message type received: %T", msg)
-		}
+	for _, replica := range s.replicas {
+		c.Assert(len(replica.sentMessages), gocheck.Equals, 1)
+		c.Assert(replica.sentMessages[0], gocheck.FitsTypeOf, &PreAcceptRequest{})
 	}
-
 }
 
-func TestSendPreAcceptQuorumFailure(t *testing.T) {
-	nodes := setupReplicaSet(5)
-	leader := nodes[0]
-	replicas := nodes[1:]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
+func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(instance)
+		newInst := copyInstance(s.instance)
 		return &PreAcceptResponse{
 			Accepted:         true,
 			MaxBallot:        newInst.MaxBallot,
@@ -146,7 +169,7 @@ func TestSendPreAcceptQuorumFailure(t *testing.T) {
 		return nil, fmt.Errorf("nope")
 	}
 
-	for i, replica := range replicas {
+	for i, replica := range s.replicas {
 		if i == 0 {
 			replica.messageHandler = responseFunc
 		} else {
@@ -154,103 +177,75 @@ func TestSendPreAcceptQuorumFailure(t *testing.T) {
 		}
 	}
 
-	responses, err := scope.sendPreAccept(instance, transformMockNodeArray(replicas))
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-	if _, ok := err.(TimeoutError); !ok {
-		t.Errorf("Expected TimeoutError, got: %T", err)
-	}
-	if responses != nil {
-		t.Errorf("Expected nil responses, got: %v", responses)
-
-	}
+	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, TimeoutError{})
+	c.Assert(responses, gocheck.IsNil)
 }
 
-func TestSendPreAcceptBallotFailure(t *testing.T) {
+func (s *PreAcceptLeaderTest) TestSendBallotFailure(c *gocheck.C) {
 	// TODO: figure out what to do in this situation
 	// the only way this would happen if is the command
 	// was taken over by another replica, in which case,
 	// should we just wait for the other leader to
 	// execute it?
-	t.Skip("figure out the expected behavior")
+	c.Skip("figure out the expected behavior")
 }
 
-func TestMergePreAcceptAttributes(t *testing.T) {
-	leader := setupReplicaSet(1)[0]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
+func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
+	// setup local instance seq & deps
 	for i := 0; i < 4; i++ {
-		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
+		s.instance.Dependencies = append(s.instance.Dependencies, NewInstanceID())
 	}
-	instance.Sequence = 3
-	expected := NewInstanceIDSet(instance.Dependencies)
+	s.instance.Sequence = 3
+	expected := NewInstanceIDSet(s.instance.Dependencies)
 
-	remoteInstance := copyInstance(instance)
-	remoteInstance.Dependencies = instance.Dependencies[1:]
+	// setup remote instance seq & deps
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Dependencies = s.instance.Dependencies[1:]
 	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
+	remoteInstance.Sequence++
 	expected.Add(remoteInstance.Dependencies...)
 
-	if size := len(instance.Dependencies); size != 4 {
-		t.Fatalf("Expected 4 dependencies, got: %v", size)
-	}
-	if size := len(remoteInstance.Dependencies); size != 4 {
-		t.Fatalf("Expected 4 dependencies, got: %v", size)
-	}
-	remoteInstance.Sequence++
+	// sanity checks
+	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
+	c.Assert(len(remoteInstance.Dependencies), gocheck.Equals, 4)
+	c.Assert(s.instance.Sequence, gocheck.Equals, uint64(3))
+	c.Assert(remoteInstance.Sequence, gocheck.Equals, uint64(4))
 
-	testing_helpers.AssertEqual(t, "instance sequence", uint64(3), instance.Sequence)
-	testing_helpers.AssertEqual(t, "remote sequence", uint64(4), remoteInstance.Sequence)
-
+	//
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
 		Accepted:         true,
 		MaxBallot:        remoteInstance.MaxBallot,
 		Instance:         remoteInstance,
 		MissingInstances: []*Instance{},
 	}}
-	changes, err := scope.mergePreAcceptAttributes(instance, responses)
+	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(changes, gocheck.Equals, true)
+	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 5)
 
-	if err != nil {
-		t.Fatalf("There was a problem merging attributes: %v", err)
-	}
-	if !changes {
-		t.Errorf("Expected changes to be reported")
-	}
-	if size := len(instance.Dependencies); size != 5 {
-		t.Fatalf("Expected 5 dependencies, got: %v", size)
-	}
-	testing_helpers.AssertEqual(t, "instance sequence", uint64(4), instance.Sequence)
-
-	// test dependencies
-	actual := NewInstanceIDSet(instance.Dependencies)
-	if !expected.Equal(actual) {
-		t.Errorf("Actual dependencies do not match expected dependencies.\nExpected: %v\nGot: %v", expected, actual)
-	}
+	actual := NewInstanceIDSet(s.instance.Dependencies)
+	c.Check(s.instance.Sequence, gocheck.Equals, uint64(4))
+	c.Check(expected.Equal(actual), gocheck.Equals, true)
 }
 
-func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
-	leader := setupReplicaSet(1)[0]
-	scope := leader.manager.getScope("a")
-	instance := scope.makeInstance(getBasicInstruction())
-
+func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
+	// setup local instance seq & deps
 	for i := 0; i < 4; i++ {
-		instance.Dependencies = append(instance.Dependencies, NewInstanceID())
+		s.instance.Dependencies = append(s.instance.Dependencies, NewInstanceID())
 	}
-	instance.Sequence = 3
-	expected := NewInstanceIDSet(instance.Dependencies)
+	s.instance.Sequence = 3
+	expected := NewInstanceIDSet(s.instance.Dependencies)
 
-	remoteInstance := copyInstance(instance)
+	// setup remote instance seq & deps
+	remoteInstance := copyInstance(s.instance)
 
-	if size := len(instance.Dependencies); size != 4 {
-		t.Fatalf("Expected 4 dependencies, got: %v", size)
-	}
-	if size := len(remoteInstance.Dependencies); size != 4 {
-		t.Fatalf("Expected 4 dependencies, got: %v", size)
-	}
-
-	testing_helpers.AssertEqual(t, "instance sequence", uint64(3), instance.Sequence)
-	testing_helpers.AssertEqual(t, "remote sequence", uint64(3), remoteInstance.Sequence)
+	// sanity checks
+	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
+	c.Assert(len(remoteInstance.Dependencies), gocheck.Equals, 4)
+	c.Assert(s.instance.Sequence, gocheck.Equals, uint64(3))
+	c.Assert(remoteInstance.Sequence, gocheck.Equals, uint64(3))
 
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
 		Accepted:         true,
@@ -258,75 +253,70 @@ func TestMergePreAcceptAttributesNoChanges(t *testing.T) {
 		Instance:         remoteInstance,
 		MissingInstances: []*Instance{},
 	}}
-	changes, err := scope.mergePreAcceptAttributes(instance, responses)
+	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
 
-	if err != nil {
-		t.Fatalf("There was a problem merging attributes: %v", err)
-	}
-	if changes {
-		t.Errorf("Expected no changes to be reported")
-	}
-	if size := len(instance.Dependencies); size != 4 {
-		t.Fatalf("Expected 4 dependencies, got: %v", size)
-	}
-	testing_helpers.AssertEqual(t, "instance sequence", uint64(3), instance.Sequence)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(changes, gocheck.Equals, false)
+	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
 
-	// test dependencies
-	actual := NewInstanceIDSet(instance.Dependencies)
-	if !expected.Equal(actual) {
-		t.Errorf("Actual dependencies do not match expected dependencies.\nExpected: %v\nGot: %v", expected, actual)
-	}
+	actual := NewInstanceIDSet(s.instance.Dependencies)
+	c.Check(s.instance.Sequence, gocheck.Equals, uint64(3))
+	c.Check(expected.Equal(actual), gocheck.Equals, true)
 }
 
-/** Replica **/
+type PreAcceptReplicaTest struct {
+	baseScopeTest
+}
+
+var _ = gocheck.Suite(&PreAcceptReplicaTest{})
+
+func (s *PreAcceptReplicaTest) SetUpTest(c *gocheck.C) {
+	s.baseScopeTest.SetUpTest(c)
+	setupDeps(s.scope)
+}
 
 // tests that the dependency match flag is set
 // if the seq and deps matched
-func TestHandlePreAcceptSameDeps(t *testing.T) {
-	scope := setupScope()
-	scope.maxSeq = 3
+func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
+	s.scope.maxSeq = 3
 
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Commands:     getBasicInstruction(),
-		Dependencies: scope.getCurrentDepsUnsafe(),
-		Sequence:     scope.maxSeq + 1,
+		Dependencies: s.scope.getCurrentDepsUnsafe(),
+		Sequence:     s.scope.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope:    scope.name,
+		Scope:    s.scope.name,
 		Instance: instance,
 	}
 
 	// process the preaccept message
-	response, err := scope.HandlePreAccept(request)
+	response, err := s.scope.HandlePreAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+	c.Check(response.Accepted, gocheck.Equals, true)
 
-	if err != nil {
-		t.Fatalf("Error handling pre accept: %v", err)
-	}
-
-	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
-
-	localInstance := scope.instances[instance.InstanceID]
+	// check dependencies
+	localInstance := s.scope.instances[instance.InstanceID]
 	expectedDeps := NewInstanceIDSet(instance.Dependencies)
 	actualDeps := NewInstanceIDSet(localInstance.Dependencies)
-	if !expectedDeps.Equal(actualDeps) {
-		t.Fatalf("actual dependencies don't match expected dependencies")
-	}
-	testing_helpers.AssertEqual(t, "Sequence", uint64(4), localInstance.Sequence)
-	testing_helpers.AssertEqual(t, "dependencyMatch", true, localInstance.dependencyMatch)
-	testing_helpers.AssertEqual(t, "MissingInstances size", 0, len(response.MissingInstances))
+
+	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
+	c.Check(localInstance.Sequence, gocheck.Equals, uint64(4))
+	c.Check(localInstance.dependencyMatch, gocheck.Equals, true)
+	c.Check(len(response.MissingInstances), gocheck.Equals, 0)
 }
 
 // tests that the replica updates the sequence and
 // dependencies if it disagrees with the leader
-func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
-	scope := setupScope()
-	scope.maxSeq = 3
+func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
+	s.scope.maxSeq = 3
 
-	replicaDeps := scope.getCurrentDepsUnsafe()
-	leaderDeps := scope.getCurrentDepsUnsafe()
+	replicaDeps := s.scope.getCurrentDepsUnsafe()
+	leaderDeps := s.scope.getCurrentDepsUnsafe()
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
@@ -339,49 +329,39 @@ func TestHandlePreAcceptDifferentDepsAndSeq(t *testing.T) {
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope:    scope.name,
+		Scope:    s.scope.name,
 		Instance: instance,
 	}
 
-	scope.instances[missingDep] = &Instance{InstanceID: missingDep}
+	s.scope.instances[missingDep] = &Instance{InstanceID: missingDep}
 
 	// process the preaccept message
-	response, err := scope.HandlePreAccept(request)
-
-	if err != nil {
-		t.Fatalf("Error handling pre accept: %v", err)
-	}
-
-	testing_helpers.AssertEqual(t, "Accepted", true, response.Accepted)
+	response, err := s.scope.HandlePreAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+	c.Check(response.Accepted, gocheck.Equals, true)
 
 	responseInst := response.Instance
 	expectedDeps := NewInstanceIDSet(replicaDeps)
 
 	actualDeps := NewInstanceIDSet(responseInst.Dependencies)
-	testing_helpers.AssertEqual(t, "deps size", len(expectedDeps), len(actualDeps))
-	if !expectedDeps.Equal(actualDeps) {
-		t.Fatalf("actual dependencies don't match expected dependencies.\nExpected: %v\nGot: %v", expectedDeps, actualDeps)
-	}
+	c.Check(len(actualDeps), gocheck.Equals, len(expectedDeps))
+	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 
-	testing_helpers.AssertEqual(t, "Sequence", uint64(4), responseInst.Sequence)
-	testing_helpers.AssertEqual(t, "dependencyMatch", false, responseInst.dependencyMatch)
+	c.Check(responseInst.Sequence, gocheck.Equals, uint64(4))
+	c.Check(responseInst.dependencyMatch, gocheck.Equals, false)
 
 	// check that handle pre-accept returns any missing
 	// instance dependencies that the leader didn't include
-	if size := len(response.MissingInstances); size != 1 {
-		t.Fatalf("Expected 1 missing instance, got: %v", size)
-	}
-	testing_helpers.AssertEqual(t, "InstanceId", missingDep, response.MissingInstances[0].InstanceID)
-
-}
-
-func TestHandleNoopPreaccept(t *testing.T) {
-
+	c.Assert(len(response.MissingInstances), gocheck.Equals, 1)
+	c.Check(response.MissingInstances[0].InstanceID, gocheck.Equals, missingDep)
 }
 
 // if the pre accept message reaches the replica
 // after the command has been accepted, or committed
-func TestHandlePreAcceptLate(t *testing.T) {
+func (s *PreAcceptReplicaTest) TestHandleLateMessage(c *gocheck.C) {
 	// TODO: does the replica need to do anything besides ignore it?
-	t.Skip("figure out the expected behavior")
+	c.Skip("figure out the expected behavior")
 }
+
+
