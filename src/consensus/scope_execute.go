@@ -239,10 +239,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 	return val, nil
 }
 
-// applies an instance to the store
-// first it will resolve all dependencies, then wait for them to commit/reject, or force them
-// to do one or the other. Then it will execute it's committed dependencies, then execute itself
-func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
+var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
 	// get dependency instance ids, sorted in execution order
 	exOrder := s.getExecutionOrder(instance)
 
@@ -291,5 +288,12 @@ func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
 	}
 
 	return s.executeDependencyChain(exOrder, instance)
+}
+
+// applies an instance to the store
+// first it will resolve all dependencies, then wait for them to commit/reject, or force them
+// to do one or the other. Then it will execute it's committed dependencies, then execute itself
+func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
+	return scopeExecuteInstance(s, instance)
 }
 
