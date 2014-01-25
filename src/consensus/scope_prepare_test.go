@@ -6,9 +6,12 @@ import (
 	"time"
 )
 
-
 import (
 	"launchpad.net/gocheck"
+)
+
+import (
+	"message"
 )
 
 type basePrepareTest struct {
@@ -67,25 +70,112 @@ func (s *basePrepareTest) TearDownTest(c *gocheck.C) {
 }
 
 // tests the send prepare method
-type PreparePhaseSendTest struct {
-	baseScopeTest
+type PrepareLeaderTest struct {
+	baseReplicaTest
+
+	instance *Instance
+	oldPrepareTimeout uint64
 }
 
-var _ = gocheck.Suite(&PreparePhaseSendTest{})
+var _ = gocheck.Suite(&PrepareLeaderTest{})
 
-// tests the receive prepare response method
-type PreparePhaseReceiveTest struct {
-	basePrepareTest
+func (s *PrepareLeaderTest) SetUpSuite(c *gocheck.C) {
+	s.baseReplicaTest.SetUpSuite(c)
+	s.oldPrepareTimeout = PREPARE_TIMEOUT
+	PREPARE_TIMEOUT = 50
 }
 
-var _ = gocheck.Suite(&PreparePhaseSendTest{})
+func (s *PrepareLeaderTest) TearDownSuite(c *gocheck.C) {
+	PREPARE_TIMEOUT = s.oldPrepareTimeout
+}
+
+func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+}
+
+// tests message
+func (s *PrepareLeaderTest) TestSendSuccess(c *gocheck.C) {
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &PrepareResponse{
+			Accepted:         true,
+			Instance:        s.instance,
+		}, nil
+	}
+
+	for _, replica := range s.replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	responses, err := scopeSendPrepare(s.scope, s.instance)
+	runtime.Gosched()
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(len(responses) >= 3, gocheck.Equals, true)
+}
+
+func (s *PrepareLeaderTest) TestQuorumFailure(c *gocheck.C) {
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		return &PrepareResponse{
+			Accepted:         true,
+			Instance:        s.instance,
+		}, nil
+	}
+	hangResponse := func(n *mockNode, m message.Message) (message.Message, error) {
+		time.Sleep(1 * time.Second)
+		return nil, fmt.Errorf("nope")
+	}
+
+	for i, replica := range s.replicas {
+		if i == 0 {
+			replica.messageHandler = responseFunc
+		} else {
+			replica.messageHandler = hangResponse
+		}
+	}
+
+	responses, err := scopeSendPrepare(s.scope, s.instance)
+	runtime.Gosched()
+	c.Assert(responses, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
+	c.Check(err, gocheck.FitsTypeOf, TimeoutError{})
+}
 
 // tests the analyzePrepareResponses method
 type AnalyzePrepareResponsesTest struct {
-
+	basePrepareTest
 }
 
 var _ = gocheck.Suite(&PreparePhaseTest{})
+
+
+// tests that the instance with the highest ballot/status is returned
+func (s *AnalyzePrepareResponsesTest) TestSuccessCase(c *gocheck.C) {
+	responses := make([]*PrepareResponse, 0)
+	addResponse := func(ballot uint32, status InstanceStatus) {
+		instance := copyInstance(s.instance)
+		instance.MaxBallot = ballot
+		instance.Status = status
+		response := &PrepareResponse{
+			Accepted: true,
+			Instance: instance,
+		}
+		responses = append(responses, response)
+	}
+	addResponse(uint32(4), INSTANCE_PREACCEPTED)
+	addResponse(uint32(4), INSTANCE_ACCEPTED)
+	addResponse(uint32(4), INSTANCE_EXECUTED)
+	addResponse(uint32(5), INSTANCE_PREACCEPTED)
+	addResponse(uint32(5), INSTANCE_ACCEPTED)
+	addResponse(uint32(5), INSTANCE_COMMITTED)
+
+	instance := s.scope.analyzePrepareResponses(responses)
+	c.Assert(instance, gocheck.NotNil)
+	c.Check(instance.MaxBallot, gocheck.Equals, uint32(5))
+	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
 
 // tests the prepare phase method
 type PreparePhaseTest struct {

@@ -67,7 +67,7 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 
 // analyzes the responses to a prepare request, and returns an instance
 // the prepare phase should use to determine how to proceed
-func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse, numNodes int, quorumSize int) (*Instance) {
+func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance) {
 	otherInstancesSeen := false
 
 	// find the highest response ballot
@@ -100,12 +100,7 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse, numNodes i
 	return instance
 }
 
-// sends prepare messages to the replicas and returns an instance used
-// to determine how to proceed. This will succeed even if the local instance
-// is using an out of date ballot number. The prepare caller will have to work
-// out what to do (fail or retry)
-// assigned to a var to aid in testing
-var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
+var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, error) {
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increments and sends the prepare messages in a single lock
@@ -123,14 +118,18 @@ var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
 
 	// receive responses from at least a quorum of nodes
 	quorumSize := ((len(replicas) + 1) / 2) + 1
-	responses, err := s.receivePrepareResponseQuorum(recvChan, instance, quorumSize, len(replicas))
-	if err != nil { return nil, err }
+	return s.receivePrepareResponseQuorum(recvChan, instance, quorumSize, len(replicas))
+}
 
-	analyzeAndUpdateInstance := func() (*Instance, error) {
-		remoteInstance := s.analyzePrepareResponses(responses, len(replicas) + 1, quorumSize)
-		return remoteInstance, nil
-	}
-	return analyzeAndUpdateInstance()
+// sends prepare messages to the replicas and returns an instance used
+// to determine how to proceed. This will succeed even if the local instance
+// is using an out of date ballot number. The prepare caller will have to work
+// out what to do (fail or retry)
+// assigned to a var to aid in testing
+var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
+	responses, err := scopeSendPrepare(s, instance)
+	if err != nil { return nil, err }
+	return s.analyzePrepareResponses(responses), nil
 }
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
