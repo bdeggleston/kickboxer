@@ -143,6 +143,31 @@ func (s *PrepareLeaderTest) TestQuorumFailure(c *gocheck.C) {
 	c.Check(err, gocheck.FitsTypeOf, TimeoutError{})
 }
 
+// tests that the local instance's ballot is updated from
+// rejected prepare responses
+func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
+	s.instance.MaxBallot = 5
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		inst := copyInstance(s.instance)
+		inst.MaxBallot++
+		return &PrepareResponse{
+			Accepted:         false,
+			Instance:        inst,
+		}, nil
+	}
+
+	for _, replica := range s.replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	_, err := scopeSendPrepare(s.scope, s.instance)
+	runtime.Gosched()
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(6))
+}
+
 // tests the analyzePrepareResponses method
 type AnalyzePrepareResponsesTest struct {
 	basePrepareTest
