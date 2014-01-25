@@ -493,7 +493,6 @@ func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
 }
 
 // tests the handle prepare message method
-// TODO: this
 type PrepareReplicaTest struct {
 	baseScopeTest
 

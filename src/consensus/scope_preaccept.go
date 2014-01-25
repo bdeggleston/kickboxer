@@ -129,11 +129,15 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	changes := false
 	for _, response := range responses {
 		changes = changes || instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+		if len(response.MissingInstances) > 0 {
+			if err := s.addMissingInstancesUnsafe(response.MissingInstances...); err != nil {
+				return changes, err
+			}
+		}
 	}
 	if err := s.Persist(); err != nil {
 		return true, err
 	}
-	// TODO: handle MissingInstances included in the responses
 	return changes, nil
 }
 

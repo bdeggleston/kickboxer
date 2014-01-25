@@ -207,8 +207,6 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 
 // runs explicit prepare phase on instances where a command leader failure is suspected
 // during execution,
-// TODO:
-//	what happens if 2 nodes send each other prepare messages at the same time?
 func (s *Scope) preparePhase(instance *Instance) error {
 	s.lock.Lock()
 	status := instance.Status
