@@ -45,7 +45,6 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(INSTANCE_ACCEPTED, gocheck.Equals, replicaInstance.Status)
-	c.Check(INSTANCE_ACCEPTED, gocheck.Equals, leaderInstance.Status)
 	c.Check(5, gocheck.Equals, len(replicaInstance.Dependencies))
 	c.Check(uint64(4), gocheck.Equals, replicaInstance.Sequence)
 	c.Check(uint64(4), gocheck.Equals, s.scope.maxSeq)
@@ -106,6 +105,37 @@ func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	c.Check(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Check(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
+
+// if an instance is being accepted twice
+// which is possible if there's an explicit
+// prepare, it should copy some attributes,
+// (noop), and not overwrite any existing
+// instances references in the scope's containers
+func (s *AcceptInstanceTest) TestRepeatAccept(c *gocheck.C ) {
+	var err error
+	instance := s.scope.makeInstance(getBasicInstruction())
+	repeat := copyInstance(instance)
+
+	err = s.scope.acceptInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	err = s.scope.acceptInstance(repeat)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
+}
+
+// tests that the noop flag is recognized when
+// preaccepting new instances
+func (s *AcceptInstanceTest) TestNewNoopAccept(c *gocheck.C) {
+
+}
+
+// tests that the noop flag is recognized when
+// preaccepting previously seen instances
+func (s *AcceptInstanceTest) TestOldNoopAccept(c *gocheck.C) {
+
 }
 
 type AcceptLeaderTest struct {
@@ -248,7 +278,29 @@ func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
 }
 
 func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
+	var err error
 
+	err = s.scope.preAcceptInstance(s.instance)
+	c.Assert(err, gocheck.IsNil)
+
+	leaderInstance := copyInstance(s.instance)
+	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
+	leaderInstance.Sequence += 5
+	leaderInstance.MaxBallot++
+	leaderInstance.Noop = true
+
+	request := &AcceptRequest{
+		Scope: s.scope.name,
+		Instance: leaderInstance,
+		MissingInstances: []*Instance{},
+	}
+
+	response, err := s.scope.HandleAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(response.Accepted, gocheck.Equals, true)
+
+	// check noop flag
+	c.Check(s.instance.Noop, gocheck.Equals, true)
 }
 
 // tests that accepts are handled properly if
