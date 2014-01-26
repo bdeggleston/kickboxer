@@ -103,7 +103,7 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 	// commit all but the first instance
 	for _, iid := range exOrder[1:] {
 		instance := s.scope.instances[iid]
-		err := s.scope.commitInstance(instance)
+		err := s.scope.commitInstance(instance, false)
 		c.Assert(err, gocheck.IsNil)
 	}
 	s.toPrepare = s.scope.instances[exOrder[0]]
@@ -118,7 +118,7 @@ func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
 	scopePreparePhase = func(scope *Scope, instance *Instance) error {
 		s.preparePhaseCalls++
 		if commit {
-			scope.commitInstance(instance)
+			scope.commitInstance(instance, false)
 		}
 		return err
 	}
@@ -144,7 +144,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 	// die once, succeed on second try
 	scopePreparePhase = func(scope *Scope, instance *Instance) error {
 		if s.preparePhaseCalls > 0 {
-			scope.commitInstance(instance)
+			scope.commitInstance(instance, false)
 		} else {
 			s.preparePhaseCalls++
 			return NewBallotError("nope")
@@ -178,7 +178,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	// 'commit' and notify while prepare waits
 	commitNotify := s.scope.commitNotify[s.toPrepare.InstanceID]
 	c.Assert(commitNotify, gocheck.NotNil)
-	cerr := s.scope.commitInstance(s.toPrepare)
+	cerr := s.scope.commitInstance(s.toPrepare, false)
 	c.Assert(cerr, gocheck.IsNil)
 	commitNotify.Broadcast()
 
@@ -226,7 +226,7 @@ func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
 	scopePreparePhase = func(scope *Scope, instance *Instance) error {
 		instance.Sequence += 5
 		s.preparePhaseCalls++
-		scope.commitInstance(instance)
+		scope.commitInstance(instance, false)
 		return nil
 	}
 
@@ -248,7 +248,7 @@ var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
 // commits all instances
 func (s *ExecuteDependencyChainTest) commitInstances() {
 	for _, iid := range s.expectedOrder {
-		s.scope.commitInstance(s.scope.instances[iid])
+		s.scope.commitInstance(s.scope.instances[iid], false)
 	}
 }
 
@@ -499,7 +499,7 @@ var _ = gocheck.Suite(&ApplyInstanceTest{})
 
 func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
-	err := s.scope.commitInstance(instance)
+	err := s.scope.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 	val, err := s.scope.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
@@ -527,7 +527,7 @@ func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 // removes it from the executeNotify map
 func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
-	s.scope.commitInstance(instance)
+	s.scope.commitInstance(instance, false)
 	s.scope.executeNotify[instance.InstanceID] = makeConditional()
 
 	broadcast := false
@@ -558,7 +558,7 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
-	s.scope.commitInstance(instance)
+	s.scope.commitInstance(instance, false)
 
 	// sanity check
 	c.Check(s.scope.committed, instMapContainsKey, iid)

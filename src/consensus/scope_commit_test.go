@@ -30,6 +30,7 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	s.scope.maxSeq = 3
 	replicaInstance.Sequence = s.scope.maxSeq
 	s.scope.acceptInstance(replicaInstance, false)
+	originalBallot := replicaInstance.MaxBallot
 
 	leaderInstance := copyInstance(replicaInstance)
 	leaderInstance.Sequence++
@@ -45,14 +46,15 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, true)
 
 	oldStatCommitCount := s.scope.statCommitCount
-	err := s.scope.commitInstance(leaderInstance)
+	err := s.scope.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	// test bookkeeping
 	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
 
-	c.Check(replicaInstance.Status, gocheck.Equals,  INSTANCE_COMMITTED)
+	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+	c.Check(replicaInstance.MaxBallot, gocheck.Equals, originalBallot)
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 5)
 	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(4))
 	c.Check(s.scope.maxSeq, gocheck.Equals, uint64(4))
@@ -61,6 +63,14 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(replicaInstance.executeTimeout.After(time.Now()), gocheck.Equals, true)
 }
 
+func (s *CommitInstanceTest) TestBallotIncrement(c *gocheck.C) {
+	instance := makeInstance(s.manager.GetLocalID(), makeDependencies(4))
+	originalBallot := instance.MaxBallot
+	err := s.scope.commitInstance(instance, true)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot + 1)
+}
 // tests that an instance is marked as committed,
 // added to the instances and committed set, and
 // persisted if the instance hasn't been seen before
@@ -76,7 +86,7 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, false)
 
 
-	err := s.scope.commitInstance(leaderInstance)
+	err := s.scope.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.scope.instances.Contains(leaderInstance), gocheck.Equals, true)
@@ -112,7 +122,7 @@ func (s *CommitInstanceTest) TestCommitExecutedFailure(c *gocheck.C) {
 	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.scope.executed[len(s.scope.executed) - 1] == replicaInstance.InstanceID, gocheck.Equals, true)
 
-	err := s.scope.commitInstance(leaderInstance)
+	err := s.scope.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
 	// check set memberships haven't changed
@@ -132,10 +142,10 @@ func (s *CommitInstanceTest) TestRepeatCommit(c *gocheck.C ) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.commitInstance(instance)
+	err = s.scope.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	err = s.scope.commitInstance(repeat)
+	err = s.scope.commitInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
 	c.Assert(s.scope.committed[instance.InstanceID], gocheck.Equals, instance)
@@ -166,7 +176,7 @@ func (s *CommitLeaderTest) SetUpTest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	err = s.scope.acceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
-	err = s.scope.commitInstance(s.instance)
+	err = s.scope.commitInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 }
 

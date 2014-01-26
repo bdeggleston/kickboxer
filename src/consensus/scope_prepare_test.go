@@ -213,7 +213,7 @@ var _ = gocheck.Suite(&PreparePhaseTest{})
 // if the instance has been committed
 func (s *PreparePhaseTest) TestInstanceCommittedAbort(c *gocheck.C) {
 	var err error
-	err = s.scope.commitInstance(s.instance)
+	err = s.scope.commitInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	prepareCalls := 0

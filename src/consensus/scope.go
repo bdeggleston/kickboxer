@@ -306,7 +306,7 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 					return err
 				}
 			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-				if err := s.commitInstanceUnsafe(instance); err != nil {
+				if err := s.commitInstanceUnsafe(instance, false); err != nil {
 					return err
 				}
 			}
