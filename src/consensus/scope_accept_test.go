@@ -27,6 +27,7 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	replicaInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
 	s.scope.maxSeq = 3
 	replicaInstance.Sequence = s.scope.maxSeq
+	originalBallot := replicaInstance.MaxBallot
 
 	s.scope.instances.Add(replicaInstance)
 	s.scope.inProgress.Add(replicaInstance)
@@ -41,13 +42,24 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
-	err := s.scope.acceptInstance(leaderInstance)
+	err := s.scope.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(INSTANCE_ACCEPTED, gocheck.Equals, replicaInstance.Status)
 	c.Check(5, gocheck.Equals, len(replicaInstance.Dependencies))
 	c.Check(uint64(4), gocheck.Equals, replicaInstance.Sequence)
 	c.Check(uint64(4), gocheck.Equals, s.scope.maxSeq)
+	c.Check(replicaInstance.MaxBallot, gocheck.Equals, originalBallot)
+}
+
+func (s *AcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
+	instance := makeInstance(node.NewNodeId(), makeDependencies(4))
+	originalBallot := instance.MaxBallot
+
+	err := s.scope.acceptInstance(instance, true)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot + 1)
 }
 
 // tests that an instance is marked as accepted,
@@ -64,7 +76,7 @@ func (s *AcceptInstanceTest) TestNewInstanceSuccess(c *gocheck.C) {
 	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, false)
 
-	err := s.scope.acceptInstance(leaderInstance)
+	err := s.scope.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.scope.instances.Contains(leaderInstance), gocheck.Equals, true)
@@ -98,7 +110,7 @@ func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
 	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 
-	err := s.scope.acceptInstance(leaderInstance)
+	err := s.scope.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
 	// check set memberships haven't changed
@@ -117,10 +129,10 @@ func (s *AcceptInstanceTest) TestRepeatAccept(c *gocheck.C ) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.acceptInstance(instance)
+	err = s.scope.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	err = s.scope.acceptInstance(repeat)
+	err = s.scope.acceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
 	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
@@ -163,7 +175,7 @@ func (s *AcceptLeaderTest) SetUpTest(c *gocheck.C) {
 
 	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
-	err = s.scope.acceptInstance(s.instance)
+	err = s.scope.acceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 }
 

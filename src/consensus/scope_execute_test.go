@@ -578,7 +578,7 @@ func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 func (s *ApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
-	s.scope.acceptInstance(instance)
+	s.scope.acceptInstance(instance, false)
 
 	// sanity check
 	c.Check(s.scope.inProgress, instMapContainsKey, iid)

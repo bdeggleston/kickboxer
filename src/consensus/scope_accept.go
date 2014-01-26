@@ -19,7 +19,7 @@ func makeAcceptCommitTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstanceUnsafe(inst *Instance) error {
+func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
 	var instance *Instance
 	if existing, exists := s.instances[inst.InstanceID]; exists {
 		if existing.Status > INSTANCE_ACCEPTED {
@@ -37,6 +37,9 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance) error {
 
 	instance.Status = INSTANCE_ACCEPTED
 	instance.commitTimeout = makeAcceptCommitTimeout()
+	if incrementBallot {
+		instance.MaxBallot++
+	}
 	s.instances.Add(instance)
 	s.inProgress.Add(instance)
 
@@ -57,11 +60,11 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance) error {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstance(instance *Instance) error {
+func (s *Scope) acceptInstance(instance *Instance, incrementBallot bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.acceptInstanceUnsafe(instance)
+	return s.acceptInstanceUnsafe(instance, incrementBallot)
 }
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
@@ -126,7 +129,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 	replicas := s.manager.getScopeReplicas(s)
 
-	if err := s.acceptInstance(instance); err != nil {
+	if err := s.acceptInstance(instance, true); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return err
 		}
@@ -153,7 +156,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		}
 	}
 
-	if err := s.acceptInstanceUnsafe(request.Instance); err != nil {
+	if err := s.acceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return nil, err
 		}

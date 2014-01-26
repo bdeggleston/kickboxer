@@ -29,7 +29,7 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	replicaInstance := makeInstance(s.manager.GetLocalID(), makeDependencies(4))
 	s.scope.maxSeq = 3
 	replicaInstance.Sequence = s.scope.maxSeq
-	s.scope.acceptInstance(replicaInstance)
+	s.scope.acceptInstance(replicaInstance, false)
 
 	leaderInstance := copyInstance(replicaInstance)
 	leaderInstance.Sequence++
@@ -164,7 +164,7 @@ func (s *CommitLeaderTest) SetUpTest(c *gocheck.C) {
 
 	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
-	err = s.scope.acceptInstance(s.instance)
+	err = s.scope.acceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	err = s.scope.commitInstance(s.instance)
 	c.Assert(err, gocheck.IsNil)
@@ -210,7 +210,7 @@ var _ = gocheck.Suite(&CommitReplicaTest{})
 // a commit request is recived
 func (s *CommitLeaderTest) TestHandleSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.acceptInstance(instance)
+	err := s.scope.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	// sanity check
@@ -264,7 +264,7 @@ func (s *CommitLeaderTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
 	}
 
 	instance := s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.acceptInstance(instance)
+	err := s.scope.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	// sanity check

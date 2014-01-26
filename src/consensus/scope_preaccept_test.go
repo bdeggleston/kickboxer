@@ -55,7 +55,7 @@ func (s *PreAcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
 func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	var err error
 	instance := s.scope.makeInstance(getBasicInstruction())
-	err = s.scope.acceptInstance(instance)
+	err = s.scope.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 

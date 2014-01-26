@@ -302,7 +302,7 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 					return nil
 				}
 			case INSTANCE_ACCEPTED:
-				if err := s.acceptInstanceUnsafe(instance); err != nil {
+				if err := s.acceptInstanceUnsafe(instance, false); err != nil {
 					return err
 				}
 			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
