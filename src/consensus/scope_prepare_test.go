@@ -534,7 +534,7 @@ func (s *PrepareReplicaTest) SetUpTest(c *gocheck.C) {
 // tests that a prepare request with an incremented ballot
 // number is accepted
 func (s *PrepareReplicaTest) TestSuccessCase(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance)
+	s.scope.preAcceptInstance(s.instance, false)
 	s.instance.MaxBallot = 5
 
 	request := &PrepareRequest{
@@ -555,7 +555,7 @@ func (s *PrepareReplicaTest) TestSuccessCase(c *gocheck.C) {
 // tests that a prepare request with an unincremented ballot
 // number is not accepted
 func (s *PrepareReplicaTest) TestBallotFailure(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance)
+	s.scope.preAcceptInstance(s.instance, false)
 	s.instance.MaxBallot = 5
 
 	request := &PrepareRequest{

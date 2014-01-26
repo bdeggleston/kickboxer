@@ -162,7 +162,7 @@ func (s *CommitLeaderTest) SetUpTest(c *gocheck.C) {
 	s.instance = s.scope.makeInstance(getBasicInstruction())
 	var err error
 
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	err = s.scope.acceptInstance(s.instance)
 	c.Assert(err, gocheck.IsNil)

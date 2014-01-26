@@ -298,7 +298,7 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 		if !s.instances.ContainsID(instance.InstanceID) {
 			switch instance.Status {
 			case INSTANCE_PREACCEPTED:
-				if err := s.preAcceptInstanceUnsafe(instance); err != nil {
+				if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
 					return nil
 				}
 			case INSTANCE_ACCEPTED:

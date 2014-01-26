@@ -36,7 +36,7 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	addInst := func() *Instance {
 		inst := s.scope.makeInstance(s.getInstructions(lastVal))
 		lastVal++
-		s.scope.preAcceptInstanceUnsafe(inst)
+		s.scope.preAcceptInstanceUnsafe(inst, false)
 		s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 		s.maxIdx = len(s.expectedOrder) - 1
 		return inst

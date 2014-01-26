@@ -22,6 +22,7 @@ var _ = gocheck.Suite(&PreAcceptInstanceTest{})
 
 func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	instance := s.scope.makeInstance(getBasicInstruction())
+	originalBallot := instance.MaxBallot
 
 	// sanity check
 	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, false)
@@ -29,7 +30,7 @@ func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
 
 	seq := s.scope.maxSeq
-	err := s.scope.preAcceptInstance(instance)
+	err := s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, true)
@@ -37,7 +38,18 @@ func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
 
 	c.Check(instance.Sequence, gocheck.Equals, seq + 1)
+	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot)
 	c.Check(s.scope.maxSeq, gocheck.Equals, seq + 1)
+}
+
+func (s *PreAcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
+	instance := s.scope.makeInstance(getBasicInstruction())
+	originalBallot := instance.MaxBallot
+
+	err := s.scope.preAcceptInstance(instance, true)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot + 1)
 }
 
 func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
@@ -52,7 +64,7 @@ func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, true)
 	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
 
-	err = s.scope.preAcceptInstance(instance)
+	err = s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
@@ -69,10 +81,10 @@ func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.preAcceptInstance(instance)
+	err = s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	err = s.scope.preAcceptInstance(repeat)
+	err = s.scope.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
  	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
 	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
@@ -85,7 +97,7 @@ func (s *PreAcceptInstanceTest) TestNewNoopPreaccept(c *gocheck.C) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	instance.Noop = true
 
-	err = s.scope.preAcceptInstance(instance)
+	err = s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.scope.instances[instance.InstanceID].Noop, gocheck.Equals, true)
@@ -98,12 +110,12 @@ func (s *PreAcceptInstanceTest) TestOldNoopPreaccept(c *gocheck.C) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.preAcceptInstance(instance)
+	err = s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.Noop, gocheck.Equals, false)
 
 	repeat.Noop = true
-	err = s.scope.preAcceptInstance(repeat)
+	err = s.scope.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.Noop, gocheck.Equals, true)
 }
@@ -117,7 +129,7 @@ func (s *PreAcceptLeaderTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 
 	s.instance = s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.preAcceptInstance(s.instance)
+	err := s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 }
 

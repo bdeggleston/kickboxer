@@ -13,7 +13,7 @@ func makePreAcceptCommitTimeout() time.Time {
 	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
 }
 
-func (s *Scope) preAcceptInstanceUnsafe(inst *Instance) error {
+func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
 	var instance *Instance
 	if existing, exists := s.instances[inst.InstanceID]; exists {
 		if existing.Status > INSTANCE_PREACCEPTED {
@@ -29,6 +29,9 @@ func (s *Scope) preAcceptInstanceUnsafe(inst *Instance) error {
 	instance.Dependencies = s.getCurrentDepsUnsafe()
 	instance.Sequence = s.getNextSeqUnsafe()
 	instance.commitTimeout = makePreAcceptCommitTimeout()
+	if incrementBallot {
+		instance.MaxBallot++
+	}
 	s.inProgress.Add(instance)
 	s.instances.Add(instance)
 
@@ -47,11 +50,11 @@ func (s *Scope) preAcceptInstanceUnsafe(inst *Instance) error {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) preAcceptInstance(instance *Instance) error {
+func (s *Scope) preAcceptInstance(instance *Instance, incrementBallot bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.preAcceptInstanceUnsafe(instance)
+	return s.preAcceptInstanceUnsafe(instance, incrementBallot)
 }
 
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned
@@ -145,7 +148,7 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired bool, err error) {
 	replicas := s.manager.getScopeReplicas(s)
 
-	if err := s.preAcceptInstance(instance); err != nil {
+	if err := s.preAcceptInstance(instance, true); err != nil {
 		// this may be possible during an explicit prepare
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return false, err
@@ -180,7 +183,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	instance := request.Instance
-	if err := s.preAcceptInstanceUnsafe(instance); err != nil {
+	if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return nil, err
 		}

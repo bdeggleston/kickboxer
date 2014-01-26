@@ -161,7 +161,7 @@ func (s *AcceptLeaderTest) SetUpTest(c *gocheck.C) {
 	s.instance = s.scope.makeInstance(getBasicInstruction())
 	var err error
 
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	err = s.scope.acceptInstance(s.instance)
 	c.Assert(err, gocheck.IsNil)
@@ -270,7 +270,7 @@ func (s *AcceptReplicaTest) SetUpTest(c *gocheck.C) {
 func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
 	var err error
 
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	leaderInstance := copyInstance(s.instance)
@@ -301,7 +301,7 @@ func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
 func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
 	var err error
 
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	leaderInstance := copyInstance(s.instance)
@@ -363,7 +363,7 @@ func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
 // ballot number has been seen for this message
 func (s *AcceptReplicaTest) TestOldBallotFailure(c *gocheck.C) {
 	var err error
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	leaderInstance := copyInstance(s.instance)
@@ -387,7 +387,7 @@ func (s *AcceptReplicaTest) TestOldBallotFailure(c *gocheck.C) {
 // in the missing instances message
 func (s *AcceptReplicaTest) TestMissingInstanceSuccess(c *gocheck.C) {
 	var err error
-	err = s.scope.preAcceptInstance(s.instance)
+	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	leaderID := node.NewNodeId()
