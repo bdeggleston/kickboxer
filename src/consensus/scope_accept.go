@@ -77,7 +77,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	msg := &AcceptRequest{Scope: s.name, Instance: instance}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
-			logger.Warning("Error receiving PreAcceptResponse: %v", err)
+			logger.Warning("Error receiving AcceptResponse: %v", err)
 		} else {
 			if accept, ok := response.(*AcceptResponse); ok {
 				recvChan <- accept
@@ -99,9 +99,11 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	for numReceived < quorumSize {
 		select {
 		case response = <-recvChan:
+			logger.Debug("Accept response received: %v", instance.InstanceID)
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
+			logger.Debug("Accept timeout for instance: %v", instance.InstanceID)
 			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
 	}

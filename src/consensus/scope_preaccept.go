@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"runtime"
 	"time"
 )
 
@@ -83,7 +82,6 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		for _, replica := range replicas {
 			go sendMsg(replica)
 		}
-		runtime.Gosched()
 	}
 	lockAndSend()
 
