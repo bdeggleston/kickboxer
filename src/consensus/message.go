@@ -248,6 +248,8 @@ type PrepareRequest struct {
 	InstanceID InstanceID
 }
 
+func (m *PrepareRequest) GetScope() string { return m.Scope }
+
 func (m *PrepareRequest) GetType() uint32 { return MESSAGE_PREPARE_REQUEST }
 
 func (m *PrepareRequest) Serialize(buf *bufio.Writer) error   {
