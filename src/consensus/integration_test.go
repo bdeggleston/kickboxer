@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"flag"
 	"math/rand"
 	"runtime"
 	"time"
@@ -29,20 +30,57 @@ import (
 				test runner can send out random, repeatable timeout events
  */
 
+var _test_integration = flag.Bool("test.integration", false, "run the integration tests")
+var _test_seed = flag.Int64("test.seed", 0, "the random seed to use")
+var _test_queries = flag.Int("test.queries", 10000, "the number of queries to run")
+
+func init() {
+	flag.Parse()
+}
+
 type ConsensusIntegrationTest struct {
-	baseScopeTest
-
-
+	baseReplicaTest
+	random *rand.Rand
 }
 
 var _ = gocheck.Suite(&ConsensusIntegrationTest{})
 
 func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
+	s.baseReplicaTest.SetUpSuite(c)
+	if !*_test_integration {
+		c.Skip("-integration not provided")
+	}
 	runtime.GOMAXPROCS(1)
 }
 
 func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
-	seed := time.Now().Unix()
-	rand.Seed(seed)
+	var seed rand.Source
+	if *_test_seed != 0 {
+		seed = rand.NewSource(time.Now().Unix())
+	} else {
+		seed = rand.NewSource(*_test_seed)
+	}
+	s.random = rand.New(seed)
+
 	c.Log("ConsensusIntegrationTest seeded with: ", seed)
+
+	s.baseScopeTest.SetUpTest(c)
+}
+
+// tests the operation of an egalitarian paxos cluster
+// without any communication failures between nodes
+func (s *ConsensusIntegrationTest) TestSuccessCase(c *gocheck.C) {
+	c.Log("Testing success case")
+	for i:=0; i<*_test_queries; i++ {
+
+	}
+}
+
+// tests the operation of an egalitarian paxos cluster
+// with communication failures between nodes
+func (s *ConsensusIntegrationTest) TestFailureCase(c *gocheck.C) {
+	c.Log("Testing failure case")
+	for i:=0; i<*_test_queries; i++ {
+
+	}
 }
