@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-
 import (
 	"launchpad.net/gocheck"
 )

@@ -2,10 +2,12 @@ package consensus
 
 import (
 	"bufio"
+	"encoding/binary"
 )
 
 import (
 	"message"
+	"serializer"
 )
 
 type ScopedMessage interface {
@@ -18,6 +20,20 @@ type BallotMessage interface {
 	GetBallot() uint32
 }
 
+const (
+	MESSAGE_PREACCEPT_REQUEST = uint32(1001)
+	MESSAGE_PREACCEPT_RESPONSE = uint32(1002)
+
+	MESSAGE_ACCEPT_REQUEST = uint32(1003)
+	MESSAGE_ACCEPT_RESPONSE = uint32(1004)
+
+	MESSAGE_COMMIT_REQUEST = uint32(1005)
+	MESSAGE_COMMIT_RESPONSE = uint32(1006)
+
+	MESSAGE_PREPARE_REQUEST = uint32(1007)
+	MESSAGE_PREPARE_RESPONSE = uint32(1008)
+)
+
 // cheats the message interface implementation
 // TODO: actually implement the message interface
 type messageCheat struct{}
@@ -27,7 +43,6 @@ func (m *messageCheat) Deserialize(*bufio.Reader) error { return nil }
 func (m *messageCheat) GetType() uint32                 { return 0 }
 
 type PreAcceptRequest struct {
-	messageCheat
 
 	// the scope name the message
 	// is going to
@@ -37,9 +52,25 @@ type PreAcceptRequest struct {
 }
 
 func (m *PreAcceptRequest) GetScope() string { return m.Scope }
+func (m *PreAcceptRequest) GetType() uint32 { return MESSAGE_PREACCEPT_REQUEST }
+
+func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	return nil
+}
+
+func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+		m.Instance = val
+	}
+	return nil
+}
 
 type PreAcceptResponse struct {
-	messageCheat
 
 	// indicates the remote node ignored the
 	// preaccept due to an out of date ballot
@@ -60,6 +91,42 @@ type PreAcceptResponse struct {
 }
 
 func (m *PreAcceptResponse) GetBallot() uint32 { return m.MaxBallot }
+func (m *PreAcceptResponse) GetType() uint32 { return MESSAGE_PREACCEPT_RESPONSE }
+
+func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error   {
+	var accepted byte
+	if m.Accepted { accepted = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
+
+	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+
+	numInst := uint32(len(m.MissingInstances))
+	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	for _, inst := range m.MissingInstances {
+		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
+	var accepted byte
+	if err := binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	m.Accepted = accepted != 0x0
+	if err := binary.Read(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
+	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+		m.Instance = val
+	}
+	var numInst uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	m.MissingInstances = make([]*Instance, numInst)
+	for i := range m.MissingInstances {
+		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+			m.MissingInstances[i] = val
+		}
+	}
+	return nil
+}
 
 type AcceptRequest struct {
 	messageCheat
@@ -131,4 +198,18 @@ type PrepareResponse struct {
 	Accepted bool
 
 	Instance *Instance
+}
+
+func init() {
+	message.RegisterMessage(MESSAGE_PREACCEPT_REQUEST, func() message.Message { return &PreAcceptRequest{} })
+	message.RegisterMessage(MESSAGE_PREACCEPT_RESPONSE, func() message.Message { return &PreAcceptResponse{} })
+
+	message.RegisterMessage(MESSAGE_ACCEPT_REQUEST, func() message.Message { return &AcceptRequest{} })
+	message.RegisterMessage(MESSAGE_ACCEPT_RESPONSE, func() message.Message { return &AcceptResponse{} })
+
+	message.RegisterMessage(MESSAGE_COMMIT_REQUEST, func() message.Message { return &CommitRequest{} })
+	message.RegisterMessage(MESSAGE_COMMIT_RESPONSE, func() message.Message { return &CommitResponse{} })
+
+	message.RegisterMessage(MESSAGE_PREPARE_REQUEST, func() message.Message { return &PrepareRequest{} })
+	message.RegisterMessage(MESSAGE_PREPARE_RESPONSE, func() message.Message { return &PrepareResponse{} })
 }
