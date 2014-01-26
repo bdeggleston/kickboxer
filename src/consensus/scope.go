@@ -55,37 +55,13 @@ var (
 )
 
 /*
-TODO: ->
 
-1) explicit prepare
-1a) Breakout preaccept, accept, and commit phases into methods (with stat counters)
-	so they can be used by execute query and prepare methods
-
-2) Workout a method for nullifying an instance
-2a) remove instance rejected status
-
-3) The scope needs to know the consistency level, and have a means of querying the cluster
+1) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
 	is added to, or removed from, the cluster mid transaction, the transaction will be executing
 	against an out of date set of replicas.
 
-4) long running integration tests. Each integration iteration should run on one core, with
-	inter-node communication running through a message broker, which will randomly add failure
-	scenarios. At the beginning of each iteration, the random number generator should be seeded
-	with a value that can be recorded, so failures can be later played back and debugged. The
-	mockNode keeps a log of all instructions it has been given. Message logs between nodes
-	should be regularly compared. If any message lists are not equal, or one is not a subset
-	of the other, an error has occurred, and needs to be debugged.
-		Failure Scenarios:
-			* Network partition
-			* Unresponsive node
-			* Deloyed / Out of order messages
-			* Missing messages
-		Also to do:
-			* wrap timeout event creation in a method that can be mocked out so the
-				test runner can send out random, repeatable timeout events
-
-5) scope state persistence. Maybe add system state mutation method to store?
+2) scope state persistence. Maybe add system state mutation method to store?
 	A triply nested hash table should do the trick for most applications.
 		ex:
 			consensus:
@@ -93,21 +69,18 @@ TODO: ->
 			cluster state:
 				<cluster_state> [node_id][node_property] = node_metadata
 
-6) Workout a method for removing old nodes from the dependency graph
+3) Workout a method for removing old nodes from the dependency graph
 
-7) Add response expected param to execute instance, so queries that don't expect
+4) Add response expected param to execute instance, so queries that don't expect
 	a return value can return even if it's instance dependencies have not been committed
 
-8) Track metrics for:
+5) Track metrics for:
 		- number of rejected requests (Ballot)
 		- number of explicit prepares (sent and received)
 		- number of times / length of time waiting on dependencies to commit
 		- quorum failures
 
-9) Add a broadcast mechanism to notify pending executions that an instance has been committed
-
-DONE:
-	query execution
+6) Add a broadcast mechanism to notify pending executions that an instance has been committed
 
  */
 
