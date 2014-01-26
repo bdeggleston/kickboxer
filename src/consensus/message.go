@@ -249,8 +249,6 @@ func (m *CommitResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 type PrepareRequest struct {
-	messageCheat
-
 	// the scope name the message
 	// is going to
 	Scope string
@@ -260,14 +258,52 @@ type PrepareRequest struct {
 	InstanceID InstanceID
 }
 
-type PrepareResponse struct {
-	messageCheat
+func (m *PrepareRequest) GetType() uint32 { return MESSAGE_PREPARE_REQUEST }
 
+func (m *PrepareRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
+	if err := serializer.WriteFieldString(buf, string(m.InstanceID)); err != nil { return err }
+	return nil
+}
+
+func (m *PrepareRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	if err := binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.InstanceID = InstanceID(val)
+	}
+	return nil
+}
+
+type PrepareResponse struct {
 	// indicates the remote node ignored the
 	// preaccept due to an out of date ballot
 	Accepted bool
 
 	Instance *Instance
+}
+
+func (m *PrepareResponse) GetType() uint32 { return MESSAGE_PREPARE_RESPONSE }
+
+func (m *PrepareResponse) Serialize(buf *bufio.Writer) error   {
+	var accepted byte
+	if m.Accepted { accepted = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	return nil
+}
+
+func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
+	var accepted byte
+	if err := binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	m.Accepted = accepted != 0x0
+	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+		m.Instance = val
+	}
+	return nil
 }
 
 func init() {
