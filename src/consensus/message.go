@@ -129,7 +129,6 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 type AcceptRequest struct {
-	messageCheat
 
 	// the scope name the message
 	// is going to
@@ -145,6 +144,38 @@ type AcceptRequest struct {
 }
 
 func (m *AcceptRequest) GetScope() string { return m.Scope }
+func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
+
+func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+
+	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+
+	numInst := uint32(len(m.MissingInstances))
+	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	for _, inst := range m.MissingInstances {
+		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+		m.Instance = val
+	}
+	var numInst uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	m.MissingInstances = make([]*Instance, numInst)
+	for i := range m.MissingInstances {
+		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+			m.MissingInstances[i] = val
+		}
+	}
+	return nil
+}
 
 type AcceptResponse struct {
 	messageCheat
@@ -159,10 +190,25 @@ type AcceptResponse struct {
 }
 
 func (m *AcceptResponse) GetBallot() uint32 { return m.MaxBallot }
+func (m *AcceptResponse) GetType() uint32 { return MESSAGE_ACCEPT_RESPONSE }
+
+func (m *AcceptResponse) Serialize(buf *bufio.Writer) error   {
+	var accepted byte
+	if m.Accepted { accepted = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
+	return nil
+}
+
+func (m *AcceptResponse) Deserialize(buf *bufio.Reader) error {
+	var accepted byte
+	if err := binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
+	m.Accepted = accepted != 0x0
+	if err := binary.Read(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
+	return nil
+}
 
 type CommitRequest struct {
-	messageCheat
-
 	// the scope name the message
 	// is going to
 	Scope string
@@ -173,9 +219,33 @@ type CommitRequest struct {
 }
 
 func (m *CommitRequest) GetScope() string { return m.Scope }
+func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
-type CommitResponse struct {
-	messageCheat
+func (m *CommitRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	return nil
+}
+
+func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+		m.Instance = val
+	}
+	return nil
+}
+
+type CommitResponse struct {}
+func (m *CommitResponse) GetType() uint32 { return MESSAGE_COMMIT_RESPONSE }
+
+func (m *CommitResponse) Serialize(buf *bufio.Writer) error   {
+	return nil
+}
+
+func (m *CommitResponse) Deserialize(buf *bufio.Reader) error {
+	return nil
 }
 
 type PrepareRequest struct {
