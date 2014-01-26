@@ -201,7 +201,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 						cond.L.Unlock()
 						broadcastEvent <- true
 					}()
-					timeoutEvent := time.After(instance.executeTimeout.Sub(time.Now()))
+					timeoutEvent := getTimeoutEvent(instance.executeTimeout.Sub(time.Now()))
 					s.lock.Unlock()
 
 					select {
@@ -289,7 +289,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 						// wait on broadcast event or timeout
 						broadcastEvent := getCommitNotify(inst)
-						timeoutEvent := time.After(time.Duration(BALLOT_FAILURE_WAIT_TIME) * time.Millisecond)
+						timeoutEvent := getTimeoutEvent(time.Duration(BALLOT_FAILURE_WAIT_TIME) * time.Millisecond)
 						select {
 						case <-broadcastEvent:
 							// another goroutine committed

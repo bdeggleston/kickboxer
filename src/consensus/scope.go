@@ -3,6 +3,7 @@ package consensus
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 import (
@@ -142,8 +143,16 @@ Variable datacenter consistency:
 
 func makeConditional() *sync.Cond {
 	lock := &sync.Mutex{}
-//	lock.Lock()
 	return sync.NewCond(lock)
+}
+
+var consensusTimeoutEvent = func(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
+// returns a channel that will wake up after the given duration
+func getTimeoutEvent(d time.Duration) <-chan time.Time {
+	return consensusTimeoutEvent(d)
 }
 
 // manages a subset of interdependent

@@ -86,7 +86,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 
 	numReceived := 1  // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
-	timeoutEvent := time.After(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
+	timeoutEvent := getTimeoutEvent(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	var response *PreAcceptResponse
 	responses := make([]*PreAcceptResponse, 0, len(replicas))
 	for numReceived < quorumSize {

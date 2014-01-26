@@ -5,7 +5,6 @@ import (
 )
 
 /*
-
    long running integration tests. Each integration iteration should run on one core, with
 	inter-node communication running through a message broker, which will randomly add failure
 	scenarios. At the beginning of each iteration, the random number generator should be seeded
@@ -22,8 +21,6 @@ import (
 			* wrap timeout event creation in a method that can be mocked out so the
 				test runner can send out random, repeatable timeout events
  */
-
-// TODO: replace all time.After calls with a timeout function that can be mocked
 
 type ConsensusIntegrationTest struct {
 	baseScopeTest

@@ -36,7 +36,7 @@ func (s *Scope) sendPrepare(instance *Instance, replicas []node.Node) (<- chan *
 
 func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, instance *Instance, quorumSize int, numReplicas int) ([]*PrepareResponse, error) {
 	numReceived := 1  // this node counts as a response
-	timeoutEvent := time.After(time.Duration(PREPARE_TIMEOUT) * time.Millisecond)
+	timeoutEvent := getTimeoutEvent(time.Duration(PREPARE_TIMEOUT) * time.Millisecond)
 	var response *PrepareResponse
 	responses := make([]*PrepareResponse, 0, numReplicas)
 	for numReceived < quorumSize {
@@ -235,7 +235,7 @@ func (s *Scope) preparePhase(instance *Instance) error {
 			cond.L.Unlock()
 			broadcastEvent <- true
 		}()
-		timeoutEvent := time.After(instance.commitTimeout.Sub(time.Now()))
+		timeoutEvent := getTimeoutEvent(instance.commitTimeout.Sub(time.Now()))
 		s.lock.Unlock()
 		select {
 		case <- broadcastEvent:

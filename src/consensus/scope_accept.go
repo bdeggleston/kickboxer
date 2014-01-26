@@ -90,7 +90,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	// receive the replies
 	numReceived := 1 // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1
-	timeoutEvent := time.After(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
+	timeoutEvent := getTimeoutEvent(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
 	var response *AcceptResponse
 	responses := make([]*AcceptResponse, 0, len(replicas))
 	for numReceived < quorumSize {
