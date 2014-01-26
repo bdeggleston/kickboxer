@@ -1,35 +1,29 @@
 package consensus
 
 import (
-	"testing"
+	"launchpad.net/gocheck"
 )
 
-import (
-	"testing_helpers"
-)
+type InstanceSetTest struct { }
 
-func TestInstanceMergeAttributes(t *testing.T) {
+var _ = gocheck.Suite(&InstanceSetTest{})
 
-}
-
-func TestInstanceIDSetEqual(t *testing.T) {
+func (s *InstanceSetTest) TestSetEqual(c *gocheck.C) {
 	ids := []InstanceID{NewInstanceID(), NewInstanceID()}
 	set0 := NewInstanceIDSet(ids)
 	set1 := NewInstanceIDSet(ids)
-	if !set0.Equal(set1) {
-		t.Errorf("Expected true, got false")
-	}
-
+	c.Assert(set0.Equal(set1), gocheck.Equals, true)
 }
 
-func TestInstanceIDSetUnion(t *testing.T) {
+func (s *InstanceSetTest) TestSetUnion(c *gocheck.C) {
 	ids := []InstanceID{NewInstanceID(), NewInstanceID(), NewInstanceID()}
 	set0 := NewInstanceIDSet(ids[:2])
 	set1 := NewInstanceIDSet(ids[1:])
 
-	testing_helpers.AssertEqual(t, "set0 size", 2, len(set0))
-	testing_helpers.AssertEqual(t, "set1 size", 2, len(set1))
+	c.Assert(len(set0), gocheck.Equals, 2)
+	c.Assert(len(set1), gocheck.Equals, 2)
 
 	set2 := set0.Union(set1)
-	testing_helpers.AssertEqual(t, "set2 size", 3, len(set2))
+	c.Assert(len(set2), gocheck.Equals, 3)
 }
+
