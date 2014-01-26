@@ -1,6 +1,13 @@
 package consensus
 
 import (
+	"math/rand"
+	"runtime"
+	"time"
+)
+
+
+import (
 	"launchpad.net/gocheck"
 )
 
@@ -24,6 +31,18 @@ import (
 
 type ConsensusIntegrationTest struct {
 	baseScopeTest
+
+
 }
 
 var _ = gocheck.Suite(&ConsensusIntegrationTest{})
+
+func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
+	runtime.GOMAXPROCS(1)
+}
+
+func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
+	seed := time.Now().Unix()
+	rand.Seed(seed)
+	c.Log("ConsensusIntegrationTest seeded with: ", seed)
+}
