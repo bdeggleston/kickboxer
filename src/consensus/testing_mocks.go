@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bufio"
+	"bytes"
 	"strconv"
 	"sync"
 	"time"
@@ -114,9 +115,19 @@ func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp
 	return nil, nil
 }
 
-func (n *mockNode) SendMessage(msg message.Message) (message.Message, error) {
-	n.sentMessages = append(n.sentMessages, msg)
-	return n.messageHandler(n, msg)
+func (n *mockNode) SendMessage(src message.Message) (message.Message, error) {
+	var err error
+	buf := &bytes.Buffer{}
+	err = message.WriteMessage(buf, src)
+	if err != nil {
+		return nil, err
+	}
+	dst, err := message.ReadMessage(buf)
+	if err != nil {
+		return nil, err
+	}
+	n.sentMessages = append(n.sentMessages, dst)
+	return n.messageHandler(n, dst)
 }
 
 func transformMockNodeArray(src []*mockNode) []node.Node {
