@@ -74,7 +74,11 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
-	msg := &AcceptRequest{Scope: s.name, Instance: instance}
+	instanceCopy, err := s.copyInstanceAtomic(instance)
+	if err != nil {
+		return err
+	}
+	msg := &AcceptRequest{Scope: s.name, Instance: instanceCopy}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving AcceptResponse: %v", err)

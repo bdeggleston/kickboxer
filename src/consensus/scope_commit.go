@@ -86,7 +86,11 @@ func (s *Scope) commitInstance(instance *Instance, incrementBallot bool) error {
 // won't be able to do anything else without finding out about it. This method
 // will only return an error if persisting the committed state fails
 func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
-	msg := &CommitRequest{Scope: s.name, Instance: instance}
+	instanceCopy, err := s.copyInstanceAtomic(instance)
+	if err != nil {
+		return err
+	}
+	msg := &CommitRequest{Scope: s.name, Instance: instanceCopy}
 	sendCommit := func(n node.Node) { n.SendMessage(msg) }
 	for _, replica := range replicas {
 		go sendCommit(replica)

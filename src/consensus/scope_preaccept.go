@@ -60,7 +60,12 @@ func (s *Scope) preAcceptInstance(instance *Instance, incrementBallot bool) erro
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
-	msg := &PreAcceptRequest{Scope: s.name, Instance: instance}
+
+	instanceCopy, err := s.copyInstanceAtomic(instance)
+	if err != nil {
+		return nil, err
+	}
+	msg := &PreAcceptRequest{Scope: s.name, Instance: instanceCopy}
 
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
@@ -76,14 +81,9 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 
 	// lock the scope so other goroutines
 	// don't changes attributes on the instance
-	lockAndSend := func() {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		for _, replica := range replicas {
-			go sendMsg(replica)
-		}
+	for _, replica := range replicas {
+		go sendMsg(replica)
 	}
-	lockAndSend()
 
 	numReceived := 1  // this node counts as a response
 	quorumSize := ((len(replicas) + 1) / 2) + 1

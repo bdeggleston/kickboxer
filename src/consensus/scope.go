@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
@@ -253,6 +255,26 @@ func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) err
 		return err
 	}
 	return nil
+}
+
+// copies an instance in the contect of a lock
+func (s *Scope) copyInstanceAtomic(src *Instance) (*Instance, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	buf := &bytes.Buffer{}
+	writer := bufio.NewWriter(buf)
+	if err := instanceSerialize(src, writer); err != nil {
+		return nil, err
+	}
+	if err := writer.Flush(); err != nil {
+		return nil, err
+	}
+	reader := bufio.NewReader(buf)
+	dst, err := instanceDeserialize(reader)
+	if err != nil {
+		return nil, err
+	}
+	return dst, nil
 }
 
 // returns the current dependencies for a new instance
