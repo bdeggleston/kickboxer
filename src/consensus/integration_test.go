@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -95,7 +96,7 @@ func (c *opsCtrl) timeoutHandler(d time.Duration) <-chan time.Time {
 }
 
 func (c *opsCtrl) reactor() {
-	var closed bool
+	var open bool
 	var msgEvnt opsMsgSendEvent
 	var timeEvnt opsTimeoutEvent
 
@@ -131,8 +132,9 @@ func (c *opsCtrl) reactor() {
 
 	for i:=0; true; i++ {
 		select {
-		case msgEvnt, closed = <-c.msgChan:
-			if closed {
+		case msgEvnt, open = <-c.msgChan:
+			if !open {
+				panic("closed")
 				return
 			}
 			if c.simulateFailures {
@@ -154,18 +156,34 @@ func (c *opsCtrl) reactor() {
 					delay += (c.random.Uint32() % (delayLenRange * 2)) - delayLenRange
 					backLog := opsMsgBacklog{delay:delay, event:msgEvnt}
 					msgBacklog = append(msgBacklog, backLog)
-					c.c.Logf("Delaying message for node: %v for %v ticks", nid, delay)
+					c.c.Logf("Delaying %T for node: %v for %v ticks", msgEvnt.msg, nid, delay)
 					break
+				} else {
+					handleMessage(msgEvnt)
+					c.c.Logf("Handling %T for node: %v", msgEvnt.msg, nid)
 				}
 			} else {
+				nid := msgEvnt.node.id
 				handleMessage(msgEvnt)
+				c.c.Logf("Handling %T for node: %v", msgEvnt.msg, nid)
 			}
-		case timeEvnt, closed = <-c.timeoutChan:
-			if closed { return }
+			runtime.Gosched()
+		case timeEvnt, open = <-c.timeoutChan:
+			if !open {
+				panic("closed")
+				return
+			}
 			delay := timeoutLenBase
 			delay += (c.random.Uint32() % (timeoutLenRange * 2)) - timeoutLenRange
 			backLog := opsTimeoutBacklog{delay:delay, event:timeEvnt}
 			timeBacklog = append(timeBacklog, backLog)
+			c.c.Logf("Handling timeout request")
+			runtime.Gosched()
+		default:
+			// don't just spin
+			c.c.Log("No new events, yielding thread")
+			time.Sleep(time.Duration(10) * time.Millisecond)
+			runtime.Gosched()
 		}
 
 		oldMsgBacklog := msgBacklog
@@ -183,7 +201,8 @@ func (c *opsCtrl) reactor() {
 		timeBacklog = make([]opsTimeoutBacklog, 0)
 		for _, l := range oldTimeBacklog {
 			if l.delay <= 0 {
-				l.event.reply <- time.Now()
+				c.c.Logf("Sending timeout event")
+				go func() { l.event.reply <- time.Now() }()
 			} else {
 				l.delay--
 				timeBacklog = append(timeBacklog, l)
@@ -223,6 +242,7 @@ func (c *opsCtrl) reactor() {
 				c.c.Assert(instruction, gocheck.DeepEquals, instructionsSet[i])
 			}
 		}
+		c.c.Logf("Instruction (%v) check ok", len(instructionsSet))
 	}
 }
 
@@ -232,7 +252,8 @@ func newCtrl(r *rand.Rand, nodes []*mockNode, c *gocheck.C) *opsCtrl {
 		c: c,
 		random: r,
 		nodes: nodes,
-		msgChan: make(chan opsMsgSendEvent),  // should this be buffered?
+		msgChan: make(chan opsMsgSendEvent, 1000),  // should this be buffered?
+		timeoutChan: make(chan opsTimeoutEvent, 1000),  // should this be buffered?
 	}
 
 	// patch nodes
@@ -286,12 +307,21 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 // without any communication failures between nodes
 func (s *ConsensusIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	c.Log("Testing success case")
+	wg := sync.WaitGroup{}
+	_ = wg
+//	wg.Add(*_test_queries)
 	for i:=0; i<*_test_queries; i++ {
 		c.Logf("Iteration %v", i)
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
 		manager.ExecuteQuery(instructions)
+//		go func() {
+//			manager.ExecuteQuery(instructions)
+//			wg.Done()
+//			panic("!")
+//		}()
 	}
+//	wg.Wait()
 }
 
 // tests the operation of an egalitarian paxos cluster
