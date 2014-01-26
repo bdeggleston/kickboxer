@@ -34,14 +34,6 @@ const (
 	MESSAGE_PREPARE_RESPONSE = uint32(1008)
 )
 
-// cheats the message interface implementation
-// TODO: actually implement the message interface
-type messageCheat struct{}
-
-func (m *messageCheat) Serialize(*bufio.Writer) error   { return nil }
-func (m *messageCheat) Deserialize(*bufio.Reader) error { return nil }
-func (m *messageCheat) GetType() uint32                 { return 0 }
-
 type PreAcceptRequest struct {
 
 	// the scope name the message
@@ -178,8 +170,6 @@ func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
 }
 
 type AcceptResponse struct {
-	messageCheat
-
 	// indicates the remote node ignored the
 	// preaccept due to an out of date ballot
 	Accepted bool
