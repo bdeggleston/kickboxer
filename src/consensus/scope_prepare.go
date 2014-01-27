@@ -104,16 +104,19 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increments and sends the prepare messages in a single lock
-	incrementInstanceAndSendPrepareMessage := func() (<-chan *PrepareResponse, error) {
+	// TODO: combine send and receive methods since the instance is being copied now
+	incrementAndCopyInstance := func() (*Instance, error) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		instance.MaxBallot++
 		if err := s.Persist(); err != nil {
 			return nil, err
 		}
-		return s.sendPrepare(instance, replicas)
+		return s.copyInstanceUnsafe(instance)
 	}
-	recvChan, err := incrementInstanceAndSendPrepareMessage()
+	instanceCopy, err := incrementAndCopyInstance()
+	if err != nil { return nil, err }
+	recvChan, err := s.sendPrepare(instanceCopy, replicas)
 	if err != nil { return nil, err }
 
 	// receive responses from at least a quorum of nodes
@@ -209,17 +212,20 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 // during execution,
 func (s *Scope) preparePhase(instance *Instance) error {
 	s.lock.Lock()
+	logger.Debug("Prepare phase invoked")
 	status := instance.Status
 	if status >= INSTANCE_COMMITTED {
 		s.lock.Unlock()
 		return nil
 	}
 	if time.Now().After(instance.commitTimeout) {
+		logger.Debug("Prepare: commit grace period expired. proceeding")
 		// proceed, the instance's commit grace period
 		// has expired
 		s.statCommitTimeout++
 		s.lock.Unlock()
 	} else {
+		logger.Debug("Prepare: waiting on commit grace period to expire")
 		// get or create broadcast object
 		cond, ok := s.commitNotify[instance.InstanceID]
 		if !ok {
@@ -239,10 +245,12 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		s.lock.Unlock()
 		select {
 		case <- broadcastEvent:
+			logger.Debug("Prepare: broadcast event received")
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
 			return nil
 		case <- timeoutEvent:
+			logger.Debug("Prepare: commit grace period expired. proceeding")
 			// execution timed out
 			s.lock.Lock()
 
@@ -260,7 +268,10 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		}
 	}
 
-	return scopePreparePhase(s, instance)
+	logger.Debug("Prepare phase started")
+	err := scopePreparePhase(s, instance)
+	logger.Debug("Prepare phase completed")
+	return err
 }
 
 // handles a prepare message from an instance attempting to take
@@ -270,6 +281,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	defer s.lock.Unlock()
 
 	instance := s.instances[request.InstanceID]
+	logger.Debug("Prepare message received, ballot: %v", request.Ballot)
 	response := &PrepareResponse{Instance: instance}
 	if instance == nil {
 		response.Accepted = true
@@ -277,5 +289,6 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 		response.Accepted = request.Ballot > instance.MaxBallot
 	}
 
+	logger.Debug("Prepare message replied with accept: %v", response.Accepted)
 	return response, nil
 }
