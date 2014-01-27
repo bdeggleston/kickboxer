@@ -73,9 +73,11 @@ func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestam
 	defer c.lock.Unlock()
 	intVal, err := strconv.Atoi(args[0])
 	if err != nil { return nil, err }
+	c.lock.Lock()
 	val := newIntVal(intVal, timestamp)
 	c.values[key] = val
 	c.instructions = append(c.instructions, store.NewInstruction(cmd, key, args, timestamp))
+	c.lock.Unlock()
 	return val, nil
 }
 
@@ -94,6 +96,7 @@ type mockNode struct {
 	manager        *Manager
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 	sentMessages   []message.Message
+	lock		   sync.Mutex
 }
 
 func newMockNode() *mockNode {
@@ -126,7 +129,9 @@ func (n *mockNode) SendMessage(src message.Message) (message.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	n.lock.Lock()
 	n.sentMessages = append(n.sentMessages, dst)
+	n.lock.Unlock()
 	return n.messageHandler(n, dst)
 }
 
