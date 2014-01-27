@@ -299,9 +299,10 @@ func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	deps = append(deps, s.inProgress.InstanceIDs()...)
 	deps = append(deps, s.committed.InstanceIDs()...)
 
-	if len(s.executed) > 0 {
-		deps = append(deps, s.executed[len(s.executed)-1])
-	}
+	deps = append(deps, s.executed...)
+//	if len(s.executed) > 0 {
+//		deps = append(deps, s.executed[len(s.executed)-1])
+//	}
 
 	return deps
 }
