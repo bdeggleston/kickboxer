@@ -99,7 +99,8 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 		instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
 	}
 	s.toExecute = s.scope.instances[s.expectedOrder[2]]
-	exOrder := s.scope.getExecutionOrder(s.toExecute)
+	exOrder, err := s.scope.getExecutionOrder(s.toExecute)
+	c.Assert(err, gocheck.IsNil)
 	// commit all but the first instance
 	for _, iid := range exOrder[1:] {
 		instance := s.scope.instances[iid]
@@ -256,11 +257,24 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
 	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
-	actual := s.scope.getExecutionOrder(lastInstance)
+	actual, err := s.scope.getExecutionOrder(lastInstance)
+	c.Assert(err, gocheck.IsNil)
 	c.Assert(len(s.expectedOrder), gocheck.Equals, len(actual))
 	for i := range s.expectedOrder {
 		c.Check(s.expectedOrder[i], gocheck.Equals, actual[i], gocheck.Commentf("iid %v", i))
 	}
+}
+
+// getExecutionOrder should return an error if an instance
+// depends on an instance that the scope hasn't seen
+func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
+	s.commitInstances()
+
+	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
+	lastInstance.Dependencies = append(lastInstance.Dependencies, NewInstanceID())
+	actual, err := s.scope.getExecutionOrder(lastInstance)
+	c.Assert(actual, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
 }
 
 // tests that instances up to and including the given

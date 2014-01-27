@@ -57,7 +57,7 @@ func (i *iidSorter) Swap(x, y int) {
 
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
-func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
+func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -73,7 +73,13 @@ func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
 	addInstance(instance)
 	for _, iid := range instance.Dependencies {
 		inst := s.instances[iid]
-		if inst == nil { panic(fmt.Sprintf("getExecutionOrder: Unknown instance id: %v", iid)) }
+		if inst == nil {
+			// if this scope has not seen an instance dependency, then this
+			// node is not the leader for this instance, and it probably missed
+			// the preaccept/accept messages. Bail out of execution, this node
+			// will pick up the instance on the next query
+			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+		}
 		addInstance(inst)
 	}
 
@@ -90,7 +96,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
 		exOrder = append(exOrder, sorter.iids...)
 	}
 
-	return exOrder
+	return exOrder, nil
 }
 
 func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
@@ -245,7 +251,10 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
 	logger.Debug("Execute phase invoked")
 	// get dependency instance ids, sorted in execution order
-	exOrder := s.getExecutionOrder(instance)
+	exOrder, err := s.getExecutionOrder(instance)
+	if err != nil {
+		return nil, err
+	}
 
 	// prepare uncommitted instances
 	var uncommitted []*Instance
@@ -335,7 +344,10 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 		// have run a preaccept phase for it, changing the
 		// dependency chain, so the exOrder and uncommitted
 		// list need to be updated before continuing
-		exOrder = s.getExecutionOrder(instance)
+		exOrder, err = s.getExecutionOrder(instance)
+		if err != nil {
+			return nil, err
+		}
 		uncommitted = s.getUncommittedInstances(exOrder)
 	}
 
