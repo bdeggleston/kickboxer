@@ -87,7 +87,9 @@ func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 	err = s.scope.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
  	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
 	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when

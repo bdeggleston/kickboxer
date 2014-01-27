@@ -148,7 +148,9 @@ func (s *CommitInstanceTest) TestRepeatCommit(c *gocheck.C ) {
 	err = s.scope.commitInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
 	c.Assert(s.scope.committed[instance.InstanceID], gocheck.Equals, instance)
+	c.Assert(s.scope.committed[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that instances with a commitNotify Cond object
