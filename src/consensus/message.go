@@ -32,6 +32,9 @@ const (
 
 	MESSAGE_PREPARE_REQUEST = uint32(1007)
 	MESSAGE_PREPARE_RESPONSE = uint32(1008)
+
+	MESSAGE_INSTANCE_REQUEST = uint32(1009)
+	MESSAGE_INSTANCE_RESPONSE = uint32(1010)
 )
 
 type PreAcceptRequest struct {
@@ -298,6 +301,72 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+type InstanceRequest struct {
+	// the scope name the message
+	// is going to
+	Scope string
+
+	InstanceIDs []InstanceID
+}
+
+func (m *InstanceRequest) GetScope() string { return m.Scope }
+
+func (m *InstanceRequest) GetType() uint32 { return MESSAGE_INSTANCE_REQUEST }
+
+func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+
+	numIds := uint32(len(m.InstanceIDs))
+	if err := binary.Write(buf, binary.LittleEndian, &numIds); err != nil { return err }
+
+	for _, iid := range m.InstanceIDs {
+		if err := serializer.WriteFieldString(buf, string(iid)); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *InstanceRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	var numIds uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numIds); err != nil { return err }
+	m.InstanceIDs = make([]InstanceID, numIds)
+	for i := range m.InstanceIDs {
+		if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+			m.InstanceIDs[i] = InstanceID(val)
+		}
+	}
+	return nil
+}
+
+type InstanceResponse struct {
+	Instances []*Instance
+}
+
+func (m *InstanceResponse) GetType() uint32 { return MESSAGE_INSTANCE_RESPONSE }
+
+func (m *InstanceResponse) Serialize(buf *bufio.Writer) error   {
+	numInst := uint32(len(m.Instances))
+	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	for _, inst := range m.Instances {
+		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *InstanceResponse) Deserialize(buf *bufio.Reader) error {
+	var numInst uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
+	m.Instances = make([]*Instance, numInst)
+	for i := range m.Instances {
+		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+			m.Instances[i] = val
+		}
+	}
+	return nil
+}
+
 func init() {
 	message.RegisterMessage(MESSAGE_PREACCEPT_REQUEST, func() message.Message { return &PreAcceptRequest{} })
 	message.RegisterMessage(MESSAGE_PREACCEPT_RESPONSE, func() message.Message { return &PreAcceptResponse{} })
@@ -310,4 +379,7 @@ func init() {
 
 	message.RegisterMessage(MESSAGE_PREPARE_REQUEST, func() message.Message { return &PrepareRequest{} })
 	message.RegisterMessage(MESSAGE_PREPARE_RESPONSE, func() message.Message { return &PrepareResponse{} })
+
+	message.RegisterMessage(MESSAGE_INSTANCE_REQUEST, func() message.Message { return &InstanceRequest{} })
+	message.RegisterMessage(MESSAGE_INSTANCE_RESPONSE, func() message.Message { return &InstanceResponse{} })
 }
