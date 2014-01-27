@@ -127,6 +127,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcceptResponse) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	logger.Debug("Merging preaccept attributes")
 	changes := false
 	for _, response := range responses {
 		changes = changes || instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
@@ -139,6 +140,7 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	if err := s.Persist(); err != nil {
 		return true, err
 	}
+	logger.Debug("Preaccept attributes merged")
 	return changes, nil
 }
 
@@ -167,6 +169,7 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 // runs the full preaccept phase for the given instance, returning
 // a bool indicating if an accept phase is required or not
 func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
+	logger.Debug("PreAccept phase invoked")
 	return scopePreAcceptPhase(s, instance)
 }
 
@@ -176,6 +179,7 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	logger.Debug("PreAccept message received, ballot: %v", request.Instance.MaxBallot)
 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
@@ -210,6 +214,10 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 		}
 	}
 
+	logger.Debug("PreAccept message replied with accepted: %v", reply.Accepted)
+	if len(reply.MissingInstances) > 0 {
+		logger.Debug("PreAccept reply includes %v missing instances", len(reply.MissingInstances))
+	}
 	return reply, nil
 }
 

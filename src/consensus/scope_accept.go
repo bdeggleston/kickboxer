@@ -68,10 +68,6 @@ func (s *Scope) acceptInstance(instance *Instance, incrementBallot bool) error {
 }
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
-	oldTimeout := PREACCEPT_TIMEOUT
-	PREACCEPT_TIMEOUT = 50
-	defer func() { PREACCEPT_TIMEOUT = oldTimeout }()
-
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
 	instanceCopy, err := s.copyInstanceAtomic(instance)
@@ -133,6 +129,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 // assigned to var for testing
 var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
+	logger.Debug("Accept phase invoked")
 	replicas := s.manager.getScopeReplicas(s)
 
 	if err := s.acceptInstance(instance, true); err != nil {
@@ -143,6 +140,7 @@ var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 	if err := s.sendAccept(instance, replicas); err != nil {
 		return err
 	}
+	logger.Debug("Accept phase completed")
 	return nil
 }
 
@@ -155,9 +153,11 @@ func (s *Scope) acceptPhase(instance *Instance) error {
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	logger.Debug("Accept message received, ballot: %v", request.Instance.MaxBallot)
 
 	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
+			logger.Debug("Accept message replied, accepted: %v", false)
 			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
 	}
@@ -175,6 +175,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
+	logger.Debug("Accept message replied, accepted: %v", true)
 	return &AcceptResponse{Accepted: true}, nil
 }
 

@@ -73,7 +73,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) []InstanceID {
 	addInstance(instance)
 	for _, iid := range instance.Dependencies {
 		inst := s.instances[iid]
-		if inst == nil { panic(fmt.Sprintf("Unknown instance id: %v", iid)) }
+		if inst == nil { panic(fmt.Sprintf("getExecutionOrder: Unknown instance id: %v", iid)) }
 		addInstance(inst)
 	}
 
@@ -107,7 +107,7 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 	return instances
 }
 
-// executes and instance against the store
+// executes an instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	if instance.Status != INSTANCE_COMMITTED {
 		return nil, fmt.Errorf("instance not committed")
@@ -243,6 +243,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 }
 
 var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
+	logger.Debug("Execute phase invoked")
 	// get dependency instance ids, sorted in execution order
 	exOrder := s.getExecutionOrder(instance)
 
@@ -274,6 +275,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 
 	for len(uncommitted) > 0 {
+		s.debugInstanceLog(instance, "Execute, %v uncommitted", len(uncommitted))
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))
@@ -337,7 +339,10 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 		uncommitted = s.getUncommittedInstances(exOrder)
 	}
 
-	return s.executeDependencyChain(exOrder, instance)
+	logger.Debug("Executing dependency chain")
+	val, err := s.executeDependencyChain(exOrder, instance)
+	logger.Debug("Execution phase completed")
+	return val, err
 }
 
 // applies an instance to the store

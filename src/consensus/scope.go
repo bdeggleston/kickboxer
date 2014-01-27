@@ -257,10 +257,7 @@ func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) err
 	return nil
 }
 
-// copies an instance in the contect of a lock
-func (s *Scope) copyInstanceAtomic(src *Instance) (*Instance, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *Scope) copyInstanceUnsafe(src *Instance) (*Instance, error) {
 	buf := &bytes.Buffer{}
 	writer := bufio.NewWriter(buf)
 	if err := instanceSerialize(src, writer); err != nil {
@@ -275,6 +272,18 @@ func (s *Scope) copyInstanceAtomic(src *Instance) (*Instance, error) {
 		return nil, err
 	}
 	return dst, nil
+}
+
+// copies an instance in the contect of a lock
+func (s *Scope) copyInstanceAtomic(src *Instance) (*Instance, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.copyInstanceUnsafe(src)
+}
+
+func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...interface {}) {
+	message := fmt.Sprintf(format, args...)
+	logger.Debug("%v for instance %v on node: %v", message, instance.InstanceID, s.GetLocalID())
 }
 
 // returns the current dependencies for a new instance

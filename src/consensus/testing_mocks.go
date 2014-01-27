@@ -73,11 +73,9 @@ func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestam
 	defer c.lock.Unlock()
 	intVal, err := strconv.Atoi(args[0])
 	if err != nil { return nil, err }
-	c.lock.Lock()
 	val := newIntVal(intVal, timestamp)
 	c.values[key] = val
 	c.instructions = append(c.instructions, store.NewInstruction(cmd, key, args, timestamp))
-	c.lock.Unlock()
 	return val, nil
 }
 

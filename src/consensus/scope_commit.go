@@ -99,6 +99,7 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 }
 
 var scopeCommitPhase = func(s *Scope, instance *Instance) error {
+	s.debugInstanceLog(instance, "Commit phase invoked")
 	replicas := s.manager.getScopeReplicas(s)
 
 	if err := s.commitInstance(instance, true); err != nil {
@@ -109,6 +110,7 @@ var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 	if err := s.sendCommit(instance, replicas); err != nil {
 		return err
 	}
+	s.debugInstanceLog(instance, "Commit phase completed")
 	return nil
 }
 
@@ -121,6 +123,7 @@ func (s *Scope) commitPhase(instance *Instance) error {
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
 	if err := s.commitInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
@@ -131,6 +134,7 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	// asynchronously apply mutation
 	go s.executeInstance(s.instances[request.Instance.InstanceID])
 
+	logger.Debug("Commit message replied")
 	return &CommitResponse{}, nil
 }
 
