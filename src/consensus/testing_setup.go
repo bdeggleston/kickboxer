@@ -71,6 +71,13 @@ func setupReplicaSet(size int) []*mockNode {
 
 	for _, replica := range replicas {
 		replica.cluster.nodes = make([]node.Node, size)
+//		for i, node := range replicas {
+//			rnode := newMockNode()
+//			rnode.id = node.id
+//			rnode.cluster = node.cluster
+//			rnode.manager = node.manager
+//			replica.cluster.nodes[i] = node
+//		}
 		copy(replica.cluster.nodes, nodes)
 	}
 	return replicas

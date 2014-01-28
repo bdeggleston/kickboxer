@@ -36,8 +36,10 @@ import (
  */
 
 var _test_integration = flag.Bool("test.integration", false, "run the integration tests")
+var _test_show_progress = flag.Bool("test.progress", false, "run the integration tests")
 var _test_seed = flag.Int64("test.seed", 0, "the random seed to use")
-var _test_queries = flag.Int("test.queries", 10000, "the number of queries to run")
+var _test_queries = flag.Int("test.queries", 300, "the number of queries to run")
+var _test_concurrent_queries = flag.Int("test.concurrent", 10, "the number of concurrent queries to run")
 
 func init() {
 	flag.Parse()
@@ -90,8 +92,21 @@ func (c *opsCtrl) messageHandler(node *mockNode, msg message.Message) (message.M
 }
 
 func (c *opsCtrl) timeoutHandler(d time.Duration) <-chan time.Time {
+	ticks := make(chan time.Time, 2)
+	duration := time.After(d)
 	reply := make(chan time.Time)
-	c.timeoutChan <- opsTimeoutEvent{reply}
+	c.timeoutChan <- opsTimeoutEvent{ticks}
+
+	go func(){
+		var t time.Time
+		select {
+		case t = <- ticks:
+			reply <- t
+		case t = <- duration:
+			fmt.Println("Real timeout")
+			reply <- t
+		}
+	}()
 	return reply
 }
 
@@ -104,6 +119,7 @@ func (c *opsCtrl) reactor() {
 		msg, err := mockNodeDefaultMessageHandler(evt.node, evt.msg)
 		evt.reply <- opsMsgRecvEvent{msg:msg, err:err}
 	}
+	lastLen := 0
 
 	// all length variables refer to the number
 	// of reactor ticks
@@ -116,13 +132,13 @@ func (c *opsCtrl) reactor() {
 	delayLenBase := uint32(20)
 	delayLenRange := uint32(10)
 	// how often a partition occurs
-	partionRatio := uint32(1000)
+	partionRatio := uint32(500)
 	// how long a partition lasts
 	partionLenBase := uint32(40)
 	partionLenRange := uint32(20)
 	// how long before a timeout fires
-	timeoutLenBase := uint32(len(c.nodes) * 5) // default to a couple of cycles
-	timeoutLenRange := uint32(len(c.nodes) * 5) // default to a couple of cycles
+	timeoutLenBase := uint32(len(c.nodes) * 2) // default to a couple of cycles
+	timeoutLenRange := uint32(len(c.nodes) * 1) // default to a couple of cycles
 
 	partitionMap := make(map[node.NodeId] uint32)
 	_ = partitionMap
@@ -130,7 +146,13 @@ func (c *opsCtrl) reactor() {
 	msgBacklog := make([]opsMsgBacklog, 0)
 	timeBacklog := make([]opsTimeoutBacklog, 0)
 
+	indexMap := make(map[node.NodeId]int)
+	for i, n := range c.nodes {
+		indexMap[n.id] = i
+	}
+
 	for i:=0; true; i++ {
+		time.Sleep(time.Duration(10) * time.Millisecond)
 		select {
 		case msgEvnt, open = <-c.msgChan:
 			if !open {
@@ -140,32 +162,39 @@ func (c *opsCtrl) reactor() {
 			if c.simulateFailures {
 				nid := msgEvnt.node.id
 				if partitionMap[nid] > 0 {
-					c.c.Logf("Node %v is partitioned, skipping msg", nid)
+					c.c.Logf("** Node %v is partitioned, skipping msg", indexMap[nid])
 					break
 				} else if (c.random.Uint32() % partionRatio) == 0 {
 					delay := partionLenBase
 					delay += (c.random.Uint32() % (partionLenRange * 2)) - partionLenRange
 					partitionMap[msgEvnt.node.id] = delay
-					c.c.Logf("Beginning partition for node: %v for %v ticks", nid, delay)
+//					for _, node := range c.nodes {
+//						if node.id == msgEvnt.node.id {
+//							for _, rnode := range node.cluster.nodes {
+//								rnode.(*mockNode).partition = true
+//							}
+//						}
+//					}
+					c.c.Logf("** Beginning partition for node: %v for %v ticks", indexMap[nid], delay)
 					break
 				} else if (c.random.Uint32() % dropRatio) == 0 {
-					c.c.Logf("Dropping message for node %v", nid)
+					c.c.Logf("** Dropping %T for node %v", msgEvnt.msg, indexMap[nid])
 					break
 				} else if (c.random.Uint32() % delayRatio) == 0 {
 					delay := delayLenBase
 					delay += (c.random.Uint32() % (delayLenRange * 2)) - delayLenRange
 					backLog := opsMsgBacklog{delay:delay, event:msgEvnt}
 					msgBacklog = append(msgBacklog, backLog)
-					c.c.Logf("Delaying %T for node: %v for %v ticks", msgEvnt.msg, nid, delay)
+					c.c.Logf("** Delaying %T for node: %v for %v ticks", msgEvnt.msg, indexMap[nid], delay)
 					break
 				} else {
 					handleMessage(msgEvnt)
-					c.c.Logf("Handling %T for node: %v", msgEvnt.msg, nid)
+					c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 				}
 			} else {
 				nid := msgEvnt.node.id
 				handleMessage(msgEvnt)
-				c.c.Logf("Handling %T for node: %v", msgEvnt.msg, nid)
+				c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 			}
 			runtime.Gosched()
 		case timeEvnt, open = <-c.timeoutChan:
@@ -179,17 +208,18 @@ func (c *opsCtrl) reactor() {
 			timeBacklog = append(timeBacklog, backLog)
 			c.c.Logf("Handling timeout request")
 			runtime.Gosched()
-		default:
-			// don't just spin
-			c.c.Log("No new events, yielding thread")
-			time.Sleep(time.Duration(10) * time.Millisecond)
-			runtime.Gosched()
+//		default:
+//			// don't just spin
+////			c.c.Log("No new events, yielding thread")
+//			time.Sleep(time.Duration(100) * time.Millisecond)
+//			runtime.Gosched()
 		}
 
 		oldMsgBacklog := msgBacklog
 		msgBacklog = make([]opsMsgBacklog, 0)
 		for _, l := range oldMsgBacklog {
 			if l.delay <= 0 {
+				c.c.Logf("++ Handling delayed message %T for node: %v", l.event, l.event.node.id)
 				handleMessage(l.event)
 			} else {
 				l.delay--
@@ -200,9 +230,10 @@ func (c *opsCtrl) reactor() {
 		oldTimeBacklog := timeBacklog
 		timeBacklog = make([]opsTimeoutBacklog, 0)
 		for _, l := range oldTimeBacklog {
-			if l.delay <= 0 {
+			if l.delay < 0 {
 				c.c.Logf("Sending timeout event")
 				go func() { l.event.reply <- time.Now() }()
+				runtime.Gosched()
 			} else {
 				l.delay--
 				timeBacklog = append(timeBacklog, l)
@@ -212,7 +243,14 @@ func (c *opsCtrl) reactor() {
 		for nid, remaining := range partitionMap {
 			if remaining <= 0 {
 				delete(partitionMap, nid)
-				c.c.Logf("Ending partition for node: %v", nid)
+				c.c.Logf("Ending partition for node: %v", indexMap[nid])
+//				for _, node := range c.nodes {
+//					if nid == msgEvnt.node.id {
+//						for _, rnode := range node.cluster.nodes {
+//							rnode.(*mockNode).partition = false
+//						}
+//					}
+//				}
 			} else {
 				partitionMap[nid]--
 			}
@@ -232,17 +270,46 @@ func (c *opsCtrl) reactor() {
 			}
 		}
 
-		for n, node := range c.nodes {
-			// check that there's at least a little parity
-			if len(instructionsSet) > 10 {
-				c.c.Assert(len(node.cluster.instructions) > (len(instructionsSet) / 2), gocheck.Equals, true)
-			}
-			if n == highNode { continue }
-			for i, instruction := range node.cluster.instructions {
-				c.c.Assert(instruction, gocheck.DeepEquals, instructionsSet[i])
+		if *_test_show_progress {
+			lastLen = len(instructionsSet)
+			for i:=0; i<lastLen; i++ {
+				for _, node := range c.nodes {
+					if len(node.cluster.instructions) < i + 1 {
+						fmt.Printf(" -- ")
+					} else {
+						instruction := node.cluster.instructions[i]
+						fmt.Printf(" %v ", instruction.Args[0])
+					}
+				}
+				fmt.Printf("\n")
 			}
 		}
-		c.c.Logf("Instruction (%v) check ok", len(instructionsSet))
+
+		for n, node := range c.nodes {
+			// check that there's at least a little parity
+//			if len(instructionsSet) > 10 {
+//				c.c.Assert(len(node.cluster.instructions) > (len(instructionsSet) / 2), gocheck.Equals, true)
+//			}
+			if n == highNode { continue }
+			for i, instruction := range node.cluster.instructions {
+				if i + 1 > len(instructionsSet) {
+					continue
+				}
+				c.c.Assert(instruction, gocheck.DeepEquals, instructionsSet[i], gocheck.Commentf("node: %v, idx: %v", n, i))
+			}
+		}
+		sizes := make([]int, len(c.nodes))
+		allGood := true
+		for i, node := range c.nodes {
+			sizes[i] = len(node.cluster.instructions)
+			allGood = allGood && sizes[i] == *_test_queries
+
+		}
+		c.c.Logf("-- Instruction parity check ok [%v](%v)", len(instructionsSet), sizes)
+		if allGood {
+			c.c.Logf("All instructions processed")
+			return
+		}
 	}
 }
 
@@ -260,7 +327,10 @@ func newCtrl(r *rand.Rand, nodes []*mockNode, c *gocheck.C) *opsCtrl {
 	for _, node := range ctrl.nodes {
 		node.messageHandler = ctrl.messageHandler
 	}
-	consensusTimeoutEvent = ctrl.timeoutHandler
+	// TODO: workout way to test noop commit
+	// TODO: test full partition (nothing in or out)
+	// TODO: setup a tick count / real time hybrid
+//	consensusTimeoutEvent = ctrl.timeoutHandler
 	go ctrl.reactor()
 
 	return ctrl
@@ -289,15 +359,16 @@ func (s *ConsensusIntegrationTest) TearDownSuite(c *gocheck.C) {
 }
 
 func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
-	var seed rand.Source
+	var seed int64
 	if *_test_seed != 0 {
-		seed = rand.NewSource(time.Now().Unix())
+		seed = *_test_seed
+		c.Log("Using seed arg: ", seed)
 	} else {
-		seed = rand.NewSource(*_test_seed)
+		seed = time.Now().Unix()
 	}
-	s.random = rand.New(seed)
+	s.random = rand.New(rand.NewSource(seed))
 
-	c.Log("ConsensusIntegrationTest seeded with: ", seed.Int63())
+	c.Log("ConsensusIntegrationTest seeded with: ", seed)
 
 	s.baseReplicaTest.SetUpTest(c)
 	s.ctrl = newCtrl(s.random, s.nodes, c)
@@ -307,21 +378,25 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 // without any communication failures between nodes
 func (s *ConsensusIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	c.Log("Testing success case")
+	semaphore := make(chan bool, *_test_concurrent_queries)
 	wg := sync.WaitGroup{}
-	_ = wg
-//	wg.Add(*_test_queries)
+	wg.Add(*_test_queries)
 	for i:=0; i<*_test_queries; i++ {
 		c.Logf("Iteration %v", i)
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
-		manager.ExecuteQuery(instructions)
-//		go func() {
-//			manager.ExecuteQuery(instructions)
-//			wg.Done()
-//			panic("!")
-//		}()
+//		manager.ExecuteQuery(instructions)
+		go func() {
+			semaphore <- true
+			manager.ExecuteQuery(instructions)
+			wg.Done()
+			<- semaphore
+		}()
 	}
-//	wg.Wait()
+	for len(semaphore) > 0 {
+		time.Sleep(time.Duration(1) * time.Millisecond)
+	}
+
 }
 
 // tests the operation of an egalitarian paxos cluster
@@ -330,8 +405,10 @@ func (s *ConsensusIntegrationTest) TestFailureCase(c *gocheck.C) {
 	c.Log("Testing failure case")
 	s.ctrl.simulateFailures = true
 	for i:=0; i<*_test_queries; i++ {
+		c.Logf("Iteration %v", i)
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
 		manager.ExecuteQuery(instructions)
+		// TODO: don't send instructions to partitioned nodes
 	}
 }
