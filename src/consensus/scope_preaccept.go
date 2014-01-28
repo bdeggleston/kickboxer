@@ -132,6 +132,7 @@ func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcc
 	for _, response := range responses {
 		changes = changes || instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
 		if len(response.MissingInstances) > 0 {
+			logger.Debug("Merging preaccept: adding %v missing instances", len(response.MissingInstances))
 			if err := s.addMissingInstancesUnsafe(response.MissingInstances...); err != nil {
 				return changes, err
 			}
@@ -169,7 +170,7 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 // runs the full preaccept phase for the given instance, returning
 // a bool indicating if an accept phase is required or not
 func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
-	logger.Debug("PreAccept phase invoked")
+	logger.Debug("PreAccept phase started")
 	return scopePreAcceptPhase(s, instance)
 }
 
@@ -209,8 +210,12 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 
 	for iid := range missingDeps {
 		inst := s.instances[iid]
+		instCopy, err := s.copyInstanceUnsafe(inst)
+		if err != nil {
+			return nil, err
+		}
 		if inst != nil {
-			reply.MissingInstances = append(reply.MissingInstances, inst)
+			reply.MissingInstances = append(reply.MissingInstances, instCopy)
 		}
 	}
 

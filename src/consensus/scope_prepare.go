@@ -170,6 +170,7 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 		}
 		status = remoteInstance.Status
 	} else {
+		logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
 		setNoop()
 		status = INSTANCE_PREACCEPTED
 	}
@@ -212,7 +213,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 // during execution,
 func (s *Scope) preparePhase(instance *Instance) error {
 	s.lock.Lock()
-	logger.Debug("Prepare phase invoked")
+	logger.Debug("Prepare phase started for %+v", instance.Commands[0])
 	status := instance.Status
 	if status >= INSTANCE_COMMITTED {
 		s.lock.Unlock()

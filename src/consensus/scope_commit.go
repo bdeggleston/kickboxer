@@ -30,6 +30,7 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 			existing.Dependencies = inst.Dependencies
 			existing.Sequence = inst.Sequence
 			existing.MaxBallot = inst.MaxBallot
+			existing.Noop = inst.Noop
 		}
 		instance = existing
 	} else {
@@ -99,7 +100,7 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 }
 
 var scopeCommitPhase = func(s *Scope, instance *Instance) error {
-	s.debugInstanceLog(instance, "Commit phase invoked")
+	s.debugInstanceLog(instance, "Commit phase started")
 	replicas := s.manager.getScopeReplicas(s)
 
 	if err := s.commitInstance(instance, true); err != nil {

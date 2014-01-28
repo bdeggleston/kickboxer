@@ -20,6 +20,7 @@ func makeAcceptCommitTimeout() time.Time {
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
+	logger.Debug("Accepting Instance: %+v", *inst.Commands[0])
 	var instance *Instance
 	if existing, exists := s.instances[inst.InstanceID]; exists {
 		if existing.Status > INSTANCE_ACCEPTED {
@@ -50,6 +51,7 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 	if err := s.Persist(); err != nil {
 		return err
 	}
+	logger.Debug("Accept: success for Instance: %+v", *inst.Commands[0])
 	return nil
 }
 
@@ -74,6 +76,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	if err != nil {
 		return err
 	}
+	// TODO: send missing instances
 	msg := &AcceptRequest{Scope: s.name, Instance: instanceCopy}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
@@ -129,7 +132,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 // assigned to var for testing
 var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
-	logger.Debug("Accept phase invoked")
+	logger.Debug("Accept phase started")
 	replicas := s.manager.getScopeReplicas(s)
 
 	if err := s.acceptInstance(instance, true); err != nil {
@@ -155,9 +158,16 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	defer s.lock.Unlock()
 	logger.Debug("Accept message received, ballot: %v", request.Instance.MaxBallot)
 
+	if len(request.MissingInstances) > 0 {
+		logger.Debug("Accept message received: adding %v missing instances", len(request.MissingInstances))
+		s.addMissingInstancesUnsafe(request.MissingInstances...)
+	}
+
 	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
 			logger.Debug("Accept message replied, accepted: %v", false)
+			logger.Debug("Accept message rejected, %v, %v", instance.MaxBallot, request.Instance.MaxBallot)
+			logger.Debug("%+v", *instance)
 			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
 	}
@@ -166,10 +176,6 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return nil, err
 		}
-	}
-
-	if len(request.MissingInstances) > 0 {
-		s.addMissingInstancesUnsafe(request.MissingInstances...)
 	}
 
 	if err := s.Persist(); err != nil {
