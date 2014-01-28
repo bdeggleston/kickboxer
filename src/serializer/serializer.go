@@ -30,6 +30,22 @@ func WriteFieldBytes(buf *bufio.Writer, bytes []byte) error {
 	return nil
 }
 
+// reads the specified number of bytes out
+// of the reader, performing multiple reads
+// if neccesary
+func readBytes(buf *bufio.Reader, size int) ([]byte, error) {
+	numRead := 0
+	target := make([]byte, size)
+	for numRead < size {
+		n, err := buf.Read(target[numRead:])
+		if err != nil {
+			return nil, err
+		}
+		numRead += n
+	}
+	return target, nil
+}
+
 // read field bytes
 func ReadFieldBytes(buf *bufio.Reader) ([]byte, error) {
 	var size uint32
@@ -37,15 +53,15 @@ func ReadFieldBytes(buf *bufio.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	bytes := make([]byte, size)
-	n, err := buf.Read(bytes)
+	bytesRead, err := readBytes(buf, int(size))
 	if err != nil {
 		return nil, err
 	}
-	if uint32(n) != size {
+
+	if n := len(bytesRead); n != int(size) {
 		return nil, fmt.Errorf("unexpected num bytes read. Expected %v, got %v", size, n)
 	}
-	return bytes, nil
+	return bytesRead, nil
 }
 
 func WriteFieldString(buf *bufio.Writer, str string) error {
