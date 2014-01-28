@@ -96,6 +96,12 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		exOrder = append(exOrder, sorter.iids...)
 	}
 
+	for _, iid := range exOrder {
+		if _, ok := s.instances[iid]; !ok {
+			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+		}
+	}
+
 	return exOrder, nil
 }
 
@@ -150,6 +156,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		delete(s.executeNotify, instance.InstanceID)
 	}
 
+	logger.Debug("Execute: success: %v on %v", instance.InstanceID, s.GetLocalID())
 	return val, nil
 }
 // executes the dependencies up to the given instance
@@ -218,17 +225,10 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 						// execution timed out
 						s.lock.Lock()
 
-						// check that instance was not executed by another
-						// waking goroutine
-						if instance.Status != INSTANCE_COMMITTED {
-							// unlock and continue if it was
-							s.lock.Unlock()
-						} else {
-							val, err = applyAndUnlock(instance)
-							if err != nil { return nil, err }
-							s.statExecuteLocalTimeout++
-							s.statExecuteLocalTimeoutWait++
-						}
+						val, err = applyAndUnlock(instance)
+						if err != nil { return nil, err }
+						s.statExecuteLocalTimeout++
+						s.statExecuteLocalTimeoutWait++
 					}
 				}
 			}
@@ -249,7 +249,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 }
 
 var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
-	logger.Debug("Execute phase invoked")
+	logger.Debug("Execute phase started")
 	// get dependency instance ids, sorted in execution order
 	exOrder, err := s.getExecutionOrder(instance)
 	if err != nil {
@@ -353,6 +353,9 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 	logger.Debug("Executing dependency chain")
 	val, err := s.executeDependencyChain(exOrder, instance)
+	if err != nil {
+		logger.Error("Execute: executeDependencyChain: %v", err)
+	}
 	logger.Debug("Execution phase completed")
 	return val, err
 }
