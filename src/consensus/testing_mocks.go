@@ -3,6 +3,7 @@ package consensus
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -95,6 +96,7 @@ type mockNode struct {
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 	sentMessages   []message.Message
 	lock		   sync.Mutex
+	partition     bool
 }
 
 func newMockNode() *mockNode {
@@ -116,21 +118,41 @@ func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp
 	return nil, nil
 }
 
-func (n *mockNode) SendMessage(src message.Message) (message.Message, error) {
+func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, error) {
 	var err error
 	buf := &bytes.Buffer{}
-	err = message.WriteMessage(buf, src)
-	if err != nil {
-		return nil, err
-	}
-	dst, err := message.ReadMessage(buf)
-	if err != nil {
-		return nil, err
+	if n.partition {
+		fmt.Println("Skipping sent message from partitioned node")
+		return nil, fmt.Errorf("Partition")
 	}
 	n.lock.Lock()
-	n.sentMessages = append(n.sentMessages, dst)
+	err = message.WriteMessage(buf, srcRequest)
+	if err != nil {
+		panic(err)
+	}
+	dstRequest, err := message.ReadMessage(buf)
+	if err != nil {
+		panic(err)
+	}
+	n.sentMessages = append(n.sentMessages, dstRequest)
 	n.lock.Unlock()
-	return n.messageHandler(n, dst)
+	srcResponse, err := n.messageHandler(n, dstRequest)
+	if err != nil {
+		panic(err)
+	}
+	n.lock.Lock()
+	buf.Reset()
+	err = message.WriteMessage(buf, srcResponse)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Response size: %v\n", len(buf.Bytes()))
+	dstResponse, err := message.ReadMessage(buf)
+	n.lock.Unlock()
+	if err != nil {
+		panic(err)
+	}
+	return dstResponse, nil
 }
 
 func transformMockNodeArray(src []*mockNode) []node.Node {
