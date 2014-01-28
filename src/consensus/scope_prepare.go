@@ -89,6 +89,9 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance
 	maxStatus := InstanceStatus(byte(0))
 	var instance *Instance
 	for _, response := range responses {
+		if response.Instance == nil {
+			continue
+		}
 		if status := response.Instance.Status; status > maxStatus {
 			maxStatus = status
 			if response.Instance != nil {
