@@ -287,7 +287,13 @@ func (m *PrepareResponse) Serialize(buf *bufio.Writer) error   {
 	var accepted byte
 	if m.Accepted { accepted = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
-	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+
+	var isNil byte
+	if m.Instance == nil { isNil = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &isNil); err != nil { return err }
+	if m.Instance != nil {
+		if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	}
 	return nil
 }
 
@@ -295,8 +301,13 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 	var accepted byte
 	if err := binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
 	m.Accepted = accepted != 0x0
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-		m.Instance = val
+
+	var isNil byte
+	if err := binary.Read(buf, binary.LittleEndian, &isNil); err != nil { return err }
+	if isNil == 0x0 {
+		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+			m.Instance = val
+		}
 	}
 	return nil
 }

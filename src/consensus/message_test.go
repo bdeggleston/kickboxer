@@ -151,6 +151,23 @@ func (s *ConsensusMessageTest) TestPrepareResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	c.Check(dst, gocheck.DeepEquals, src)
 }
+
+func (s *ConsensusMessageTest) TestPrepareResponseNoInstance(c *gocheck.C) {
+	var err error
+	buf := &bytes.Buffer{}
+	src := &PrepareResponse{
+		Accepted: true,
+		Instance: nil,
+	}
+
+	err = message.WriteMessage(buf, src)
+	c.Assert(err, gocheck.IsNil)
+
+	dst, err := message.ReadMessage(buf)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(dst, gocheck.DeepEquals, src)
+}
+
 func (s *ConsensusMessageTest) TestInstanceRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
