@@ -159,6 +159,10 @@ func (s *CommitInstanceTest) TestCommitInstanceBroadcast(c *gocheck.C) {
 
 }
 
+func (s *CommitInstanceTest) TestCommitNoop(c *gocheck.C) {
+
+}
+
 
 /** leader **/
 type CommitLeaderTest struct {

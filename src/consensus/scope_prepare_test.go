@@ -202,6 +202,12 @@ func (s *AnalyzePrepareResponsesTest) TestSuccessCase(c *gocheck.C) {
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
+// tests that a mix of responses with nil instances, and not nil instances
+// is safe from nil pointer errors
+func (s *AnalyzePrepareResponsesTest) TestMixedNilResponses(c *gocheck.C) {
+
+}
+
 // tests the prepare phase method
 type PreparePhaseTest struct {
 	basePrepareTest
