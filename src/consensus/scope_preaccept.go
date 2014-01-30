@@ -68,10 +68,12 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	msg := &PreAcceptRequest{Scope: s.name, Instance: instanceCopy}
 
 	sendMsg := func(n node.Node) {
+		logger.Debug("Preaccept: Sending message to node %v for instance %v", n.GetId(), instance.InstanceID)
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PreAcceptResponse: %v", err)
 		} else {
 			if preAccept, ok := response.(*PreAcceptResponse); ok {
+				logger.Debug("Preaccept: response received from node %v for instance %v", n.GetId(), instance.InstanceID)
 				recvChan <- preAccept
 			} else {
 				logger.Warning("Unexpected PreAccept response type: %T", response)
@@ -110,6 +112,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 
 	// handle rejected pre-accept messages
 	if !accepted {
+		logger.Debug("PreAccept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
 		for i, response := range responses {
@@ -171,16 +174,18 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 // a bool indicating if an accept phase is required or not
 func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
 	logger.Debug("PreAccept phase started")
-	return scopePreAcceptPhase(s, instance)
+	acceptRequired, err = scopePreAcceptPhase(s, instance)
+	logger.Debug("Preaccept phase completed: %v %v", acceptRequired, err)
+	return acceptRequired, err
 }
 
 
 // handles a preaccept message from the command leader for an instance
 // this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
+	logger.Debug("PreAccept message received, ballot: %v", request.Instance.MaxBallot)
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	logger.Debug("PreAccept message received, ballot: %v", request.Instance.MaxBallot)
 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
@@ -193,6 +198,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	}
 
 	// check agreement on seq and deps with leader
+	instance = s.instances[request.Instance.InstanceID]
 	newDeps := NewInstanceIDSet(instance.Dependencies)
 	instance.dependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
 
@@ -203,19 +209,24 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	missingDeps := newDeps.Subtract(extDeps)
 	reply := &PreAcceptResponse{
 		Accepted:         true,
-		MaxBallot:        instance.MaxBallot,
-		Instance:         instance,
 		MissingInstances: make([]*Instance, 0, len(missingDeps)),
+	}
+
+	if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
+		return nil, err
+	} else {
+		reply.Instance = instanceCopy
+		reply.MaxBallot = instanceCopy.MaxBallot
 	}
 
 	for iid := range missingDeps {
 		inst := s.instances[iid]
-		instCopy, err := s.copyInstanceUnsafe(inst)
-		if err != nil {
-			return nil, err
-		}
 		if inst != nil {
-			reply.MissingInstances = append(reply.MissingInstances, instCopy)
+			if instanceCopy, err := s.copyInstanceUnsafe(inst); err != nil {
+				return nil, err
+			} else {
+				reply.MissingInstances = append(reply.MissingInstances, instanceCopy)
+			}
 		}
 	}
 

@@ -20,12 +20,13 @@ func makeAcceptCommitTimeout() time.Time {
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	logger.Debug("Accepting Instance: %+v", *inst.Commands[0])
 	var instance *Instance
 	if existing, exists := s.instances[inst.InstanceID]; exists {
 		if existing.Status > INSTANCE_ACCEPTED {
+			logger.Debug("Accept: Can't accept instance %v with status %v", inst.InstanceID, inst.Status)
 			return NewInvalidStatusUpdateError(existing, INSTANCE_ACCEPTED)
 		} else {
+			logger.Debug("Accept: accepting existing instance %v", inst.InstanceID)
 			existing.Dependencies = inst.Dependencies
 			existing.Sequence = inst.Sequence
 			existing.MaxBallot = inst.MaxBallot
@@ -33,6 +34,7 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 		}
 		instance = existing
 	} else {
+		logger.Debug("Accept: accept new instance %v", inst.InstanceID)
 		instance = inst
 	}
 
@@ -119,6 +121,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 	// handle rejected pre-accept messages
 	if !accepted {
+		logger.Debug("Accept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
 		for i, response := range responses {
@@ -165,9 +168,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 
 	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
-			logger.Debug("Accept message replied, accepted: %v", false)
-			logger.Debug("Accept message rejected, %v, %v", instance.MaxBallot, request.Instance.MaxBallot)
-			logger.Debug("%+v", *instance)
+			logger.Debug("Accept message rejected, %v >= %v", instance.MaxBallot, request.Instance.MaxBallot)
 			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
 	}
@@ -181,7 +182,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
-	logger.Debug("Accept message replied, accepted: %v", true)
+	logger.Debug("Accept message replied, accepted")
 	return &AcceptResponse{Accepted: true}, nil
 }
 

@@ -16,6 +16,7 @@ func (s *Scope) sendPrepare(instance *Instance, replicas []node.Node) (<- chan *
 	recvChan := make(chan *PrepareResponse, len(replicas))
 	msg := &PrepareRequest{Scope:s.name, Ballot:instance.MaxBallot, InstanceID:instance.InstanceID}
 	sendMsg := func(n node.Node) {
+		logger.Debug("Sending prepare request to node %v", n.GetId())
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PrepareResponse: %v", err)
 		} else {
@@ -183,18 +184,21 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 	switch status {
 	case INSTANCE_PREACCEPTED:
 		// run pre accept phase
+		logger.Debug("Prepare phase starting at PreAccept phase for %v on %v", instance.InstanceID, s.GetLocalID())
 		acceptRequired, err = s.preAcceptPhase(instance)
 		if err != nil { return err }
 		fallthrough
 	case INSTANCE_ACCEPTED:
 		// run accept phase
 		if acceptRequired {
+			logger.Debug("Prepare phase starting at Accept phase for %v on %v", instance.InstanceID, s.GetLocalID())
 			err = s.acceptPhase(instance)
 			if err != nil { return err }
 		}
 		fallthrough
 	case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
 		// commit instance
+		logger.Debug("Prepare phase starting at Commit phase for %v on %v", instance.InstanceID, s.GetLocalID())
 		err = s.commitPhase(instance)
 		if err != nil { return err }
 	default:
@@ -286,11 +290,16 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 
 	instance := s.instances[request.InstanceID]
 	logger.Debug("Prepare message received, ballot: %v", request.Ballot)
-	response := &PrepareResponse{Instance: instance}
+	response := &PrepareResponse{}
 	if instance == nil {
 		response.Accepted = true
 	} else {
 		response.Accepted = request.Ballot > instance.MaxBallot
+		if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
+			return nil, err
+		} else {
+			response.Instance = instanceCopy
+		}
 	}
 
 	logger.Debug("Prepare message replied with accept: %v", response.Accepted)

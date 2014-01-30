@@ -23,8 +23,10 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 	var instance *Instance
 	if existing, exists := s.instances[inst.InstanceID]; exists {
 		if existing.Status > INSTANCE_COMMITTED {
+			logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
 			return NewInvalidStatusUpdateError(existing, INSTANCE_COMMITTED)
 		} else {
+			logger.Debug("Commit: committing existing instance %v", inst.InstanceID)
 			// this replica may have missed an accept message
 			// so copy the seq & deps onto the existing instance
 			existing.Dependencies = inst.Dependencies
@@ -34,6 +36,7 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 		}
 		instance = existing
 	} else {
+		logger.Debug("Commit: committing new instance %v", inst.InstanceID)
 		instance = inst
 	}
 
@@ -63,6 +66,7 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 	}
 	s.statCommitCount++
 
+	logger.Debug("Commit: success for Instance: %v", instance.InstanceID)
 	return nil
 }
 
@@ -92,9 +96,9 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 		return err
 	}
 	msg := &CommitRequest{Scope: s.name, Instance: instanceCopy}
-	sendCommit := func(n node.Node) { n.SendMessage(msg) }
+	sendCommitMessage := func(n node.Node) { n.SendMessage(msg) }
 	for _, replica := range replicas {
-		go sendCommit(replica)
+		go sendCommitMessage(replica)
 	}
 	return nil
 }
@@ -130,10 +134,10 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return nil, err
 		}
+	} else {
+		// asynchronously apply mutation
+		go s.executeInstance(s.instances[request.Instance.InstanceID])
 	}
-
-	// asynchronously apply mutation
-	go s.executeInstance(s.instances[request.Instance.InstanceID])
 
 	logger.Debug("Commit message replied")
 	return &CommitResponse{}, nil

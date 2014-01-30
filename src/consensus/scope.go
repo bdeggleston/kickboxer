@@ -290,15 +290,14 @@ func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...inte
 // this method doesn't implement any locking or persistence
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	// grab ALL instances as dependencies for now
-	numDeps := len(s.inProgress) + len(s.committed)
-	if len(s.executed) > 0 {
-		numDeps += 1
-	}
+	numDeps := len(s.inProgress) + len(s.committed) + len(s.executed)
+//	if len(s.executed) > 0 {
+//		numDeps += 1
+//	}
 
 	deps := make([]InstanceID, 0, numDeps)
 	deps = append(deps, s.inProgress.InstanceIDs()...)
 	deps = append(deps, s.committed.InstanceIDs()...)
-
 	deps = append(deps, s.executed...)
 //	if len(s.executed) > 0 {
 //		deps = append(deps, s.executed[len(s.executed)-1])
@@ -330,19 +329,23 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 		if !s.instances.ContainsID(instance.InstanceID) {
 			switch instance.Status {
 			case INSTANCE_PREACCEPTED:
+				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
 					return nil
 				}
 			case INSTANCE_ACCEPTED:
+				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.acceptInstanceUnsafe(instance, false); err != nil {
 					return err
 				}
 			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.commitInstanceUnsafe(instance, false); err != nil {
 					return err
 				}
+			default:
+				panic("!")
 			}
-			s.instances.Add(instance)
 		}
 	}
 	return nil
