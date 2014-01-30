@@ -70,16 +70,12 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		}
 		depGraph[inst.InstanceID] = iids
 	}
-	addInstance(instance)
-	for _, iid := range instance.Dependencies {
-		inst := s.instances[iid]
-		if inst == nil {
-			// if this scope has not seen an instance dependency, then this
-			// node is not the leader for this instance, and it probably missed
-			// the preaccept/accept messages. Bail out of execution, this node
-			// will pick up the instance on the next query
-			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
-		}
+
+	// add ALL instances to the dependency graph, there may
+	// be instances higher upstream that change the ordering
+	// of instances down here.
+	// TODO: figure out why that is
+	for _, inst := range s.instances {
 		addInstance(inst)
 	}
 
@@ -97,7 +93,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	}
 
 	for _, iid := range exOrder {
-		if _, ok := s.instances[iid]; !ok {
+		if s.instances[iid] == nil {
 			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 		}
 	}
@@ -236,7 +232,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 			s.lock.Unlock()
 			continue
 		default:
-			return nil, fmt.Errorf("Uncommitted dependencies should be handled before executeDependencyChain")
+			return nil, fmt.Errorf("Uncommitted dependencies should be handled before calling executeDependencyChain")
 		}
 
 		// only execute up to the target instance
@@ -339,6 +335,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 			// everything's ok, continue
 		}
 
+		logger.Debug("Recalculating dependency chain for %v on %v", instance.InstanceID, s.GetLocalID())
 		// if the prepare phase came across instances
 		// that no other replica was aware of, it would
 		// have run a preaccept phase for it, changing the
