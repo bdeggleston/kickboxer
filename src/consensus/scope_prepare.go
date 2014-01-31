@@ -189,6 +189,7 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 	// be used, since the remote instance will not be updated after each step
 	// TODO: send back instances when a message/update is rejected, so the calling node can update itself
 
+	// TODO: consider running the full prepare phase only for preaccepted responses, otherwise, just accept/commit locally
 	acceptRequired := true
 	var err error
 	switch status {
