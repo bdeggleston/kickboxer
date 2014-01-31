@@ -168,16 +168,25 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 	}
 
 	var status InstanceStatus
+	var prepareInstance *Instance
 	if remoteInstance != nil {
 		if err := checkAndMatchBallot(); err != nil {
 			return nil
 		}
+		prepareInstance = remoteInstance
 		status = remoteInstance.Status
 	} else {
 		logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
 		setNoop()
 		status = INSTANCE_PREACCEPTED
+		prepareInstance = instance
 	}
+
+	// for the first step that prepare takes (preaccept, accept, commit), it should use
+	// the remote instance, since the remote instance may have newer deps and seq if it's
+	// been accepted/committed. For all steps afterwards though, the local instance should
+	// be used, since the remote instance will not be updated after each step
+	// TODO: send back instances when a message/update is rejected, so the calling node can update itself
 
 	acceptRequired := true
 	var err error
@@ -185,22 +194,37 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 	case INSTANCE_PREACCEPTED:
 		// run pre accept phase
 		logger.Debug("Prepare phase starting at PreAccept phase for %v on %v", instance.InstanceID, s.GetLocalID())
-		acceptRequired, err = s.preAcceptPhase(instance)
-		if err != nil { return err }
+		acceptRequired, err = s.preAcceptPhase(prepareInstance)
+		if err != nil {
+			logger.Debug("Prepare PreAccept error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
+			return err
+		}
+		prepareInstance = instance
 		fallthrough
 	case INSTANCE_ACCEPTED:
 		// run accept phase
 		if acceptRequired {
 			logger.Debug("Prepare phase starting at Accept phase for %v on %v", instance.InstanceID, s.GetLocalID())
-			err = s.acceptPhase(instance)
-			if err != nil { return err }
+			// use the remote instance to initiate the new accept phase, otherwise
+			// the existing (potentially incorrect) attributes will be used for the accept
+			err = s.acceptPhase(prepareInstance)
+			if err != nil {
+				logger.Debug("Prepare Accept error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
+				return err
+			}
+			prepareInstance = instance
 		}
 		fallthrough
 	case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
 		// commit instance
 		logger.Debug("Prepare phase starting at Commit phase for %v on %v", instance.InstanceID, s.GetLocalID())
-		err = s.commitPhase(instance)
-		if err != nil { return err }
+		// use the remote instance to initiate the new commit phase, otherwise
+		// the existing (potentially incorrect) attributes will be committed
+		err = s.commitPhase(prepareInstance)
+		if err != nil {
+			logger.Debug("Prepare Commit error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
+			return err
+		}
 	default:
 		return fmt.Errorf("Unknown instance status: %v", remoteInstance.Status)
 	}
