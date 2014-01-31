@@ -16,7 +16,15 @@ import (
 type NodeId string
 
 func NewNodeId() NodeId {
-	return NodeId(uuid.NewUUID().String())
+	return NodeId(uuid.NewUUID())
+}
+
+func (i NodeId) UUID() uuid.UUID {
+	return uuid.UUID(i)
+}
+
+func (i NodeId) String() string {
+	return i.UUID().String()
 }
 
 func (nid NodeId) IsNil() bool {
