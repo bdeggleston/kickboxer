@@ -21,7 +21,7 @@ var (
 	// the amount of time a replica will wait
 	// on a message with a preaccept status
 	// before attempting to force a commit
-	PREACCEPT_COMMIT_TIMEOUT = uint64(750)
+	PREACCEPT_COMMIT_TIMEOUT = uint64(500)
 
 	// timeout receiving a quorum of
 	// accept responses
@@ -30,7 +30,7 @@ var (
 	// the amount of time a replica will wait
 	// on a message with a accept status
 	// before attempting to force a commit
-	ACCEPT_COMMIT_TIMEOUT = uint64(750)
+	ACCEPT_COMMIT_TIMEOUT = uint64(500)
 
 	// timeout receiving a quorum of
 	// prepare responses
@@ -39,7 +39,7 @@ var (
 	// the amount of time a replica will wait
 	// on a message with a an attempted prepare
 	// before attempting to force a commit again
-	PREPARE_COMMIT_TIMEOUT = uint64(750)
+	PREPARE_COMMIT_TIMEOUT = uint64(500)
 
 	// wait period between retrying operations
 	// that failed due to ballot failures
@@ -177,6 +177,10 @@ type Scope struct {
 	// wakes up goroutines waiting on instance executions
 	executeNotify map[InstanceID]*sync.Cond
 
+	// prevents multiple goroutines from attempting
+	// an explicit prepare on the same instance
+	prepareLock map[InstanceID]*sync.Mutex
+
 	// ------------- runtime stats -------------
 
 	// ------------- commit stats -------------
@@ -228,6 +232,7 @@ func NewScope(name string, manager *Manager) *Scope {
 		manager:    manager,
 		commitNotify: make(map[InstanceID]*sync.Cond),
 		executeNotify: make(map[InstanceID]*sync.Cond),
+		prepareLock: make(map[InstanceID]*sync.Mutex),
 	}
 }
 
