@@ -209,18 +209,49 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 }
 
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
+	getPrepareMutex := func() *sync.Mutex {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		lock := s.prepareLock[instance.InstanceID]
+		if lock == nil {
+			lock = &sync.Mutex{}
+			s.prepareLock[instance.InstanceID] = lock
+		}
+		return lock
+	}
+	pLock := getPrepareMutex()
+	pLock.Lock()
+	defer pLock.Unlock()
+
+	// check if the instance has been committed
+	isCommitted := func() bool {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		return instance.Status >= INSTANCE_COMMITTED
+	}
+	if isCommitted() {
+		return nil
+	}
+
 	// TODO: add prepare notify?
 	remoteInstance, err := scopePreparePhase1(s, instance)
 	if err != nil { return err }
 
-	return scopePreparePhase2(s, instance, remoteInstance)
+	err = scopePreparePhase2(s, instance, remoteInstance)
+	if err != nil {
+		return err
+	}
+
+	delete(s.prepareLock, instance.InstanceID)
+
+	return nil
 }
 
 // runs explicit prepare phase on instances where a command leader failure is suspected
 // during execution,
 func (s *Scope) preparePhase(instance *Instance) error {
 	s.lock.Lock()
-	logger.Debug("Prepare phase started for %+v", instance.Commands[0])
+	logger.Debug("Prepare phase started for %v", instance.InstanceID)
 	status := instance.Status
 	if status >= INSTANCE_COMMITTED {
 		s.lock.Unlock()

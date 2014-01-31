@@ -306,6 +306,12 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(1))
 }
 
+// tests that the prepare mutex prevents multiple goroutines from
+// trying to run a prepare phase on the same instance simultaneously
+func (s *PreparePhaseTest) TestPrepareMutex(c *gocheck.C) {
+	// TODO: this
+}
+
 // tests the prepare phase method
 type PreparePhase2Test struct {
 	basePrepareTest
@@ -331,6 +337,8 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
 	c.Check(s.acceptCalls, gocheck.Equals, 1)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
+
+	// TODO: check that the remote instance is used on first phase, but local instance on all others
 }
 
 // tests that receiving prepare responses, where the highest
@@ -352,6 +360,7 @@ func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
 	c.Check(s.acceptCalls, gocheck.Equals, 0)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
+	// TODO: check that the remote instance is used on first phase, but local instance on all others
 }
 
 // tests that receiving prepare responses, where the highest
@@ -390,6 +399,8 @@ func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
 	c.Check(s.acceptCalls, gocheck.Equals, 1)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
+
+	// TODO: check that the remote instance is used on first phase, but local instance on all others
 }
 
 // tests that receiving prepare responses, where the highest
@@ -426,6 +437,8 @@ func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
 	c.Check(s.acceptCalls, gocheck.Equals, 0)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
+
+	// TODO: check that the remote instance is used on first phase, but local instance on all others
 }
 
 // tests that receiving prepare responses, where the highest
@@ -462,6 +475,8 @@ func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
 	c.Check(s.acceptCalls, gocheck.Equals, 0)
 	c.Check(s.commitCalls, gocheck.Equals, 1)
+
+	// TODO: check that the remote instance is used on first phase, but local instance on all others
 }
 
 // tests that receiving prepare responses, where the highest
@@ -594,4 +609,8 @@ func (s *PrepareReplicaTest) TestUnknownInstance(c *gocheck.C) {
 
 	c.Assert(response.Accepted, gocheck.Equals, true)
 	c.Assert(response.Instance, gocheck.IsNil)
+}
+
+func (s *PrepareReplicaTest) TestSuccessfulPrepareMessageIncrementsBallot(c *gocheck.C) {
+
 }
