@@ -326,6 +326,12 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 		response.Accepted = true
 	} else {
 		response.Accepted = request.Ballot > instance.MaxBallot
+		if response.Accepted {
+			instance.MaxBallot = request.Ballot
+			if err := s.Persist(); err != nil {
+				return nil, err
+			}
+		}
 		if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
 			return nil, err
 		} else {
