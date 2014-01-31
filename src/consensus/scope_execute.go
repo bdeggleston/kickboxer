@@ -280,7 +280,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 
 	for len(uncommitted) > 0 {
-		s.debugInstanceLog(instance, "Execute, %v uncommitted", len(uncommitted))
+		s.debugInstanceLog(instance, "Execute, %v uncommitted: %+v", len(uncommitted), uncommitted)
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))

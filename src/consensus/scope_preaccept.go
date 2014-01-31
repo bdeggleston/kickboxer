@@ -183,7 +183,7 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 // handles a preaccept message from the command leader for an instance
 // this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
-	logger.Debug("PreAccept message received, ballot: %v", request.Instance.MaxBallot)
+	logger.Debug("PreAccept message for %v received, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -230,9 +230,9 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 		}
 	}
 
-	logger.Debug("PreAccept message replied with accepted: %v", reply.Accepted)
+	logger.Debug("PreAccept message for %v replied with accepted: %v", request.Instance.InstanceID, reply.Accepted)
 	if len(reply.MissingInstances) > 0 {
-		logger.Debug("PreAccept reply includes %v missing instances", len(reply.MissingInstances))
+		logger.Debug("PreAccept reply for %v includes %v missing instances", request.Instance.InstanceID, len(reply.MissingInstances))
 	}
 	return reply, nil
 }

@@ -9,7 +9,8 @@ import (
 )
 
 func makeAcceptCommitTimeout() time.Time {
-	return time.Now().Add(time.Duration(ACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
+	waitTime := ACCEPT_COMMIT_TIMEOUT
+	return time.Now().Add(time.Duration(waitTime) * time.Millisecond)
 }
 
 // sets the given instance as accepted
@@ -159,16 +160,16 @@ func (s *Scope) acceptPhase(instance *Instance) error {
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	logger.Debug("Accept message received, ballot: %v", request.Instance.MaxBallot)
+	logger.Debug("Accept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
 	if len(request.MissingInstances) > 0 {
-		logger.Debug("Accept message received: adding %v missing instances", len(request.MissingInstances))
+		logger.Debug("Accept: adding %v missing instances", len(request.MissingInstances))
 		s.addMissingInstancesUnsafe(request.MissingInstances...)
 	}
 
 	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
-			logger.Debug("Accept message rejected, %v >= %v", instance.MaxBallot, request.Instance.MaxBallot)
+			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)
 			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
 	}
@@ -182,7 +183,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
-	logger.Debug("Accept message replied, accepted")
+	logger.Debug("Accept message replied for %v, accepted", request.Instance.InstanceID)
 	return &AcceptResponse{Accepted: true}, nil
 }
 

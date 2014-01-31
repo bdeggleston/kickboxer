@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -344,8 +345,9 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	defer s.lock.Unlock()
 
 	instance := s.instances[request.InstanceID]
-	logger.Debug("Prepare message received, ballot: %v", request.Ballot)
+	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
 	response := &PrepareResponse{}
+	var responseBallot uint32
 	if instance == nil {
 		response.Accepted = true
 	} else {
@@ -361,8 +363,9 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 		} else {
 			response.Instance = instanceCopy
 		}
+		responseBallot = response.Instance.MaxBallot
 	}
 
-	logger.Debug("Prepare message replied with accept: %v", response.Accepted)
+	logger.Debug("Prepare message for %v replied with accept: %v (%v)", request.InstanceID, response.Accepted, responseBallot)
 	return response, nil
 }
