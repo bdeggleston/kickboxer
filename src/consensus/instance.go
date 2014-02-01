@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 )
 
@@ -25,6 +26,22 @@ const (
 	INSTANCE_COMMITTED
 	INSTANCE_EXECUTED
 )
+
+func (s InstanceStatus) String() string {
+	switch s {
+	case INSTANCE_PREACCEPTED:
+		return "INSTANCE_PREACCEPTED"
+	case INSTANCE_ACCEPTED:
+		return "INSTANCE_ACCEPTED"
+	case INSTANCE_COMMITTED:
+		return "INSTANCE_COMMITTED"
+	case INSTANCE_EXECUTED:
+		return "INSTANCE_EXECUTED"
+	default:
+		return fmt.Sprintf("Unknown InstanceStatus: %v", s)
+	}
+	panic("unreachable")
+}
 
 type InstanceID string
 
