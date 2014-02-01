@@ -33,13 +33,11 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 }
 
 func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
-	// TODO: fix test
-	c.Skip("fixme")
 	setupDeps(s.scope)
 	expected := NewInstanceIDSet([]InstanceID{})
 	expected.Add(s.scope.inProgress.InstanceIDs()...)
 	expected.Add(s.scope.committed.InstanceIDs()...)
-	expected.Add(s.scope.executed[len(s.scope.executed)-1])
+	expected.Add(s.scope.executed...)
 
 	// sanity checks
 	c.Assert(len(s.scope.inProgress), gocheck.Equals, 4)
