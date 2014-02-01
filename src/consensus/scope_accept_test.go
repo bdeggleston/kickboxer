@@ -376,6 +376,7 @@ func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
 // tests that accept messages fail if an higher
 // ballot number has been seen for this message
 func (s *AcceptReplicaTest) TestOldBallotFailure(c *gocheck.C) {
+	c.Skip("invalid... for now")
 	var err error
 	err = s.scope.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)

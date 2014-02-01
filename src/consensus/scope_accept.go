@@ -167,12 +167,14 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		s.addMissingInstancesUnsafe(request.MissingInstances...)
 	}
 
-	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
-		if instance.MaxBallot >= request.Instance.MaxBallot {
-			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)
-			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
-		}
-	}
+	// should the ballot even matter here? If we're receiving an accept response,
+	// it means that a quorum of preaccept responses were received by a node
+//	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
+//		if instance.MaxBallot >= request.Instance.MaxBallot {
+//			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)
+//			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
+//		}
+//	}
 
 	if err := s.acceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
