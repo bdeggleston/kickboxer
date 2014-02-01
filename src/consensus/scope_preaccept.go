@@ -200,7 +200,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	// check agreement on seq and deps with leader
 	instance = s.instances[request.Instance.InstanceID]
 	newDeps := NewInstanceIDSet(instance.Dependencies)
-	instance.dependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
+	instance.DependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
 
 	if err := s.Persist(); err != nil {
 		return nil, err

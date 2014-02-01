@@ -181,16 +181,6 @@ type Instance struct {
 	// instance should be ignored
 	Noop bool
 
-	// indicates the time that we can stop waiting
-	// for a commit on this command, and force one
-	// * not message serialized *
-	commitTimeout time.Time
-
-	// indicates the time that we can stop waiting for the
-	// the command to be executed by ExecuteQuery
-	// * not message serialized *
-	executeTimeout time.Time
-
 	// indicates that the dependencies from the leader
 	// matched the replica's local dependencies. This
 	// is used when there are only 3 replicas and another
@@ -200,7 +190,17 @@ type Instance struct {
 	// had identical dependency graphs at the time of proposal,
 	// it may still be useful in other situations
 	// * not message serialized *
-	dependencyMatch bool
+	DependencyMatch bool
+
+	// indicates the time that we can stop waiting
+	// for a commit on this command, and force one
+	// * not message serialized *
+	commitTimeout time.Time
+
+	// indicates the time that we can stop waiting for the
+	// the command to be executed by ExecuteQuery
+	// * not message serialized *
+	executeTimeout time.Time
 }
 
 // merges sequence and dependencies onto this instance, and returns
@@ -281,6 +281,10 @@ func instanceLimitedSerialize(instance *Instance, buf *bufio.Writer) error {
 	if instance.Noop { noop = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &noop); err != nil { return err }
 
+	var match byte
+	if instance.DependencyMatch { match = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &match); err != nil { return err }
+
 	return nil
 }
 
@@ -319,6 +323,10 @@ func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	if err := binary.Read(buf, binary.LittleEndian, &noop); err != nil { return nil, err }
 	instance.Noop = noop != 0x0
 
+	var match byte
+	if err := binary.Read(buf, binary.LittleEndian, &match); err != nil { return nil, err }
+	instance.DependencyMatch = match != 0x0
+
 	return instance, nil
 }
 
@@ -326,9 +334,7 @@ func instanceSerialize(instance *Instance, buf *bufio.Writer) error {
 	if err := instanceLimitedSerialize(instance, buf); err != nil { return err }
 	if err := serializer.WriteTime(buf, instance.commitTimeout); err != nil { return err }
 	if err := serializer.WriteTime(buf, instance.executeTimeout); err != nil { return err }
-	var match byte
-	if instance.dependencyMatch { match = 0xff }
-	if err := binary.Write(buf, binary.LittleEndian, &match); err != nil { return err }
+
 	return nil
 }
 
@@ -344,8 +350,5 @@ func instanceDeserialize(buf *bufio.Reader) (*Instance, error) {
 		instance.executeTimeout = val
 	}
 
-	var match byte
-	if err := binary.Read(buf, binary.LittleEndian, &match); err != nil { return nil, err }
-	instance.dependencyMatch = match != 0x0
 	return instance, nil
 }

@@ -364,7 +364,7 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 
 	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 	c.Check(localInstance.Sequence, gocheck.Equals, uint64(4))
-	c.Check(localInstance.dependencyMatch, gocheck.Equals, true)
+	c.Check(localInstance.DependencyMatch, gocheck.Equals, true)
 	c.Check(len(response.MissingInstances), gocheck.Equals, 0)
 }
 
@@ -407,7 +407,7 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 
 	c.Check(responseInst.Sequence, gocheck.Equals, uint64(4))
-	c.Check(responseInst.dependencyMatch, gocheck.Equals, false)
+	c.Check(responseInst.DependencyMatch, gocheck.Equals, false)
 
 	// check that handle pre-accept returns any missing
 	// instance dependencies that the leader didn't include

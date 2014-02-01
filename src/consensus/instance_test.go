@@ -59,7 +59,7 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		Noop: true,
 		commitTimeout: time.Now(),
 		executeTimeout: time.Now(),
-		dependencyMatch: true,
+		DependencyMatch: true,
 	}
 	writer := bufio.NewWriter(buf)
 	err = instanceSerialize(src, writer)
