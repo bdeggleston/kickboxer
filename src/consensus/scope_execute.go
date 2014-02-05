@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -296,7 +297,9 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 						// wait on broadcast event or timeout
 						broadcastEvent := getCommitNotify(inst)
-						timeoutEvent := getTimeoutEvent(time.Duration(BALLOT_FAILURE_WAIT_TIME) * time.Millisecond)
+						waitTime := BALLOT_FAILURE_WAIT_TIME / 3
+						waitTime += uint64(rand.Uint32()) % (BALLOT_FAILURE_WAIT_TIME / 3)
+						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
 						case <-broadcastEvent:
 							// another goroutine committed
