@@ -325,19 +325,89 @@ var _ = gocheck.Suite(&PrepareCheckResponsesTest{})
 // if all of the responses have been accepted, no error should
 // be returned
 func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
-
+	remoteInstance := copyInstance(s.instance)
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
+	err := scopePrepareCheckResponses(s.scope, s.instance, responses)
+	c.Assert(err, gocheck.IsNil)
 }
 
 // if any of the responses have been rejected, an error should be returned
 func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
+	s.instance.MaxBallot = 4
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.MaxBallot = 5
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: false, Instance: remoteInstance},
+	}
+
+	// sanity check
+	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
+	err := scopePrepareCheckResponses(s.scope, s.instance, responses)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
+}
+
+// if any of the respones have been rejected, and the remote instance
+// from the rejecting node is accepted, committed, or executed, the
+// local instance should be update with it's status and attributes
+func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
+	var err error
+	err = s.scope.preAcceptInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
+	s.instance.MaxBallot = 4
+
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_ACCEPTED
+	remoteInstance.MaxBallot = 5
+	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: false, Instance: remoteInstance},
+	}
+
+	// sanity check
+	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
+
+	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
+
+	// check that the status and ballot have been updated
+	c.Check(s.instance.Status, gocheck.Equals, remoteInstance.Status)
+	c.Check(s.instance.MaxBallot, gocheck.Equals, remoteInstance.MaxBallot)
+	c.Check(s.instance.Dependencies, gocheck.DeepEquals, remoteInstance.Dependencies)
 
 }
 
 // if any of the respones have been rejected, and the remote instance
 // from the rejecting node is accepted, committed, or executed, the
 // local instance should be update with it's status and attributes
-func (s *PrepareCheckResponsesTest) TestHigherStatusUpdate(c *gocheck.C) {
+func (s *PrepareCheckResponsesTest) TestCommitStatusUpdate(c *gocheck.C) {
+	var err error
+	err = s.scope.acceptInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
+	s.instance.MaxBallot = 4
 
+	remoteInstance := copyInstance(s.instance)
+	remoteInstance.Status = INSTANCE_COMMITTED
+	remoteInstance.MaxBallot = 5
+	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: false, Instance: remoteInstance},
+	}
+
+	// sanity check
+	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
+
+	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
+
+	// check that the status and ballot have been updated
+	c.Check(s.instance.Status, gocheck.Equals, remoteInstance.Status)
+	c.Check(s.instance.MaxBallot, gocheck.Equals, remoteInstance.MaxBallot)
+	c.Check(s.instance.Dependencies, gocheck.DeepEquals, remoteInstance.Dependencies)
 }
 
 // tests the prepare phase method

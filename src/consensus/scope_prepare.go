@@ -204,18 +204,44 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 
 	accepted := true
 	var maxBallot uint32
+	var maxStatus InstanceStatus
 	for _, response := range responses {
 		if response.Instance != nil {
 			// TODO: update local status if the response status is higher than the local status
 			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
 				maxBallot = ballot
 			}
+			if status := response.Instance.Status; status > maxStatus {
+				maxStatus = status
+			}
 		}
 		accepted = accepted && response.Accepted
 	}
 	if !accepted {
-		// update local ballot
-		if maxBallot > instance.MaxBallot {
+		var maxInstance *Instance
+		for _, response := range responses {
+			if response.Instance != nil {
+				rInstance := response.Instance
+				if rInstance.MaxBallot == maxBallot && rInstance.Status == maxStatus {
+					maxInstance = rInstance
+				}
+			}
+		}
+
+		// update local ballot and/or status
+		if maxInstance != nil && maxInstance.Status > instance.Status {
+			switch maxInstance.Status {
+			case INSTANCE_ACCEPTED:
+				if err := s.acceptInstanceUnsafe(maxInstance, false); err != nil {
+					return err
+				}
+			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+				if err := s.commitInstanceUnsafe(maxInstance, false); err != nil {
+					return err
+				}
+			}
+		} else if maxBallot > instance.MaxBallot {
+			// update local ballot
 			instance.MaxBallot = maxBallot
 			if err := s.Persist(); err != nil {
 				return err
