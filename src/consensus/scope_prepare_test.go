@@ -19,7 +19,7 @@ type basePrepareTest struct {
 
 	oldScopePreparePhase func(*Scope, *Instance) error
 	oldScopePreparePhase1 func(*Scope, *Instance) (*Instance, error)
-	oldScopePreparePhase2 func(*Scope, *Instance, *Instance) error
+	oldScopePreparePhase2 func(*Scope, *Instance, []*PrepareResponse) error
 
 	instance *Instance
 
@@ -316,6 +316,31 @@ func (s *PreparePhaseTest) TestPrepareMutex(c *gocheck.C) {
 }
 
 // tests the prepare phase method
+type PrepareCheckResponsesTest struct {
+	basePrepareTest
+}
+
+var _ = gocheck.Suite(&PrepareCheckResponsesTest{})
+
+// if all of the responses have been accepted, no error should
+// be returned
+func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
+
+}
+
+// if any of the responses have been rejected, an error should be returned
+func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
+
+}
+
+// if any of the respones have been rejected, and the remote instance
+// from the rejecting node is accepted, committed, or executed, the
+// local instance should be update with it's status and attributes
+func (s *PrepareCheckResponsesTest) TestHigherStatusUpdate(c *gocheck.C) {
+
+}
+
+// tests the prepare phase method
 type PreparePhase2Test struct {
 	basePrepareTest
 }
@@ -328,13 +353,16 @@ var _ = gocheck.Suite(&PreparePhase2Test{})
 func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchPreAccept(true, nil)
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -351,13 +379,16 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchPreAccept(false, nil)
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -373,11 +404,14 @@ func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchPreAccept(false, fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -391,12 +425,15 @@ func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
 func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_ACCEPTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -412,11 +449,14 @@ func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_ACCEPTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchAccept(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -430,11 +470,14 @@ func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
 func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_COMMITTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -450,11 +493,14 @@ func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_COMMITTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -468,11 +514,14 @@ func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
 func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_EXECUTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -488,11 +537,14 @@ func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_EXECUTED
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -507,18 +559,22 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	remoteInstance.MaxBallot = 5
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: false, Instance: remoteInstance},
+	}
 
 	// patch methods
 	s.patchPreAccept(true, nil)
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, remoteInstance)
-	c.Assert(err, gocheck.IsNil)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
-	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
-	c.Check(s.acceptCalls, gocheck.Equals, 1)
-	c.Check(s.commitCalls, gocheck.Equals, 1)
+	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
+	c.Check(s.acceptCalls, gocheck.Equals, 0)
+	c.Check(s.commitCalls, gocheck.Equals, 0)
 
 	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(5))
 	c.Check(remoteInstance.MaxBallot, gocheck.Equals, uint32(5))
@@ -527,12 +583,16 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 // tests that a noop is committed if no other nodes are aware
 // of the instance in the prepare phase
 func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
+	responses := []*PrepareResponse{
+		&PrepareResponse{Accepted: true, Instance: nil},
+	}
+
 	// patch methods
 	s.patchPreAccept(true, nil)
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, nil)
+	err := scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.instance.Noop, gocheck.Equals, true)

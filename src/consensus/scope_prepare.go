@@ -64,37 +64,6 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 		}
 	}
 
-	accepted := true
-	var maxBallot uint32
-	for _, response := range responses {
-		if response.Instance != nil {
-			// TODO: update local status if the response status is higher than the local status
-			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
-				maxBallot = ballot
-			}
-		}
-		accepted = accepted && response.Accepted
-	}
-	if !accepted {
-		// update ballot
-		updateBallot := func() error {
-			s.lock.Lock()
-			defer s.lock.Unlock()
-			if maxBallot > instance.MaxBallot {
-				instance.MaxBallot = maxBallot
-				if err := s.Persist(); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if err := updateBallot(); err != nil {
-			return nil, err
-		}
-		logger.Debug("Prepare request(s) rejected")
-		return nil, NewBallotError("Prepare request(s) rejected")
-	}
-
 	return responses, nil
 }
 
@@ -226,21 +195,58 @@ var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
 	return s.analyzePrepareResponses(responses), nil
 }
 
-// uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
-var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Instance) error {
-	// checks the remote instance ballot against
-	// the local instance, and increases the local
-	// instance ballot if the remote is larget
-	checkAndMatchBallot := func() error {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		if remoteInstance.MaxBallot > instance.MaxBallot {
-			instance.MaxBallot = remoteInstance.MaxBallot
+// performs an initial check of the responses
+// if any of the responses have been rejected, the local ballot will be updated,
+// as well as it's status if there are any responses with a higher status
+var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	accepted := true
+	var maxBallot uint32
+	for _, response := range responses {
+		if response.Instance != nil {
+			// TODO: update local status if the response status is higher than the local status
+			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
+				maxBallot = ballot
+			}
+		}
+		accepted = accepted && response.Accepted
+	}
+	if !accepted {
+		// update local ballot
+		if maxBallot > instance.MaxBallot {
+			instance.MaxBallot = maxBallot
 			if err := s.Persist(); err != nil {
 				return err
 			}
 		}
-		return nil
+
+		logger.Debug("Prepare request(s) rejected")
+		return NewBallotError("Prepare request(s) rejected")
+	}
+
+	return nil
+}
+
+// uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
+var scopePreparePhase2 = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
+//	// checks the remote instance ballot against
+//	// the local instance, and increases the local
+//	// instance ballot if the remote is larget
+//	checkAndMatchBallot := func() error {
+//		s.lock.Lock()
+//		defer s.lock.Unlock()
+//		if remoteInstance.MaxBallot > instance.MaxBallot {
+//			instance.MaxBallot = remoteInstance.MaxBallot
+//			if err := s.Persist(); err != nil {
+//				return err
+//			}
+//		}
+//		return nil
+//	}
+	if err := scopePrepareCheckResponses(s, instance, responses); err != nil {
+		return err
 	}
 
 	// sets the instance's noop flag to true
@@ -269,15 +275,13 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 //		prepareInstance = instance
 //	}
 
+	remoteInstance := s.analyzePrepareResponses(responses)
 	var status InstanceStatus
 	var prepareInstance *Instance
 	if remoteInstance != nil {
 		if instance.Status > remoteInstance.Status {
 			prepareInstance = instance
 		} else {
-			if err := checkAndMatchBallot(); err != nil {
-				return nil
-			}
 			prepareInstance = remoteInstance
 		}
 		status = prepareInstance.Status
@@ -370,11 +374,10 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 		return nil
 	}
 
-	// TODO: add prepare notify?
-	remoteInstance, err := scopePreparePhase1(s, instance)
+	responses, err := scopeSendPrepare(s, instance)
 	if err != nil { return err }
 
-	err = scopePreparePhase2(s, instance, remoteInstance)
+	err = scopePreparePhase2(s, instance, responses)
 	if err != nil {
 		return err
 	}
