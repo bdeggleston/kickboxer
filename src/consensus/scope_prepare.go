@@ -61,8 +61,39 @@ func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, i
 			numReceived++
 		default:
 			break drain
+		}
 	}
-}
+
+	accepted := true
+	var maxBallot uint32
+	for _, response := range responses {
+		if response.Instance != nil {
+			// TODO: update local status if the response status is higher than the local status
+			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
+				maxBallot = ballot
+			}
+		}
+		accepted = accepted && response.Accepted
+	}
+	if !accepted {
+		// update ballot
+		updateBallot := func() error {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+			if maxBallot > instance.MaxBallot {
+				instance.MaxBallot = maxBallot
+				if err := s.Persist(); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if err := updateBallot(); err != nil {
+			return nil, err
+		}
+		logger.Debug("Prepare request(s) rejected")
+		return nil, NewBallotError("Prepare request(s) rejected")
+	}
 
 	return responses, nil
 }
@@ -103,6 +134,61 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance
 	}
 
 	return instance
+}
+
+// transforms the local instance from the prepare responses
+func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstance *Instance) (*Instance, error) {
+	var maxBallot uint32
+	var maxStatus InstanceStatus
+
+	// indicates that nil instances
+	// were encountered in the responses
+	var nilInstances bool
+
+	// indicates that non nil instances
+	// were encountered in the responses
+	var otherInstances bool
+
+	// get info about the response instances
+	for _, response := range responses {
+		if response.Instance != nil {
+			otherInstances = true
+			if ballot := response.Instance.MaxBallot; ballot > maxBallot {
+				maxBallot = ballot
+			}
+			if status := response.Instance.Status; status > maxStatus {
+				maxStatus = status
+			}
+		} else {
+			nilInstances = true
+		}
+	}
+
+	referenceInstance, err := s.copyInstanceUnsafe(localInstance)
+	if err != nil {
+		return nil, err
+	}
+
+	// if no other instances have been seen...
+	if !otherInstances {
+		if referenceInstance.Status != INSTANCE_PREACCEPTED {
+			return nil, fmt.Errorf(
+				"Instance %v is unknown by other nodes, but has a status of %v",
+				referenceInstance.InstanceID,
+				referenceInstance.Status,
+			)
+		}
+		referenceInstance.Noop = true
+		return referenceInstance, nil
+	}
+
+	// TODO: do all of the ballots need to match to advance the preaccept process? Yes, and the prepare messages need to be accepted
+	if maxStatus == INSTANCE_PREACCEPTED && !nilInstances {
+
+	} else if maxStatus == INSTANCE_PREACCEPTED {
+
+	}
+	return nil, nil
 }
 
 var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, error) {
@@ -167,21 +253,46 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, remoteInstance *Inst
 		}
 		return nil
 	}
+//
+//	var status InstanceStatus
+//	var prepareInstance *Instance
+//	if remoteInstance != nil {
+//		if err := checkAndMatchBallot(); err != nil {
+//			return nil
+//		}
+//		prepareInstance = remoteInstance
+//		status = remoteInstance.Status
+//	} else {
+//		logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
+//		setNoop()
+//		status = INSTANCE_PREACCEPTED
+//		prepareInstance = instance
+//	}
 
 	var status InstanceStatus
 	var prepareInstance *Instance
 	if remoteInstance != nil {
-		if err := checkAndMatchBallot(); err != nil {
-			return nil
+		if instance.Status > remoteInstance.Status {
+			prepareInstance = instance
+		} else {
+			if err := checkAndMatchBallot(); err != nil {
+				return nil
+			}
+			prepareInstance = remoteInstance
 		}
-		prepareInstance = remoteInstance
-		status = remoteInstance.Status
+		status = prepareInstance.Status
 	} else {
-		logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
-		setNoop()
-		status = INSTANCE_PREACCEPTED
-		prepareInstance = instance
+		if instance.Status <= INSTANCE_PREACCEPTED {
+			logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
+			setNoop()
+			status = INSTANCE_PREACCEPTED
+			prepareInstance = instance
+		} else {
+			prepareInstance = instance
+			status = INSTANCE_PREACCEPTED
+		}
 	}
+
 
 	// for the first step that prepare takes (preaccept, accept, commit), it should use
 	// the remote instance, since the remote instance may have newer deps and seq if it's
@@ -277,7 +388,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 // during execution,
 func (s *Scope) preparePhase(instance *Instance) error {
 	s.lock.Lock()
-	logger.Debug("Prepare phase started for %v", instance.InstanceID)
+	logger.Debug("Prepare phase started for %v with status %v", instance.InstanceID, instance.Status)
 	status := instance.Status
 	if status >= INSTANCE_COMMITTED {
 		s.lock.Unlock()
@@ -310,12 +421,12 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		s.lock.Unlock()
 		select {
 		case <- broadcastEvent:
-			logger.Debug("Prepare: broadcast event received")
+			logger.Debug("Prepare: commit broadcast event received for %v", instance.InstanceID)
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
 			return nil
 		case <- timeoutEvent:
-			logger.Debug("Prepare: commit grace period expired. proceeding")
+			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
 			// execution timed out
 			s.lock.Lock()
 
