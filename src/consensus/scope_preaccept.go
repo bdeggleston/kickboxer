@@ -190,6 +190,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
+	// TODO: check ballot
 	instance := request.Instance
 	if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
