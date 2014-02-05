@@ -132,7 +132,7 @@ func (c *opsCtrl) reactor() {
 	// ratio of dropped messages
 	dropRatio := uint32(150)
 	// ratio of delayed messages
-	delayRatio := uint32(100)
+	delayRatio := uint32(150)
 	// number of ticks messages are delayed
 	delayLenBase := uint32(20)
 	delayLenRange := uint32(10)
