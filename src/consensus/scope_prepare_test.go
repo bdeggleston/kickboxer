@@ -625,7 +625,11 @@ func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 // tests that the instance's ballot is updated if prepare
 // responses return higher ballot numbers
 func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
+	var err error
+	err = s.scope.preAcceptInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
+
 	remoteInstance := copyInstance(s.instance)
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	remoteInstance.MaxBallot = 5
@@ -638,7 +642,7 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err = scopePreparePhase2(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
