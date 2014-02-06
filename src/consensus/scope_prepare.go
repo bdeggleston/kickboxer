@@ -10,63 +10,6 @@ import (
 	"node"
 )
 
-// sends and explicit prepare request to the other nodes. Returns a channel for receiving responses on
-// This method does not wait for the responses to return, because the scope needs to be locked during
-// message sending, so the instance is not updated, but does not need to be locked while receiving responses
-func (s *Scope) sendPrepare(instance *Instance, replicas []node.Node) (<- chan *PrepareResponse, error) {
-	recvChan := make(chan *PrepareResponse, len(replicas))
-	msg := &PrepareRequest{Scope:s.name, Ballot:instance.MaxBallot, InstanceID:instance.InstanceID}
-	sendMsg := func(n node.Node) {
-		logger.Debug("Sending prepare request to node %v", n.GetId())
-		if response, err := n.SendMessage(msg); err != nil {
-			logger.Warning("Error receiving PrepareResponse: %v", err)
-		} else {
-			if preAccept, ok := response.(*PrepareResponse); ok {
-				recvChan <- preAccept
-			} else {
-				logger.Warning("Unexpected Prepare response type: %T", response)
-			}
-		}
-	}
-
-	for _, replica := range replicas {
-		go sendMsg(replica)
-	}
-
-	return recvChan, nil
-}
-
-func (s *Scope) receivePrepareResponseQuorum(recvChan <-chan *PrepareResponse, instance *Instance, quorumSize int, numReplicas int) ([]*PrepareResponse, error) {
-	numReceived := 1  // this node counts as a response
-	timeoutEvent := getTimeoutEvent(time.Duration(PREPARE_TIMEOUT) * time.Millisecond)
-	var response *PrepareResponse
-	responses := make([]*PrepareResponse, 0, numReplicas)
-	for numReceived < quorumSize {
-		select {
-		case response = <-recvChan:
-			logger.Debug("Prepare response received: %v", instance.InstanceID)
-			responses = append(responses, response)
-			numReceived++
-		case <-timeoutEvent:
-			logger.Debug("Prepare timeout for instance: %v", instance.InstanceID)
-			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
-		}
-	}
-
-	// finally, receive any additional responses
-	drain: for {
-		select {
-		case response = <-recvChan:
-			responses = append(responses, response)
-			numReceived++
-		default:
-			break drain
-		}
-	}
-
-	return responses, nil
-}
-
 // analyzes the responses to a prepare request, and returns an instance
 // the prepare phase should use to determine how to proceed
 func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance) {
@@ -163,25 +106,70 @@ func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstanc
 var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, error) {
 	replicas := s.manager.getScopeReplicas(s)
 
-	// increments and sends the prepare messages in a single lock
-	// TODO: combine send and receive methods since the instance is being copied now
-	incrementAndCopyInstance := func() (*Instance, error) {
+	// increment ballot and return message object
+	getMsg := func() (*PrepareRequest, error) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		instance.MaxBallot++
+		msg := &PrepareRequest{Scope:s.name, Ballot:instance.MaxBallot, InstanceID:instance.InstanceID}
 		if err := s.Persist(); err != nil {
 			return nil, err
 		}
-		return s.copyInstanceUnsafe(instance)
+		return msg, nil
 	}
-	instanceCopy, err := incrementAndCopyInstance()
-	if err != nil { return nil, err }
-	recvChan, err := s.sendPrepare(instanceCopy, replicas)
-	if err != nil { return nil, err }
+	msg, err := getMsg()
+	if err != nil {
+		return nil, err
+	}
+
+	recvChan := make(chan *PrepareResponse, len(replicas))
+	sendMsg := func(n node.Node) {
+		logger.Debug("Sending prepare request to node %v", n.GetId())
+		if response, err := n.SendMessage(msg); err != nil {
+			logger.Warning("Error receiving PrepareResponse: %v", err)
+		} else {
+			if preAccept, ok := response.(*PrepareResponse); ok {
+				recvChan <- preAccept
+			} else {
+				logger.Warning("Unexpected Prepare response type: %T", response)
+			}
+		}
+	}
+
+	for _, replica := range replicas {
+		go sendMsg(replica)
+	}
 
 	// receive responses from at least a quorum of nodes
 	quorumSize := ((len(replicas) + 1) / 2) + 1
-	return s.receivePrepareResponseQuorum(recvChan, instance, quorumSize, len(replicas))
+	numReceived := 1  // this node counts as a response
+	timeoutEvent := getTimeoutEvent(time.Duration(PREPARE_TIMEOUT) * time.Millisecond)
+	var response *PrepareResponse
+	responses := make([]*PrepareResponse, 0, len(replicas))
+	for numReceived < quorumSize {
+		select {
+		case response = <-recvChan:
+			logger.Debug("Prepare response received: %v", instance.InstanceID)
+			responses = append(responses, response)
+			numReceived++
+		case <-timeoutEvent:
+			logger.Debug("Prepare timeout for instance: %v", instance.InstanceID)
+			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
+		}
+	}
+
+	// finally, receive any additional responses
+	drain: for {
+		select {
+		case response = <-recvChan:
+			responses = append(responses, response)
+			numReceived++
+		default:
+			break drain
+		}
+	}
+
+	return responses, nil
 }
 
 // sends prepare messages to the replicas and returns an instance used
