@@ -18,7 +18,6 @@ type basePrepareTest struct {
 	baseScopeTest
 
 	oldScopePreparePhase func(*Scope, *Instance) error
-	oldScopePreparePhase1 func(*Scope, *Instance) (*Instance, error)
 	oldScopePreparePhase2 func(*Scope, *Instance, []*PrepareResponse) error
 
 	instance *Instance
@@ -31,7 +30,6 @@ type basePrepareTest struct {
 func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
 	s.oldScopePreparePhase = scopePreparePhase
-	s.oldScopePreparePhase1 = scopePreparePhase1
 	s.oldScopePreparePhase2 = scopePreparePhase2
 
 	s.instance = s.scope.makeInstance(getBasicInstruction())
@@ -65,7 +63,6 @@ func (s *basePrepareTest) patchCommit(e error) {
 
 func (s *basePrepareTest) TearDownTest(c *gocheck.C) {
 	scopePreparePhase = s.oldScopePreparePhase
-	scopePreparePhase1 = s.oldScopePreparePhase1
 	scopePreparePhase2 = s.oldScopePreparePhase2
 }
 

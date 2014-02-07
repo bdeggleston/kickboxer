@@ -172,17 +172,6 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 	return responses, nil
 }
 
-// sends prepare messages to the replicas and returns an instance used
-// to determine how to proceed. This will succeed even if the local instance
-// is using an out of date ballot number. The prepare caller will have to work
-// out what to do (fail or retry)
-// assigned to a var to aid in testing
-var scopePreparePhase1 = func(s *Scope, instance *Instance) (*Instance, error) {
-	responses, err := scopeSendPrepare(s, instance)
-	if err != nil { return nil, err }
-	return s.analyzePrepareResponses(responses), nil
-}
-
 // performs an initial check of the responses
 // if any of the responses have been rejected, the local ballot will be updated,
 // as well as it's status if there are any responses with a higher status
@@ -245,20 +234,6 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
 var scopePreparePhase2 = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
-//	// checks the remote instance ballot against
-//	// the local instance, and increases the local
-//	// instance ballot if the remote is larget
-//	checkAndMatchBallot := func() error {
-//		s.lock.Lock()
-//		defer s.lock.Unlock()
-//		if remoteInstance.MaxBallot > instance.MaxBallot {
-//			instance.MaxBallot = remoteInstance.MaxBallot
-//			if err := s.Persist(); err != nil {
-//				return err
-//			}
-//		}
-//		return nil
-//	}
 	if err := scopePrepareCheckResponses(s, instance, responses); err != nil {
 		return err
 	}
@@ -273,7 +248,7 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, responses []*Prepare
 		}
 		return nil
 	}
-//
+
 //	var status InstanceStatus
 //	var prepareInstance *Instance
 //	if remoteInstance != nil {
