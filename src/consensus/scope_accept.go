@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"time"
+	"math/rand"
 )
 
 import (
@@ -10,6 +11,7 @@ import (
 
 func makeAcceptCommitTimeout() time.Time {
 	waitTime := ACCEPT_COMMIT_TIMEOUT
+	waitTime += uint64(rand.Int63()) % (ACCEPT_COMMIT_TIMEOUT / 10)
 	return time.Now().Add(time.Duration(waitTime) * time.Millisecond)
 }
 

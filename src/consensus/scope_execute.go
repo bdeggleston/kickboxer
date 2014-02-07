@@ -298,8 +298,9 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 
 						// wait on broadcast event or timeout
 						broadcastEvent := getCommitNotify(inst)
-						waitTime := BALLOT_FAILURE_WAIT_TIME / 3
-						waitTime += uint64(rand.Uint32()) % (BALLOT_FAILURE_WAIT_TIME / 3)
+						waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(i + 1)
+						waitTime += uint64(rand.Uint32()) % (waitTime / 2)
+						logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
 						case <-broadcastEvent:

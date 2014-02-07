@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"math/rand"
 	"time"
 )
 
@@ -9,7 +10,9 @@ import (
 )
 
 func makePreAcceptCommitTimeout() time.Time {
-	return time.Now().Add(time.Duration(PREACCEPT_COMMIT_TIMEOUT) * time.Millisecond)
+	waitTime := PREACCEPT_COMMIT_TIMEOUT
+	waitTime += uint64(rand.Int63()) % (PREACCEPT_COMMIT_TIMEOUT / 10)
+	return time.Now().Add(time.Duration(waitTime) * time.Millisecond)
 }
 
 func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
