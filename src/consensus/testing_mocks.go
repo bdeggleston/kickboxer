@@ -128,29 +128,34 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	n.lock.Lock()
 	err = message.WriteMessage(buf, srcRequest)
 	if err != nil {
-		panic(err)
+		return nil, err
+//		panic(err)
 	}
 	dstRequest, err := message.ReadMessage(buf)
 	if err != nil {
-		panic(err)
+		return nil, err
+//		panic(err)
 	}
 	n.sentMessages = append(n.sentMessages, dstRequest)
 	n.lock.Unlock()
 	srcResponse, err := n.messageHandler(n, dstRequest)
 	if err != nil {
-		panic(err)
+		return nil, err
+//		panic(err)
 	}
 	n.lock.Lock()
 	buf.Reset()
 	err = message.WriteMessage(buf, srcResponse)
 	if err != nil {
-		panic(err)
+		return nil, err
+//		panic(err)
 	}
 	fmt.Printf("Response size: %v\n", len(buf.Bytes()))
 	dstResponse, err := message.ReadMessage(buf)
 	n.lock.Unlock()
 	if err != nil {
-		panic(err)
+		return nil, err
+//		panic(err)
 	}
 	return dstResponse, nil
 }
