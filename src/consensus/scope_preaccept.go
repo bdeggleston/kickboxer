@@ -103,6 +103,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
 	}
+	logger.Debug("PreAccept response quorum received: %v", instance.InstanceID)
 
 	// check if any of the messages were rejected
 	accepted := true
@@ -183,23 +184,26 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 // handles a preaccept message from the command leader for an instance
 // this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
-	logger.Debug("PreAccept message for %v received, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
+	logger.Debug("PreAccept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	logger.Debug("Processing PreAccept message for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	// TODO: check ballot
-	instance := request.Instance
-	if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
+	if err := s.preAcceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
+			logger.Debug("Error processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 			return nil, err
+		} else {
+			logger.Debug("InvalidStatusUpdateError processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 		}
 	}
 
 	// check agreement on seq and deps with leader
-	instance = s.instances[request.Instance.InstanceID]
+	instance := s.instances[request.Instance.InstanceID]
 	newDeps := NewInstanceIDSet(instance.Dependencies)
 	instance.DependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
 
@@ -231,7 +235,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 		}
 	}
 
-	logger.Debug("PreAccept message for %v replied with accepted: %v", request.Instance.InstanceID, reply.Accepted)
+	logger.Debug("PreAccept message replied with accepted for %v: %v", request.Instance.InstanceID, reply.Accepted)
 	if len(reply.MissingInstances) > 0 {
 		logger.Debug("PreAccept reply for %v includes %v missing instances", request.Instance.InstanceID, len(reply.MissingInstances))
 	}

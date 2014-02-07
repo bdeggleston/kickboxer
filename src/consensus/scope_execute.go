@@ -293,6 +293,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 				ballotErr = false
 				if err = s.preparePhase(inst); err != nil {
 					if _, ok := err.(BallotError); ok {
+						logger.Debug("Prepare failed with BallotError, waiting to try again")
 						ballotErr = true
 
 						// wait on broadcast event or timeout

@@ -486,6 +486,8 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 			if err := s.Persist(); err != nil {
 				return nil, err
 			}
+		} else {
+			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
 		if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
 			return nil, err

@@ -113,6 +113,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
 	}
+	logger.Debug("Accept response quorum received: %v", instance.InstanceID)
 
 	// check if any of the messages were rejected
 	accepted := true

@@ -400,27 +400,34 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, er
 	// create epaxos instance, and preaccept locally
 	instance := s.makeInstance(instructions)
 
+	logger.Debug("Beginning preaccept leader phase for: %v", instance.InstanceID)
 	// run pre-accept
 	acceptRequired, err := s.preAcceptPhase(instance)
 	if err != nil {
 		return nil, err
 	}
 
+	logger.Debug("Preaccept leader phase completed for: %v", instance.InstanceID)
+
 	if acceptRequired {
+		logger.Debug("Beginning accept leader phase for: %v", instance.InstanceID)
 		// some of the instance attributes received from the other replicas
 		// were different from what was sent to them. Run the multi-paxos
 		// accept phase
 		if err := s.acceptPhase(instance); err != nil {
 			return nil, err
 		}
+		logger.Debug("Accept leader phase completed for: %v", instance.InstanceID)
 	}
 
+	logger.Debug("Beginning commit leader phase for: %v", instance.InstanceID)
 	// if we've gotten this far, either all the pre accept instance attributes
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
 	if err := s.commitPhase(instance); err != nil {
 		return nil, err
 	}
+	logger.Debug("Commit leader phase completed for: %v", instance.InstanceID)
 
 	return s.executeInstance(instance)
 }
