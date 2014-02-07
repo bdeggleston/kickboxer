@@ -177,6 +177,9 @@ type Instance struct {
 	// the node id of the instance leader
 	LeaderID node.NodeId
 
+	// the order other nodes handle prepare phases
+	Successors []node.NodeId
+
 	// the Instructions(s) to be executed
 	Commands []*store.Instruction
 
