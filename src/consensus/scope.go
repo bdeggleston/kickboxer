@@ -16,34 +16,34 @@ import (
 var (
 	// timeout receiving a quorum of
 	// preaccept responses
-	PREACCEPT_TIMEOUT = uint64(500)
+	PREACCEPT_TIMEOUT = uint64(2000)
+
+	// timeout receiving a quorum of
+	// accept responses
+	ACCEPT_TIMEOUT = uint64(2000)
 
 	// the amount of time a replica will wait
 	// on a message with a preaccept status
 	// before attempting to force a commit
-	PREACCEPT_COMMIT_TIMEOUT = uint64(500)
-
-	// timeout receiving a quorum of
-	// accept responses
-	ACCEPT_TIMEOUT = uint64(500)
+	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_TIMEOUT + ACCEPT_TIMEOUT + uint64(50)
 
 	// the amount of time a replica will wait
 	// on a message with a accept status
 	// before attempting to force a commit
-	ACCEPT_COMMIT_TIMEOUT = uint64(500)
+	ACCEPT_COMMIT_TIMEOUT = ACCEPT_TIMEOUT + uint64(50)
 
 	// timeout receiving a quorum of
 	// prepare responses
-	PREPARE_TIMEOUT = uint64(500)
+	PREPARE_TIMEOUT = uint64(2000)
 
 	// the amount of time a replica will wait
 	// on a message with a an attempted prepare
 	// before attempting to force a commit again
-	PREPARE_COMMIT_TIMEOUT = uint64(500)
+	PREPARE_COMMIT_TIMEOUT = PREPARE_TIMEOUT + (PREPARE_TIMEOUT / 2)
 
 	// wait period between retrying operations
 	// that failed due to ballot failures
-	BALLOT_FAILURE_WAIT_TIME = uint64(500)
+	BALLOT_FAILURE_WAIT_TIME = uint64(250)
 
 	// number of times an operation, which failed
 	// due to an out of date ballot, will be retried
@@ -52,12 +52,17 @@ var (
 
 	// the amount of time other goroutines will
 	// wait for the local leader goroutine to
-	// execute it's instance before it's assumed
-	// to have failed, and they execute it
-	EXECUTE_TIMEOUT = uint64(50)
+	// execute it's committed instance before it's
+	// assumed to have failed, and they execute it
+	EXECUTE_TIMEOUT = uint64(500)
 )
 
 /*
+
+TODO: implement instance level locking
+TODO: make the prepare phase a bit smarter
+TODO: implement an order of prepare phase succession, enable other replicas to initiate it
+TODO: work out a way to prioritize the completion of existing commands vs the processing of new ones
 
 1) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
