@@ -59,10 +59,29 @@ var (
 
 /*
 
-TODO: implement instance level locking
-TODO: make the prepare phase a bit smarter
 TODO: implement an order of prepare phase succession, enable other replicas to initiate it
+
+Prepare succession:
+At instance creation time, a list of the other replica node ids is added to the instance, randomly ordered.
+After a commit timeout, the node waiting on the commit should send a message asking the node to return the
+result of a prepare phase. If the node doesn't respond in time, it continues down the successor list until
+it receives a response, or it's next in line.
+If a commit timeout occurs and the node it occurs in is the first in line, it will run the prepare phase.
+When non leader node calculates a commit timeout, it should use it's position in the successor list as
+a variable in computing it.
+
+TODO: make the prepare phase a bit smarter
+
+Prepare phase improvement:
+If the prepare responses are all preaccepted instances with the dependency match flag set, prepare should send an accept
+If the prepare responses are all preaccepted instances with the same ballot, the dependencies should be merged and an
+	accept message should be sent.
+If the prepare responses are all accepted instances with the same ballot, seq, and deps, a commit message should be sent
+If any response has a committed or executed messages, a commit message should be sent to all replicas
+
 TODO: work out a way to prioritize the completion of existing commands vs the processing of new ones
+
+TODO: implement instance level locking
 
 1) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
