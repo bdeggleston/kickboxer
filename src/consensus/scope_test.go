@@ -11,6 +11,7 @@ import (
 
 import (
 	"store"
+	"node"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -19,7 +20,7 @@ func Test(t *testing.T) {
 }
 
 type ScopeTest struct {
-	baseScopeTest
+	baseReplicaTest
 }
 
 var _ = gocheck.Suite(&ScopeTest{})
@@ -30,6 +31,20 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 	instance := s.scope.makeInstance(instructions)
 	c.Check(instance.MaxBallot, gocheck.Equals, uint32(0))
 	c.Check(instance.LeaderID, gocheck.Equals, s.scope.GetLocalID())
+
+	// check successors
+	c.Assert(len(instance.Successors), gocheck.Equals, s.numNodes - 1)
+	expected := make(map[node.NodeId]bool)
+	for _, n := range s.nodes {
+		if n.GetId() != s.manager.GetLocalID() {
+			expected[n.GetId()] = true
+		}
+	}
+	actual := make(map[node.NodeId]bool)
+	for _, nid := range instance.Successors {
+		actual[nid] = true
+	}
+	c.Check(actual, gocheck.DeepEquals, expected)
 }
 
 func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -344,10 +345,17 @@ func (s *Scope) getNextSeqUnsafe() uint64 {
 
 // creates a bare epaxos instance from the given instructions
 func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
+	replicas := s.manager.getScopeReplicas(s)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     s.GetLocalID(),
 		Commands:     instructions,
+		Successors:   make([]node.NodeId, len(replicas)),
+	}
+
+	// add randomly ordered successors
+	for i, j := range rand.Perm(len(replicas)) {
+		instance.Successors[i] = replicas[j].GetId()
 	}
 
 	return instance
