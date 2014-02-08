@@ -312,6 +312,16 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+// requests that the prepare successor
+// initiate a prepare phase
+type PrepareSuccessorRequest struct {
+	InstanceID InstanceID
+}
+
+type PrepareSuccessorResponse struct {
+	Instance *Instance
+}
+
 type InstanceRequest struct {
 	// the scope name the message
 	// is going to
