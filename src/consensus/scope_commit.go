@@ -58,12 +58,8 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 		return err
 	}
 
-	// wake up any goroutines waiting on this instance,
-	// and remove the conditional from the notify map
-	if cond, ok := s.commitNotify[instance.InstanceID]; ok {
-		cond.Broadcast()
-		delete(s.commitNotify, instance.InstanceID)
-	}
+	// wake up any goroutines waiting on this instance
+	instance.broadcastCommitEvent()
 	s.statCommitCount++
 
 	logger.Debug("Commit: success for Instance: %v", instance.InstanceID)

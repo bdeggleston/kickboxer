@@ -15,7 +15,6 @@ import (
 
 import (
 	"store"
-	"runtime"
 )
 
 // sorts the strongly connected subgraph components
@@ -257,29 +256,6 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 	var uncommitted []*Instance
 	uncommitted = s.getUncommittedInstances(exOrder)
 
-	getCommitNotify := func(inst *Instance) <- chan bool {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-
-		// get or create broadcast object
-		cond, ok := s.commitNotify[inst.InstanceID]
-		if !ok {
-			cond = makeConditional()
-			s.commitNotify[inst.InstanceID] = cond
-		}
-
-		broadcastEvent := make(chan bool)
-		go func() {
-			cond.L.Lock()
-			cond.Wait()
-			cond.L.Unlock()
-			broadcastEvent <- true
-		}()
-		runtime.Gosched()
-		return broadcastEvent
-	}
-
-
 	for len(uncommitted) > 0 {
 		s.debugInstanceLog(instance, "Execute, %v uncommitted: %+v", len(uncommitted), uncommitted)
 		wg := sync.WaitGroup{}
@@ -297,13 +273,12 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 						ballotErr = true
 
 						// wait on broadcast event or timeout
-						broadcastEvent := getCommitNotify(inst)
 						waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(i + 1)
 						waitTime += uint64(rand.Uint32()) % (waitTime / 2)
 						logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
-						case <-broadcastEvent:
+						case <- instance.getCommitEvent().wait():
 							// another goroutine committed
 							// the instance
 							success = true

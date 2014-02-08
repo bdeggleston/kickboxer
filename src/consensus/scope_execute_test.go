@@ -177,11 +177,11 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	runtime.Gosched()
 
 	// 'commit' and notify while prepare waits
-	commitNotify := s.scope.commitNotify[s.toPrepare.InstanceID]
-	c.Assert(commitNotify, gocheck.NotNil)
+	s.toPrepare.getCommitEvent()
+	c.Assert(s.toPrepare.commitEvent, gocheck.NotNil)
 	cerr := s.scope.commitInstance(s.toPrepare, false)
 	c.Assert(cerr, gocheck.IsNil)
-	commitNotify.Broadcast()
+	s.toPrepare.broadcastCommitEvent()
 
 	executeNotify.L.Lock()
 	executeNotify.Wait()

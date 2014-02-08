@@ -389,7 +389,7 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 	}
 
 	for _, nid := range instance.Successors {
-
+		_ = nid
 	}
 	return true, nil
 }
@@ -413,25 +413,9 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 		s.statCommitTimeout++
 	} else {
 		logger.Debug("Prepare: waiting on commit grace period to expire")
-		// get or create broadcast object
-		cond, ok := s.commitNotify[instance.InstanceID]
-		if !ok {
-			cond = makeConditional()
-			s.commitNotify[instance.InstanceID] = cond
-		}
-
-		// wait on broadcast event or timeout
-		broadcastEvent := make(chan bool)
-		go func() {
-			cond.L.Lock()
-			cond.Wait()
-			cond.L.Unlock()
-			broadcastEvent <- true
-		}()
-		timeoutEvent := getTimeoutEvent(instance.commitTimeout.Sub(time.Now()))
 		s.lock.Unlock()
 		select {
-		case <- broadcastEvent:
+		case <- instance.getCommitEvent().wait():
 			// TODO: fix uneccesary locking
 			// prevent double unlock panic
 			s.lock.Lock()
@@ -439,7 +423,7 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
 			return false
-		case <- timeoutEvent:
+		case <- getTimeoutEvent(instance.commitTimeout.Sub(time.Now())):
 			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
 			// execution timed out
 			s.lock.Lock()

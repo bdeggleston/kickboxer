@@ -245,6 +245,14 @@ func (i *Instance) getCommitEvent() *event {
 	return i.commitEvent
 }
 
+func (i *Instance) broadcastCommitEvent() {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	if i.commitEvent != nil {
+		i.commitEvent.broadcast()
+	}
+}
+
 func (i *Instance) getExecuteEvent() *event {
 	i.lock.Lock()
 	defer i.lock.Unlock()
@@ -252,6 +260,14 @@ func (i *Instance) getExecuteEvent() *event {
 		i.executeEvent = newEvent()
 	}
 	return i.executeEvent
+}
+
+func (i *Instance) broadcastExecuteEvent() {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	if i.executeEvent != nil {
+		i.executeEvent.broadcast()
+	}
 }
 
 // merges sequence and dependencies onto this instance, and returns

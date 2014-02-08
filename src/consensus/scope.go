@@ -237,9 +237,6 @@ type Scope struct {
 	manager      *Manager
 	persistCount uint64
 
-	// wakes up goroutines waiting on instance commits
-	commitNotify map[InstanceID]*sync.Cond
-
 	// wakes up goroutines waiting on instance executions
 	executeNotify map[InstanceID]*sync.Cond
 
@@ -296,7 +293,6 @@ func NewScope(name string, manager *Manager) *Scope {
 		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 		manager:    manager,
-		commitNotify: make(map[InstanceID]*sync.Cond),
 		executeNotify: make(map[InstanceID]*sync.Cond),
 		prepareLock: make(map[InstanceID]*sync.Mutex),
 	}

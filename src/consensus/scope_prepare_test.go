@@ -281,8 +281,7 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 	s.scope.preAcceptInstance(s.instance, false)
 	s.instance.commitTimeout = time.Now().Add(time.Duration(10) * time.Second)
 
-	depNotify := makeConditional()
-	s.scope.commitNotify[s.instance.InstanceID] = depNotify
+	s.instance.getCommitEvent()
 
 	prepareCalls := 0
 	scopePreparePhase = func(s *Scope, i *Instance) error {
@@ -297,7 +296,7 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 	runtime.Gosched()
 
 	// release wait
-	depNotify.Broadcast()
+	s.instance.broadcastCommitEvent()
 	runtime.Gosched()
 
 	c.Assert(err, gocheck.IsNil)
