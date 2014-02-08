@@ -131,6 +131,7 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 		Dependencies: deps,
 		Sequence:     0,
 		Status:       INSTANCE_PREACCEPTED,
+		Successors:   make([]node.NodeId, 0),
 	}
 	return instance
 }
