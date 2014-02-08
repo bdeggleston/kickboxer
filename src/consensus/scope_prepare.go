@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -339,19 +338,8 @@ var scopePreparePhase2 = func(s *Scope, instance *Instance, responses []*Prepare
 }
 
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
-	getPrepareMutex := func() *sync.Mutex {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		lock := s.prepareLock[instance.InstanceID]
-		if lock == nil {
-			lock = &sync.Mutex{}
-			s.prepareLock[instance.InstanceID] = lock
-		}
-		return lock
-	}
-	pLock := getPrepareMutex()
-	pLock.Lock()
-	defer pLock.Unlock()
+	instance.prepareLock.Lock()
+	defer instance.prepareLock.Unlock()
 
 	// check if the instance has been committed
 	isCommitted := func() bool {
