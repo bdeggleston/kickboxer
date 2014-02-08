@@ -33,8 +33,11 @@ const (
 	MESSAGE_PREPARE_REQUEST = uint32(1007)
 	MESSAGE_PREPARE_RESPONSE = uint32(1008)
 
-	MESSAGE_INSTANCE_REQUEST = uint32(1009)
-	MESSAGE_INSTANCE_RESPONSE = uint32(1010)
+	MESSAGE_PREPARE_SUCCESSOR_REQUEST = uint32(1009)
+	MESSAGE_PREPARE_SUCCESSOR_RESPONSE = uint32(1010)
+
+	MESSAGE_INSTANCE_REQUEST = uint32(1011)
+	MESSAGE_INSTANCE_RESPONSE = uint32(1012)
 )
 
 type PreAcceptRequest struct {
@@ -315,11 +318,55 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 // requests that the prepare successor
 // initiate a prepare phase
 type PrepareSuccessorRequest struct {
+	Scope string
 	InstanceID InstanceID
+}
+
+func (m *PrepareSuccessorRequest) GetScope() string { return m.Scope }
+
+func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_REQUEST }
+
+func (m *PrepareSuccessorRequest) Serialize(buf *bufio.Writer) error   {
+	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
+	if err := serializer.WriteFieldString(buf, string(m.InstanceID)); err != nil { return err }
+	return nil
+}
+
+func (m *PrepareSuccessorRequest) Deserialize(buf *bufio.Reader) error {
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.Scope = val
+	}
+	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
+		m.InstanceID = InstanceID(val)
+	}
+	return nil
 }
 
 type PrepareSuccessorResponse struct {
 	Instance *Instance
+}
+
+func (m *PrepareSuccessorResponse) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_RESPONSE }
+
+func (m *PrepareSuccessorResponse) Serialize(buf *bufio.Writer) error   {
+	var isNil byte
+	if m.Instance == nil { isNil = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &isNil); err != nil { return err }
+	if m.Instance != nil {
+		if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	}
+	return nil
+}
+
+func (m *PrepareSuccessorResponse) Deserialize(buf *bufio.Reader) error {
+	var isNil byte
+	if err := binary.Read(buf, binary.LittleEndian, &isNil); err != nil { return err }
+	if isNil == 0x0 {
+		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
+			m.Instance = val
+		}
+	}
+	return nil
 }
 
 type InstanceRequest struct {
@@ -400,6 +447,9 @@ func init() {
 
 	message.RegisterMessage(MESSAGE_PREPARE_REQUEST, func() message.Message { return &PrepareRequest{} })
 	message.RegisterMessage(MESSAGE_PREPARE_RESPONSE, func() message.Message { return &PrepareResponse{} })
+
+	message.RegisterMessage(MESSAGE_PREPARE_SUCCESSOR_REQUEST, func() message.Message { return &PrepareSuccessorRequest{} })
+	message.RegisterMessage(MESSAGE_PREPARE_SUCCESSOR_RESPONSE, func() message.Message { return &PrepareSuccessorResponse{} })
 
 	message.RegisterMessage(MESSAGE_INSTANCE_REQUEST, func() message.Message { return &InstanceRequest{} })
 	message.RegisterMessage(MESSAGE_INSTANCE_RESPONSE, func() message.Message { return &InstanceResponse{} })

@@ -168,6 +168,52 @@ func (s *ConsensusMessageTest) TestPrepareResponseNoInstance(c *gocheck.C) {
 	c.Check(dst, gocheck.DeepEquals, src)
 }
 
+func (s *ConsensusMessageTest) TestPrepareSuccessorRequest(c *gocheck.C) {
+	var err error
+	buf := &bytes.Buffer{}
+	src := &PrepareSuccessorRequest{
+		Scope:      "123",
+		InstanceID: NewInstanceID(),
+	}
+
+	err = message.WriteMessage(buf, src)
+	c.Assert(err, gocheck.IsNil)
+
+	dst, err := message.ReadMessage(buf)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(dst, gocheck.DeepEquals, src)
+}
+
+func (s *ConsensusMessageTest) TestPrepareSuccessorResponse(c *gocheck.C) {
+	var err error
+	buf := &bytes.Buffer{}
+	src := &PrepareSuccessorResponse{
+		Instance: makeInstance(node.NewNodeId(), makeDependencies(3)),
+	}
+
+	err = message.WriteMessage(buf, src)
+	c.Assert(err, gocheck.IsNil)
+
+	dst, err := message.ReadMessage(buf)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(dst, gocheck.DeepEquals, src)
+}
+
+func (s *ConsensusMessageTest) TestPrepareSuccessorResponseNoInstance(c *gocheck.C) {
+	var err error
+	buf := &bytes.Buffer{}
+	src := &PrepareSuccessorResponse{
+		Instance: nil,
+	}
+
+	err = message.WriteMessage(buf, src)
+	c.Assert(err, gocheck.IsNil)
+
+	dst, err := message.ReadMessage(buf)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(dst, gocheck.DeepEquals, src)
+}
+
 func (s *ConsensusMessageTest) TestInstanceRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
