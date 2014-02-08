@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -42,6 +43,7 @@ var _test_seed = flag.Int64("test.seed", 0, "the random seed to use")
 var _test_queries = flag.Int("test.queries", 1000, "the number of queries to run")
 var _test_replicas = flag.Int("test.replicas", 5, "the number of replicas in the test cluster")
 var _test_concurrent_queries = flag.Int("test.concurrent", 10, "the number of concurrent queries to run")
+var _test_cpu_profile = flag.Bool("test.profile", false, "profile the integration test")
 
 func init() {
 	flag.Parse()
@@ -192,12 +194,12 @@ func (c *opsCtrl) reactor() {
 					c.c.Logf("** Delaying %T for node: %v for %v ticks", msgEvnt.msg, indexMap[nid], delay)
 					break
 				} else {
-					handleMessage(msgEvnt)
+					go handleMessage(msgEvnt)
 					c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 				}
 			} else {
 				nid := msgEvnt.node.id
-				handleMessage(msgEvnt)
+				go handleMessage(msgEvnt)
 				c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 			}
 			runtime.Gosched()
@@ -212,11 +214,6 @@ func (c *opsCtrl) reactor() {
 			timeBacklog = append(timeBacklog, backLog)
 			c.c.Logf("Handling timeout request")
 			runtime.Gosched()
-//		default:
-//			// don't just spin
-////			c.c.Log("No new events, yielding thread")
-//			time.Sleep(time.Duration(100) * time.Millisecond)
-//			runtime.Gosched()
 		}
 
 		oldMsgBacklog := msgBacklog
@@ -304,11 +301,30 @@ func (c *opsCtrl) reactor() {
 			for _, scope := range scopes {
 				scope.lock.Lock()
 			}
-			numInst := make([]int, len(c.nodes))
+			var numInst []int
+			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
 				numInst[x] = len(scope.instances)
 			}
 			fmt.Printf("%v <- known instances\n", numInst)
+
+			numInst = make([]int, len(c.nodes))
+			for x, scope := range scopes {
+				numInst[x] = len(scope.inProgress)
+			}
+			fmt.Printf("%v <- in progress instances\n", numInst)
+
+			numInst = make([]int, len(c.nodes))
+			for x, scope := range scopes {
+				numInst[x] = len(scope.committed)
+			}
+			fmt.Printf("%v <- committed instances\n", numInst)
+
+			numInst = make([]int, len(c.nodes))
+			for x, scope := range scopes {
+				numInst[x] = len(scope.executed)
+			}
+			fmt.Printf("%v <- executed instances\n", numInst)
 
 			exMax := 0
 			exSizeMax := 0
@@ -516,32 +532,43 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 }
 
 func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
-	oldPreacceptTimeout := PREACCEPT_TIMEOUT
-	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT / 2
-	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
-	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT / 2
-	oldAcceptTimeout := ACCEPT_TIMEOUT
-	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT / 2
-	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
-	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT / 2
-	oldPrepareTimeout := PREPARE_TIMEOUT
-	PREPARE_TIMEOUT = PREPARE_TIMEOUT / 2
-	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
-	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT / 2
-	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
-	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME / 2
-	oldExecuteTimeout := EXECUTE_TIMEOUT
-	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT / 2
-	defer func() {
-		PREACCEPT_TIMEOUT = oldPreacceptTimeout
-		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
-		ACCEPT_TIMEOUT = oldAcceptTimeout
-		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
-		PREPARE_TIMEOUT = oldPrepareTimeout
-		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
-		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
-		EXECUTE_TIMEOUT = oldExecuteTimeout
-	}()
+	if *_test_cpu_profile {
+		fmt.Println("profiling")
+		f, err := os.Create("integration_test.prof")
+		if err != nil { panic(err) }
+		err = pprof.StartCPUProfile(f)
+		if err != nil { panic(err) }
+		defer func() {
+			pprof.StopCPUProfile()
+			f.Close()
+		}()
+	}
+//	oldPreacceptTimeout := PREACCEPT_TIMEOUT
+//	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT * 2
+//	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
+//	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT * 2
+//	oldAcceptTimeout := ACCEPT_TIMEOUT
+//	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT * 2
+//	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
+//	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT * 2
+//	oldPrepareTimeout := PREPARE_TIMEOUT
+//	PREPARE_TIMEOUT = PREPARE_TIMEOUT * 2
+//	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
+//	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT * 2
+//	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
+//	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME * 2
+//	oldExecuteTimeout := EXECUTE_TIMEOUT
+//	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT * 2
+//	defer func() {
+//		PREACCEPT_TIMEOUT = oldPreacceptTimeout
+//		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
+//		ACCEPT_TIMEOUT = oldAcceptTimeout
+//		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
+//		PREPARE_TIMEOUT = oldPrepareTimeout
+//		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
+//		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
+//		EXECUTE_TIMEOUT = oldExecuteTimeout
+//	}()
 
 
 	semaphore := make(chan bool, *_test_concurrent_queries)
@@ -553,11 +580,11 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 		c.Logf("Iteration %v", i)
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
+		semaphore <- true
 		go func() {
-			semaphore <- true
 			_, err := manager.ExecuteQuery(instructions)
 			if err != nil {
-				fmt.Printf("FAILED QUERY: %v", err)
+				fmt.Printf("FAILED QUERY: %v\n", err)
 				errors++
 			}
 			<- semaphore
@@ -566,9 +593,6 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 		runtime.Gosched()
 	}
 	wg.Wait()
-	for len(semaphore) > 0 {
-		time.Sleep(time.Duration(1) * time.Millisecond)
-	}
 	c.Logf("%v queries completed with %v failed client requests\n", numQueries, errors)
 	c.Logf("Test completed with seed: %v\n", s.seedVal)
 }

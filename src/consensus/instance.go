@@ -3,6 +3,7 @@ package consensus
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -221,6 +222,32 @@ type Instance struct {
 	// the command to be executed by ExecuteQuery
 	// * not message serialized *
 	executeTimeout time.Time
+
+	// locking
+	lock sync.RWMutex
+
+	prepareLock sync.Mutex
+
+	commitEvent *event
+	executeEvent *event
+}
+
+func (i *Instance) getCommitEvent() *event {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	if i.commitEvent == nil {
+		i.commitEvent = newEvent()
+	}
+	return i.commitEvent
+}
+
+func (i *Instance) getExecuteEvent() *event {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	if i.executeEvent == nil {
+		i.executeEvent = newEvent()
+	}
+	return i.executeEvent
 }
 
 // merges sequence and dependencies onto this instance, and returns
