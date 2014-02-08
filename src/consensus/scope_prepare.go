@@ -376,6 +376,25 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	return nil
 }
 
+// TODO: test alone
+// attempts to defer the prepare phase to successor nodes
+// returns a bool indicating if the prepare should proceed locally
+func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
+
+	// make a map of replicas
+	replicas := s.manager.getScopeReplicas(s)
+	replicaMap := make(map[node.NodeId]node.Node, len(replicas))
+	for _, replica := range replicas {
+		replicaMap[replica.GetId()] = replica
+	}
+
+	for _, nid := range instance.Successors {
+
+	}
+	return true, nil
+}
+
+// TODO: test alone
 // determines a prepare phase should proceed for the given instance
 // will block if waiting on a timeout / notification
 func (s *Scope) prepareShouldProceed(instance *Instance) bool {
