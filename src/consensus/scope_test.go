@@ -1,12 +1,14 @@
 package consensus
 
 import (
+	"flag"
 	"testing"
 	"time"
 )
 
 import (
 	"launchpad.net/gocheck"
+	logging "github.com/op/go-logging"
 )
 
 import (
@@ -14,8 +16,24 @@ import (
 	"node"
 )
 
+var _test_loglevel = flag.String("test.loglevel", "", "the loglevel to run tests with")
+
+func init() {
+	flag.Parse()
+}
+
 // Hook up gocheck into the "go test" runner.
 func Test(t *testing.T) {
+
+	// setup test suite logging
+	logLevel := logging.CRITICAL
+	if *_test_loglevel != "" {
+		if level, err := logging.LogLevel(*_test_loglevel); err == nil {
+			logLevel = level
+		}
+	}
+	logging.SetLevel(logLevel, "consensus")
+
 	gocheck.TestingT(t)
 }
 

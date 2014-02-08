@@ -122,7 +122,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	var err error
 	buf := &bytes.Buffer{}
 	if n.partition {
-		fmt.Println("Skipping sent message from partitioned node")
+		logger.Debug("Skipping sent message from partitioned node")
 		return nil, fmt.Errorf("Partition")
 	}
 	n.lock.Lock()
@@ -150,7 +150,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 		return nil, err
 //		panic(err)
 	}
-	fmt.Printf("Response size: %v\n", len(buf.Bytes()))
+	logger.Debug("Response size: %v\n", len(buf.Bytes()))
 	dstResponse, err := message.ReadMessage(buf)
 	n.lock.Unlock()
 	if err != nil {
