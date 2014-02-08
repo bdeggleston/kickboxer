@@ -376,22 +376,22 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	return nil
 }
 
-// runs explicit prepare phase on instances where a command leader failure is suspected
-// during execution,
-func (s *Scope) preparePhase(instance *Instance) error {
+// determines a prepare phase should proceed for the given instance
+// will block if waiting on a timeout / notification
+func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 	s.lock.Lock()
-	logger.Debug("Prepare phase started for %v with status %v", instance.InstanceID, instance.Status)
-	status := instance.Status
-	if status >= INSTANCE_COMMITTED {
-		s.lock.Unlock()
-		return nil
+	defer s.lock.Unlock()
+
+	// bail out if the instance has already been committed
+	if instance.Status >= INSTANCE_COMMITTED {
+		return false
 	}
+
 	if time.Now().After(instance.commitTimeout) {
 		logger.Debug("Prepare: commit grace period expired. proceeding")
 		// proceed, the instance's commit grace period
 		// has expired
 		s.statCommitTimeout++
-		s.lock.Unlock()
 	} else {
 		logger.Debug("Prepare: waiting on commit grace period to expire")
 		// get or create broadcast object
@@ -413,10 +413,13 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		s.lock.Unlock()
 		select {
 		case <- broadcastEvent:
+			// TODO: fix uneccesary locking
+			// prevent double unlock panic
+			s.lock.Lock()
 			logger.Debug("Prepare: commit broadcast event received for %v", instance.InstanceID)
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
-			return nil
+			return false
 		case <- timeoutEvent:
 			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
 			// execution timed out
@@ -426,14 +429,22 @@ func (s *Scope) preparePhase(instance *Instance) error {
 			// waking goroutine
 			if instance.Status >= INSTANCE_COMMITTED {
 				// unlock and continue if it was
-				s.lock.Unlock()
-				return nil
+				return false
 			} else {
 				s.statCommitTimeout++
 				s.statCommitTimeoutWait++
-				s.lock.Unlock()
 			}
 		}
+	}
+	return true
+}
+
+// runs explicit prepare phase on instances where a command leader failure is suspected
+// during execution,
+func (s *Scope) preparePhase(instance *Instance) error {
+
+	if !s.prepareShouldProceed(instance) {
+		return nil
 	}
 
 	logger.Debug("Prepare phase started")
