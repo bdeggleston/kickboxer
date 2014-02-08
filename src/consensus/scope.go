@@ -199,7 +199,7 @@ func newEvent() *event {
 	return &event{cond: sync.NewCond(&sync.Mutex{})}
 }
 
-func (e *event) wait() <- chan bool {
+func (e *event) getChan() <- chan bool {
 	c := make(chan bool)
 	go func() {
 		e.cond.L.Lock()
@@ -208,6 +208,10 @@ func (e *event) wait() <- chan bool {
 		c <- true
 	}()
 	return c
+}
+
+func (e *event) wait() {
+	<- e.getChan()
 }
 
 func (e *event) broadcast() {
@@ -236,9 +240,6 @@ type Scope struct {
 	cmdLock      sync.Mutex
 	manager      *Manager
 	persistCount uint64
-
-	// wakes up goroutines waiting on instance executions
-	executeNotify map[InstanceID]*sync.Cond
 
 	// prevents multiple goroutines from attempting
 	// an explicit prepare on the same instance
@@ -293,7 +294,6 @@ func NewScope(name string, manager *Manager) *Scope {
 		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 		manager:    manager,
-		executeNotify: make(map[InstanceID]*sync.Cond),
 		prepareLock: make(map[InstanceID]*sync.Mutex),
 	}
 }
