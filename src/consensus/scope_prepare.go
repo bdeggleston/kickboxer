@@ -475,3 +475,20 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	logger.Debug("Prepare message for %v replied with accept: %v (%v)", request.InstanceID, response.Accepted, responseBallot)
 	return response, nil
 }
+
+// handles a message from a replica requesting that a prepare phase is executed on the given instance
+func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*PrepareSuccessorResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	response := &PrepareSuccessorResponse{}
+	if instance, ok := s.instances[request.InstanceID]; ok {
+		response.Instance = instance
+		if instance.Status < INSTANCE_COMMITTED {
+			go s.preparePhase(instance)
+		}
+	}
+	return response, nil
+}
+
+
+

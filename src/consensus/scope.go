@@ -71,6 +71,16 @@ If a commit timeout occurs and the node it occurs in is the first in line, it wi
 When non leader node calculates a commit timeout, it should use it's position in the successor list as
 a variable in computing it.
 
+When should a prepare successor request be sent, and what should be done when one is received?
+	Should it just be like a heartbeat route that returns a copy of the requested instance?
+	It should check if the instance has been committed, and initiate a prepare phase if it hasn't. The prepare
+		phase can keep track of when and if to prepare. As long as there's a prepare mutex on an instance,
+		this should be ok.
+	If the instance is not known to the successor, it should return a nil instance, indicating the next
+		successor should be tried
+
+TODO: remove commit timeouts, replace with last activity (last message sent received)
+
 TODO: make the prepare phase a bit smarter
 
 Prepare phase improvement:
@@ -83,6 +93,12 @@ If any response has a committed or executed messages, a commit message should be
 TODO: work out a way to prioritize the completion of existing commands vs the processing of new ones
 
 TODO: implement instance level locking
+
+Instance level locking would allow multiple instances to be serviced concurrently, even if they belong to
+the same scope. Would need to add a method to get or set instances on scope, get instances, and a method
+of updating both instance attributes and scope bookkeeping while both are locked. May need to move some
+functionality onto the instance, and make all instances aware of the local scope (could be handled in the
+get or set method)
 
 1) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
