@@ -189,6 +189,31 @@ func makeConditional() *sync.Cond {
 	return sync.NewCond(lock)
 }
 
+// wraps the conditional struct
+// and handles all of the locking
+type event struct {
+	cond *sync.Cond
+}
+
+func newEvent() *event {
+	return &event{cond: sync.NewCond(&sync.Mutex{})}
+}
+
+func (e *event) wait() <- chan bool {
+	c := make(chan bool)
+	go func() {
+		e.cond.L.Lock()
+		e.cond.Wait()
+		e.cond.L.Unlock()
+		c <- true
+	}()
+	return c
+}
+
+func (e *event) broadcast() {
+	e.cond.Broadcast()
+}
+
 var consensusTimeoutEvent = func(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
