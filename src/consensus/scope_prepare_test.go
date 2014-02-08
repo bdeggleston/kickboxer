@@ -748,3 +748,53 @@ func (s *PrepareReplicaTest) TestUnknownInstance(c *gocheck.C) {
 func (s *PrepareReplicaTest) TestSuccessfulPrepareMessageIncrementsBallot(c *gocheck.C) {
 
 }
+
+// tests behavior of non successor instances requiring prepares
+type SuccessorPreparePhaseTest struct {
+	basePrepareTest
+}
+
+var _ = gocheck.Suite(&SuccessorPreparePhaseTest{})
+
+// tests that calling prepare will defer to successors
+func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
+
+}
+
+// tests that calling prepare will go to the next successor if the first
+// does not respond
+func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
+
+}
+
+// tests that a node will run the prepare phase itself if the preceding
+// successors do not respond
+func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
+
+}
+
+type HandlePrepareSuccessorRequestTest struct {
+	basePrepareTest
+}
+
+var _ = gocheck.Suite(&HandlePrepareSuccessorRequestTest{})
+
+// tests that the prepare phase method is called asynchronously
+// if the instance has not been committed
+func (s HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C) {
+
+}
+
+// tests that the prepare phase method is not called
+// if the instance has been committed
+func (s HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) {
+
+}
+
+// tests that a nil instance is returned if the success doesn't
+// know about the instance
+func (s HandlePrepareSuccessorRequestTest) TestUnknownInstance(c *gocheck.C) {
+
+}
+
+
