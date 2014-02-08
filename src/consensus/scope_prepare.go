@@ -47,6 +47,7 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance
 	return instance
 }
 
+// TODO: not used/done yet, replaces analyzePrepareResponses
 // transforms the local instance from the prepare responses
 func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstance *Instance) (*Instance, error) {
 	var maxBallot uint32
@@ -377,7 +378,56 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 	}
 
 	for _, nid := range instance.Successors {
-		_ = nid
+		if nid == s.GetLocalID() {
+			break
+		}
+		if replica, exists := replicaMap[nid]; exists {
+			recvChan := make(chan *PrepareSuccessorResponse)
+			go func() {
+				msg := &PrepareSuccessorRequest{InstanceID: instance.InstanceID, Scope: s.name}
+				logger.Debug("Prepare Successor: Sending message to node %v for instance %v", replica.GetId(), instance.InstanceID)
+				if response, err := replica.SendMessage(msg); err != nil {
+					logger.Warning("Error receiving PreAcceptResponse: %v", err)
+				} else {
+					if preAccept, ok := response.(*PrepareSuccessorResponse); ok {
+						logger.Debug("Preaccept: response received from node %v for instance %v", replica.GetId(), instance.InstanceID)
+						recvChan <- preAccept
+					} else {
+						logger.Warning("Unexpected Prepare Successor response type: %T", response)
+					}
+				}
+			}()
+			var response *PrepareSuccessorResponse
+			select {
+			case response = <- recvChan:
+				if response.Instance == nil {
+					// successor is not aware of instance, go to the next successor
+				}
+
+				updateInstance := func() error {
+					s.lock.Lock()
+					defer s.lock.Unlock()
+					if response.Instance.Status > instance.Status {
+						switch response.Instance.Status {
+						case INSTANCE_ACCEPTED:
+							return s.acceptInstanceUnsafe(instance, false)
+						case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+							return s.commitInstanceUnsafe(instance, false)
+						}
+					}
+					return nil
+				}
+				if err := updateInstance(); err != nil {
+					return false, err
+				}
+				return false, nil
+
+			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
+				// timeout, go to the next successor
+
+			}
+		}
+
 	}
 	return true, nil
 }

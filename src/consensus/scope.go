@@ -42,6 +42,14 @@ var (
 	// before attempting to force a commit again
 	PREPARE_COMMIT_TIMEOUT = PREPARE_TIMEOUT + (PREPARE_TIMEOUT / 2)
 
+	// the amount of time a node will wait on a
+	// successor response before timing out
+	SUCCESSOR_TIMEOUT = uint64(500)
+
+	// how often a node should check that the
+	// successor is up while waiting on a prepare phase
+	SUCCESSOR_CONTACT_INTERVAL = uint64(500)
+
 	// wait period between retrying operations
 	// that failed due to ballot failures
 	BALLOT_FAILURE_WAIT_TIME = uint64(250)
