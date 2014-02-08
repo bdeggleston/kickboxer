@@ -226,8 +226,12 @@ type Instance struct {
 	// locking
 	lock sync.RWMutex
 
+	// lock preventing multiple threads from
+	// running a prepare phase simultaneously
 	prepareLock sync.Mutex
 
+	// events that wait on commit/execute so dependent
+	// threads are notified immediately
 	commitEvent *event
 	executeEvent *event
 }
