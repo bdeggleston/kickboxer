@@ -282,6 +282,11 @@ func instructionDeserialize(buf *bufio.Reader) (*store.Instruction, error) {
 func instanceLimitedSerialize(instance *Instance, buf *bufio.Writer) error {
 	if err := serializer.WriteFieldString(buf, string(instance.InstanceID)); err != nil { return err }
 	if err := serializer.WriteFieldString(buf, string(instance.LeaderID)); err != nil { return err }
+	numSuccessors := uint32(len(instance.Successors))
+	if err := binary.Write(buf, binary.LittleEndian, &numSuccessors); err != nil { return err }
+	for _, nid := range instance.Successors {
+		if err := serializer.WriteFieldString(buf, string(nid)); err != nil { return err }
+	}
 	numInstructions := uint32(len(instance.Commands))
 	if err := binary.Write(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
 	for _, inst := range instance.Commands {
@@ -315,6 +320,15 @@ func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	}
 	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
 		instance.LeaderID = node.NodeId(val)
+	}
+
+	var numSuccessors uint32
+	if err := binary.Read(buf, binary.LittleEndian, &numSuccessors); err != nil { return nil, err }
+	instance.Successors = make([]node.NodeId, numSuccessors)
+	for i := range instance.Successors {
+		if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
+			instance.Successors[i] = node.NodeId(val)
+		}
 	}
 
 	var numInstructions uint32
