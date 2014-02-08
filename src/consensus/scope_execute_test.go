@@ -166,26 +166,25 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 // tests that an explicit prepare which is retried, will wait before
 // retrying, but will abort if a commit notify event is broadcasted
 func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
+	// TODO: I think this test is actually waiting 10 seconds
+	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
 	BALLOT_FAILURE_WAIT_TIME = uint64(10000)
+	defer func() { BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime }()
 	s.patchPreparePhase(NewBallotError("nope"), false)
 
-	executeNotify := makeConditional()
-	s.scope.executeNotify[s.toExecute.InstanceID] = executeNotify
+	s.toExecute.getExecuteEvent()
 	var val store.Value
 	var err error
 	go func() { val, err = s.scope.executeInstance(s.toExecute) }()
 	runtime.Gosched()
 
 	// 'commit' and notify while prepare waits
-	s.toPrepare.getCommitEvent()
 	c.Assert(s.toPrepare.commitEvent, gocheck.NotNil)
 	cerr := s.scope.commitInstance(s.toPrepare, false)
 	c.Assert(cerr, gocheck.IsNil)
 	s.toPrepare.broadcastCommitEvent()
 
-	executeNotify.L.Lock()
-	executeNotify.Wait()
-	executeNotify.L.Unlock()
+	s.toExecute.getExecuteEvent().wait()
 	c.Assert(val, gocheck.NotNil)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
@@ -437,8 +436,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	var val store.Value
 	var err error
 
-	depNotify := makeConditional()
-	s.scope.executeNotify[depInst.InstanceID] = depNotify
+	depInst.getExecuteEvent()
 
 	go func() { val, err = s.scope.executeInstance(targetInst) }()
 	runtime.Gosched()  // yield
@@ -447,7 +445,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	c.Check(int(s.scope.statExecuteCount), gocheck.Equals, 0)
 
 	// release wait
-	depNotify.Broadcast()
+	depInst.broadcastExecuteEvent()
 	runtime.Gosched()
 
 	c.Assert(err, gocheck.IsNil)
@@ -542,29 +540,24 @@ func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	s.scope.commitInstance(instance, false)
-	s.scope.executeNotify[instance.InstanceID] = makeConditional()
+	instance.getExecuteEvent()
 
 	broadcast := false
 	broadcastListener := func() {
-		cond := s.scope.executeNotify[instance.InstanceID]
-		c.Check(cond, gocheck.NotNil)
-		cond.L.Lock()
-		cond.Wait()
-		cond.L.Unlock()
+		instance.getExecuteEvent().wait()
 		broadcast = true
 	}
 	go broadcastListener()
 	runtime.Gosched() // yield goroutine
 
 	c.Check(broadcast, gocheck.Equals, false)
-	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.NotNil)
+	c.Check(instance.executeEvent, gocheck.NotNil)
 
 	_, err := s.scope.applyInstance(instance)
 	runtime.Gosched() // yield goroutine
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(broadcast, gocheck.Equals, true)
-	c.Check(s.scope.executeNotify[instance.InstanceID], gocheck.IsNil)
 }
 
 // tests that apply instance marks the instance as

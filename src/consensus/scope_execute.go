@@ -145,12 +145,8 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	}
 	s.statExecuteCount++
 
-	// wake up any goroutines waiting on this instance,
-	// and remove the conditional from the notify map
-	if cond, ok := s.executeNotify[instance.InstanceID]; ok {
-		cond.Broadcast()
-		delete(s.executeNotify, instance.InstanceID)
-	}
+	// wake up any goroutines waiting on this instance
+	instance.broadcastExecuteEvent()
 
 	logger.Debug("Execute: success: %v on %v", instance.InstanceID, s.GetLocalID())
 	return val, nil
@@ -195,26 +191,12 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 					if err != nil { return nil, err }
 					s.statExecuteLocalTimeout++
 				} else {
-					// get or create broadcast object
-					cond, ok := s.executeNotify[instance.InstanceID]
-					if !ok {
-						cond = makeConditional()
-						s.executeNotify[instance.InstanceID] = cond
-					}
 
-					// wait on broadcast event or timeout
-					broadcastEvent := make(chan bool)
-					go func() {
-						cond.L.Lock()
-						cond.Wait()
-						cond.L.Unlock()
-						broadcastEvent <- true
-					}()
 					timeoutEvent := getTimeoutEvent(instance.executeTimeout.Sub(time.Now()))
 					s.lock.Unlock()
 
 					select {
-					case <- broadcastEvent:
+					case <- instance.getExecuteEvent().getChan():
 						// instance was executed by another goroutine
 						s.statExecuteLocalSuccessWait++
 					case <- timeoutEvent:
@@ -278,7 +260,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 						logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
-						case <- instance.getCommitEvent().wait():
+						case <- inst.getCommitEvent().getChan():
 							// another goroutine committed
 							// the instance
 							success = true
