@@ -415,7 +415,7 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 		logger.Debug("Prepare: waiting on commit grace period to expire")
 		s.lock.Unlock()
 		select {
-		case <- instance.getCommitEvent().wait():
+		case <- instance.getCommitEvent().getChan():
 			// TODO: fix uneccesary locking
 			// prevent double unlock panic
 			s.lock.Lock()
