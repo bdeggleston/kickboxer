@@ -168,6 +168,10 @@ func (s *PreAcceptLeaderTest) TestSendSuccessCase(c *gocheck.C) {
 }
 
 func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
+	// TODO: mock timeout
+	oldPreAcceptTimeout := PREACCEPT_TIMEOUT
+	PREACCEPT_TIMEOUT = uint64(50)
+	defer func(){ PREACCEPT_TIMEOUT = oldPreAcceptTimeout }()
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		newInst := copyInstance(s.instance)

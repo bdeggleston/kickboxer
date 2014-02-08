@@ -142,6 +142,10 @@ func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
 // tests that an explicit prepare is retried if it fails due to
 // a ballot failure
 func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
+	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
+	defer func() {BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime}()
+	BALLOT_FAILURE_WAIT_TIME = uint64(5)
+
 	// die once, succeed on second try
 	scopePreparePhase = func(scope *Scope, instance *Instance) error {
 		if s.preparePhaseCalls > 0 {
