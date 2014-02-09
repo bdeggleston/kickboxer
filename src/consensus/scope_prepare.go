@@ -7,7 +7,6 @@ import (
 
 import (
 	"node"
-	"code.google.com/p/go.net/html/charset"
 )
 
 // analyzes the responses to a prepare request, and returns an instance
@@ -389,8 +388,8 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 				msg := &PrepareSuccessorRequest{InstanceID: instance.InstanceID, Scope: s.name}
 				logger.Debug("Prepare Successor: Sending message to node %v for instance %v", replica.GetId(), instance.InstanceID)
 				if response, err := replica.SendMessage(msg); err != nil {
-					logger.Warning("Error receiving PreAcceptResponse: %v", err)
-					errChan <- bool
+					logger.Warning("Error receiving PrepareSuccessorResponse: %v", err)
+					errChan <- true
 				} else {
 					if preAccept, ok := response.(*PrepareSuccessorResponse); ok {
 						logger.Debug("Preaccept: response received from node %v for instance %v", replica.GetId(), instance.InstanceID)
@@ -427,8 +426,10 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 
 			case <- errChan:
 				// there was an error communicating with the successor, go to the next one
+				// the send/receive go routine handles the logging
 
 			case <- instance.getCommitEvent().getChan():
+				// instance was committed while waiting for a PrepareSuccessorResponse
 				return true, nil
 
 			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
@@ -445,39 +446,41 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 // determines a prepare phase should proceed for the given instance
 // will block if waiting on a timeout / notification
 func (s *Scope) prepareShouldProceed(instance *Instance) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	// gets the instance status and timeout in a lock
+	getStatusAndTimeout := func() (InstanceStatus, time.Time) {
+		s.lock.RLock()
+		defer s.lock.RUnlock()
+		return instance.Status, instance.commitTimeout
+	}
+
+	status, timeout := getStatusAndTimeout()
 
 	// bail out if the instance has already been committed
-	if instance.Status >= INSTANCE_COMMITTED {
+	if status >= INSTANCE_COMMITTED {
 		return false
 	}
 
-	if time.Now().After(instance.commitTimeout) {
+	if time.Now().After(timeout) {
 		logger.Debug("Prepare: commit grace period expired. proceeding")
 		// proceed, the instance's commit grace period
 		// has expired
 		s.statCommitTimeout++
 	} else {
 		logger.Debug("Prepare: waiting on commit grace period to expire")
-		s.lock.Unlock()
 		select {
 		case <- instance.getCommitEvent().getChan():
-			// TODO: fix uneccesary locking
-			// prevent double unlock panic
-			s.lock.Lock()
 			logger.Debug("Prepare: commit broadcast event received for %v", instance.InstanceID)
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
 			return false
-		case <- getTimeoutEvent(instance.commitTimeout.Sub(time.Now())):
+		case <- getTimeoutEvent(timeout.Sub(time.Now())):
 			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
 			// execution timed out
-			s.lock.Lock()
 
 			// check that instance was not executed by another
 			// waking goroutine
-			if instance.Status >= INSTANCE_COMMITTED {
+			status, _ = getStatusAndTimeout()
+			if status >= INSTANCE_COMMITTED {
 				// unlock and continue if it was
 				return false
 			} else {
@@ -497,6 +500,12 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		return nil
 	}
 
+
+	for deferPrepare, err := s.prepareDeferToSuccessor(instance); deferPrepare || err != nil; {
+		if err != nil {
+			return err
+		}
+	}
 
 	logger.Debug("Prepare phase started")
 	err := scopePreparePhase(s, instance)

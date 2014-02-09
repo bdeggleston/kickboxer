@@ -97,7 +97,11 @@ When should a prepare successor request be sent, and what should be done when on
 		successor[1] BUT successor[1] IS able to communicate with successor[0], it's ok, because the
 		prepare phase call on successorp1[ will defer to successor[0]
 
+TODO: fix all tests that take >100ms
 TODO: remove commit timeouts, replace with last activity (last message sent received)
+
+Prepare successors should increment the last activity time outs by their order in the successor list. The
+farther they are from first successor, the higher their timeout should be
 
 TODO: make the prepare phase a bit smarter
 
@@ -110,13 +114,17 @@ If any response has a committed or executed messages, a commit message should be
 
 TODO: work out a way to prioritize the completion of existing commands vs the processing of new ones
 
+Keep a count of instances in progress, and delay new queries proportionally
+
 TODO: implement instance level locking
 
 Instance level locking would allow multiple instances to be serviced concurrently, even if they belong to
-the same scope. Would need to add a method to get or set instances on scope, get instances, and a method
-of updating both instance attributes and scope bookkeeping while both are locked. May need to move some
-functionality onto the instance, and make all instances aware of the local scope (could be handled in the
-get or set method)
+the same scope, and will be really important if the idea of a scope is ditched altogether. Would need to
+add a method to get or set instances on scope, get instances, and a method of updating both instance
+attributes and scope bookkeeping while both are locked. May need to move some functionality onto the
+instance, and make all instances aware of the local scope (could be handled in the get or set method)
+
+------ older notes ------
 
 1) The scope needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
