@@ -89,6 +89,9 @@ func (s *PrepareLeaderTest) TearDownSuite(c *gocheck.C) {
 func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 	s.instance = s.scope.makeInstance(getBasicInstruction())
+
+	// swap leader and successor ids so the local node will perform the prepare
+	s.instance.LeaderID, s.instance.Successors[0] = s.instance.Successors[0], s.instance.LeaderID
 }
 
 // tests message
