@@ -766,6 +766,12 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
 
 }
 
+// tests that, if a commit event is received while waiting on a successor
+// to respond, the defer to successor method should return immediately
+func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
+
+}
+
 // tests that a node will run the prepare phase itself if the preceding
 // successors do not respond
 func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {

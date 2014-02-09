@@ -7,6 +7,7 @@ import (
 
 import (
 	"node"
+	"code.google.com/p/go.net/html/charset"
 )
 
 // analyzes the responses to a prepare request, and returns an instance
@@ -383,11 +384,13 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 		}
 		if replica, exists := replicaMap[nid]; exists {
 			recvChan := make(chan *PrepareSuccessorResponse)
+			errChan := make(chan bool)
 			go func() {
 				msg := &PrepareSuccessorRequest{InstanceID: instance.InstanceID, Scope: s.name}
 				logger.Debug("Prepare Successor: Sending message to node %v for instance %v", replica.GetId(), instance.InstanceID)
 				if response, err := replica.SendMessage(msg); err != nil {
 					logger.Warning("Error receiving PreAcceptResponse: %v", err)
+					errChan <- bool
 				} else {
 					if preAccept, ok := response.(*PrepareSuccessorResponse); ok {
 						logger.Debug("Preaccept: response received from node %v for instance %v", replica.GetId(), instance.InstanceID)
@@ -421,6 +424,12 @@ func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
 					return false, err
 				}
 				return false, nil
+
+			case <- errChan:
+				// there was an error communicating with the successor, go to the next one
+
+			case <- instance.getCommitEvent().getChan():
+				return true, nil
 
 			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
 				// timeout, go to the next successor
@@ -487,6 +496,7 @@ func (s *Scope) preparePhase(instance *Instance) error {
 	if !s.prepareShouldProceed(instance) {
 		return nil
 	}
+
 
 	logger.Debug("Prepare phase started")
 	err := scopePreparePhase(s, instance)
