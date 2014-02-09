@@ -35,6 +35,7 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	// to be called in the same order as the expected dependency ordering
 	addInst := func() *Instance {
 		inst := s.scope.makeInstance(s.getInstructions(lastVal))
+		inst.Successors = []node.NodeId{inst.LeaderID}
 		lastVal++
 		s.scope.preAcceptInstanceUnsafe(inst, false)
 		s.expectedOrder = append(s.expectedOrder, inst.InstanceID)

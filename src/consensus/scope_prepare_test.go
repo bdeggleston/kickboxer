@@ -72,6 +72,7 @@ type PrepareLeaderTest struct {
 
 	instance *Instance
 	oldPrepareTimeout uint64
+	oldDeferToSuccessor func(s *Scope, instance *Instance) (bool, error)
 }
 
 var _ = gocheck.Suite(&PrepareLeaderTest{})
@@ -80,18 +81,20 @@ func (s *PrepareLeaderTest) SetUpSuite(c *gocheck.C) {
 	s.baseReplicaTest.SetUpSuite(c)
 	s.oldPrepareTimeout = PREPARE_TIMEOUT
 	PREPARE_TIMEOUT = 50
+	s.oldDeferToSuccessor = scopeDeferToSuccessor
+	scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
+		return true, nil
+	}
 }
 
 func (s *PrepareLeaderTest) TearDownSuite(c *gocheck.C) {
 	PREPARE_TIMEOUT = s.oldPrepareTimeout
+	scopeDeferToSuccessor = s.oldDeferToSuccessor
 }
 
 func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 	s.instance = s.scope.makeInstance(getBasicInstruction())
-
-	// swap leader and successor ids so the local node will perform the prepare
-	s.instance.LeaderID, s.instance.Successors[0] = s.instance.Successors[0], s.instance.LeaderID
 }
 
 // tests message
@@ -211,9 +214,21 @@ func (s *AnalyzePrepareResponsesTest) TestMixedNilResponses(c *gocheck.C) {
 // tests the prepare phase method
 type PreparePhaseTest struct {
 	basePrepareTest
+	oldDeferToSuccessor func(s *Scope, instance *Instance) (bool, error)
 }
 
 var _ = gocheck.Suite(&PreparePhaseTest{})
+
+func (s *PreparePhaseTest) SetUpSuite(c *gocheck.C) {
+	s.oldDeferToSuccessor = scopeDeferToSuccessor
+	scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
+		return true, nil
+	}
+}
+
+func (s *PreparePhaseTest) TearDownSuite(c *gocheck.C) {
+	scopeDeferToSuccessor = s.oldDeferToSuccessor
+}
 
 // tests that the preparePhase doesn't actually do anything
 // if the instance has been committed
@@ -252,7 +267,7 @@ func (s *PreparePhaseTest) TestCommitExpiredTimeout(c *gocheck.C) {
 	err := s.scope.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(1))
+	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(2))
 	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(0))
 }
 
@@ -273,7 +288,7 @@ func (s *PreparePhaseTest) TestCommitTimeout(c *gocheck.C) {
 	err := s.scope.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(1))
+	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(2))
 	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(1))
 }
 
@@ -775,11 +790,31 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
 
 }
 
+// tests that the non successor will go to the next successor if the
+// successor returns a nil instance
+func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
+
+}
+
+// tests that the non successor will accept the local instance if the successor
+// returns an accepted instance
+func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) {
+
+}
+
+// tests that the non successor will commit the local instance if the successor
+// returns an committed instance
+func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C) {
+
+}
+
 // tests that a node will run the prepare phase itself if the preceding
 // successors do not respond
 func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 
 }
+
+
 
 type HandlePrepareSuccessorRequestTest struct {
 	basePrepareTest
