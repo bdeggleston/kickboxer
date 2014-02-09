@@ -224,7 +224,7 @@ var _ = gocheck.Suite(&CommitReplicaTest{})
 
 // tests that an instance is marked as committed when
 // a commit request is recived
-func (s *CommitLeaderTest) TestHandleSuccess(c *gocheck.C) {
+func (s *CommitReplicaTest) TestHandleSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(getBasicInstruction())
 	err := s.scope.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
@@ -246,7 +246,7 @@ func (s *CommitLeaderTest) TestHandleSuccess(c *gocheck.C) {
 // tests that commits are handled properly if
 // the commit if for an instance the node has
 // not previously seen
-func (s *CommitLeaderTest) TestHandleNewSuccess(c *gocheck.C) {
+func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
 	leaderID := node.NewNodeId()
 	leaderInstance := makeInstance(leaderID, s.scope.getCurrentDepsUnsafe())
 	leaderInstance.Sequence += 5
@@ -269,7 +269,7 @@ func (s *CommitLeaderTest) TestHandleNewSuccess(c *gocheck.C) {
 
 // when a commit message is received, the instance should
 // be asynchronously executed against the store
-func (s *CommitLeaderTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
+func (s *CommitReplicaTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
 	oldExecute := scopeExecuteInstance
 	defer func() { scopeExecuteInstance = oldExecute }()
 
