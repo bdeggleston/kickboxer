@@ -368,7 +368,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 // TODO: test alone
 // attempts to defer the prepare phase to successor nodes
 // returns a bool indicating if the prepare should proceed locally
-func (s *Scope) prepareDeferToSuccessor(instance *Instance) (bool, error) {
+var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 
 	// make a map of replicas
 	replicas := s.manager.getScopeReplicas(s)
@@ -500,11 +500,23 @@ func (s *Scope) preparePhase(instance *Instance) error {
 		return nil
 	}
 
-
-	for deferPrepare, err := s.prepareDeferToSuccessor(instance); deferPrepare || err != nil; {
+	//
+	for proceed, err := scopeDeferToSuccessor(s, instance); !proceed || err != nil; {
 		if err != nil {
 			return err
 		}
+		select {
+		case <- getTimeoutEvent(time.Duration(SUCCESSOR_CONTACT_INTERVAL)):
+			// interval passed, contact successor again
+		case <- instance.getCommitEvent().getChan():
+			// instance was committed
+			return nil
+		}
+	}
+
+	// double check we should proceed
+	if !s.prepareShouldProceed(instance) {
+		return nil
 	}
 
 	logger.Debug("Prepare phase started")
