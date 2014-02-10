@@ -768,50 +768,198 @@ func (s *PrepareReplicaTest) TestSuccessfulPrepareMessageIncrementsBallot(c *goc
 
 // tests behavior of non successor instances requiring prepares
 type SuccessorPreparePhaseTest struct {
-	basePrepareTest
+	baseReplicaTest
+	instance *Instance
+	successor *mockNode
+	successor2 *mockNode
 }
 
 var _ = gocheck.Suite(&SuccessorPreparePhaseTest{})
 
+func (s *SuccessorPreparePhaseTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+	err := s.scope.preAcceptInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
+	for _, replica := range s.replicas {
+		if replica.id == s.instance.Successors[0] {
+			s.successor = replica
+		} else if replica.id == s.instance.Successors[1] {
+			s.successor2 = replica
+		}
+	}
+	c.Assert(s.successor, gocheck.NotNil)
+	c.Assert(s.successor.id, gocheck.Equals, s.instance.Successors[0])
+}
+
 // tests that calling prepare will defer to successors
 func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
-
+	s1Calls := 0
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		request := m.(*PrepareSuccessorRequest)
+		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
+		c.Assert(request.Scope, gocheck.Equals, s.scope.name)
+		s1Calls++
+		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+	}
+	s2Calls := 0
+	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s2Calls++
+		return nil, nil
+	}
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, false)
+	c.Check(s1Calls, gocheck.Equals, 1)
+	c.Check(s2Calls, gocheck.Equals, 0)
 }
 
 // tests that calling prepare will go to the next successor if the first
 // does not respond
 func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
-
+	s1Calls := 0
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s1Calls++
+		return nil, fmt.Errorf("nope")
+	}
+	s2Calls := 0
+	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		request := m.(*PrepareSuccessorRequest)
+		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
+		c.Assert(request.Scope, gocheck.Equals, s.scope.name)
+		s2Calls++
+		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+	}
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, false)
+	c.Check(s1Calls, gocheck.Equals, 1)
+	c.Check(s2Calls, gocheck.Equals, 1)
 }
 
 // tests that, if a commit event is received while waiting on a successor
 // to respond, the defer to successor method should return immediately
 func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
+	s1Calls := 0
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s1Calls++
+		time.Sleep(time.Duration(1) * time.Second)
+		return nil, fmt.Errorf("nope")
+	}
+	s2Calls := 0
+	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s2Calls++
+		return nil, fmt.Errorf("nope")
+	}
+	var proceed bool
+	var err error
+	var returned bool
+	go func() {
+		proceed, err = scopeDeferToSuccessor(s.scope, s.instance)
+		returned = true
+	}()
+	runtime.Gosched()
+	s.instance.broadcastCommitEvent()
+	for !returned {
+		runtime.Gosched()
+	}
 
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, true)
+	c.Check(s1Calls, gocheck.Equals, 1)
+	c.Check(s2Calls, gocheck.Equals, 0)
 }
 
 // tests that the non successor will go to the next successor if the
 // successor returns a nil instance
 func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
-
+	s1Calls := 0
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s1Calls++
+		return &PrepareSuccessorResponse{Instance: nil}, nil
+	}
+	s2Calls := 0
+	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s2Calls++
+		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+	}
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, false)
+	c.Check(s1Calls, gocheck.Equals, 1)
+	c.Check(s2Calls, gocheck.Equals, 1)
 }
 
 // tests that the non successor will accept the local instance if the successor
 // returns an accepted instance
 func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) {
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		instCopy := copyInstance(s.instance)
+		instCopy.Status = INSTANCE_ACCEPTED
+		return &PrepareSuccessorResponse{Instance: instCopy}, nil
+	}
+
+	// sanity check
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, false)
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 
 }
 
 // tests that the non successor will commit the local instance if the successor
 // returns an committed instance
 func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C) {
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		instCopy := copyInstance(s.instance)
+		instCopy.Status = INSTANCE_COMMITTED
+		return &PrepareSuccessorResponse{Instance: instCopy}, nil
+	}
 
+	// sanity check
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, true)
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
+
+// tests that the non successor will commit the local instance if the successor
+// returns an committed instance
+func (s *SuccessorPreparePhaseTest) TestExecutedSuccessorResponse(c *gocheck.C) {
+	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		instCopy := copyInstance(s.instance)
+		instCopy.Status = INSTANCE_EXECUTED
+		return &PrepareSuccessorResponse{Instance: instCopy}, nil
+	}
+
+	// sanity check
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
+
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, true)
+	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
 // tests that a node will run the prepare phase itself if the preceding
 // successors do not respond
 func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
+	s.instance.Successors[0] = s.scope.GetLocalID()
 
+	s2Calls := 0
+	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
+		s2Calls++
+		return nil, fmt.Errorf("nope")
+	}
+
+	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Check(proceed, gocheck.Equals, true)
+	c.Check(s2Calls, gocheck.Equals, 0)
 }
 
 

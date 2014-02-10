@@ -392,7 +392,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 					errChan <- true
 				} else {
 					if preAccept, ok := response.(*PrepareSuccessorResponse); ok {
-						logger.Debug("Preaccept: response received from node %v for instance %v", replica.GetId(), instance.InstanceID)
+						logger.Debug("Prepare Successor: response received from node %v for instance %v", replica.GetId(), instance.InstanceID)
 						recvChan <- preAccept
 					} else {
 						logger.Warning("Unexpected Prepare Successor response type: %T", response)
@@ -402,27 +402,33 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 			var response *PrepareSuccessorResponse
 			select {
 			case response = <- recvChan:
+				logger.Debug("Prepare Successor: response received from %v for instance %v", nid, instance.InstanceID)
 				if response.Instance == nil {
 					// successor is not aware of instance, go to the next successor
+					logger.Debug("Prepare Successor: nil instance received from %v for instance %v", nid, instance.InstanceID)
+					continue
 				}
 
-				updateInstance := func() error {
+				updateInstance := func() (bool, error) {
+					var proceed bool
+					var err error
 					s.lock.Lock()
 					defer s.lock.Unlock()
 					if response.Instance.Status > instance.Status {
 						switch response.Instance.Status {
 						case INSTANCE_ACCEPTED:
-							return s.acceptInstanceUnsafe(instance, false)
+							err = s.acceptInstanceUnsafe(instance, false)
 						case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-							return s.commitInstanceUnsafe(instance, false)
+							proceed = true
+							err = s.commitInstanceUnsafe(instance, false)
 						}
 					}
-					return nil
+					if err != nil {
+						return false, err
+					}
+					return proceed, nil
 				}
-				if err := updateInstance(); err != nil {
-					return false, err
-				}
-				return false, nil
+				return updateInstance()
 
 			case <- errChan:
 				// there was an error communicating with the successor, go to the next one
@@ -430,10 +436,12 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 
 			case <- instance.getCommitEvent().getChan():
 				// instance was committed while waiting for a PrepareSuccessorResponse
+				logger.Debug("Prepare Successor: commit event received for instance %v", instance.InstanceID)
 				return true, nil
 
 			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
 				// timeout, go to the next successor
+				logger.Debug("Prepare Successor: timeout communicating with %v for instance %v", nid, instance.InstanceID)
 
 			}
 		}
