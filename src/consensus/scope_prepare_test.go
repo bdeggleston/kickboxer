@@ -18,7 +18,7 @@ type basePrepareTest struct {
 	baseScopeTest
 
 	oldScopePreparePhase func(*Scope, *Instance) error
-	oldScopePreparePhase2 func(*Scope, *Instance, []*PrepareResponse) error
+	oldScopePrepareApply func(*Scope, *Instance, []*PrepareResponse) error
 
 	instance *Instance
 
@@ -30,7 +30,7 @@ type basePrepareTest struct {
 func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
 	s.oldScopePreparePhase = scopePreparePhase
-	s.oldScopePreparePhase2 = scopePreparePhase2
+	s.oldScopePrepareApply = scopePrepareApply
 
 	s.instance = s.scope.makeInstance(getBasicInstruction())
 
@@ -63,7 +63,7 @@ func (s *basePrepareTest) patchCommit(e error) {
 
 func (s *basePrepareTest) TearDownTest(c *gocheck.C) {
 	scopePreparePhase = s.oldScopePreparePhase
-	scopePreparePhase2 = s.oldScopePreparePhase2
+	scopePrepareApply = s.oldScopePrepareApply
 }
 
 // tests the send prepare method
@@ -446,7 +446,7 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -472,7 +472,7 @@ func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -495,7 +495,7 @@ func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
 	// patch methods
 	s.patchPreAccept(false, fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -517,7 +517,7 @@ func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -540,7 +540,7 @@ func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
 	// patch methods
 	s.patchAccept(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -561,7 +561,7 @@ func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -584,7 +584,7 @@ func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -605,7 +605,7 @@ func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -628,7 +628,7 @@ func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -656,7 +656,7 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err = scopePreparePhase2(s.scope, s.instance, responses)
+	err = scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -680,7 +680,7 @@ func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePreparePhase2(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.instance.Noop, gocheck.Equals, true)

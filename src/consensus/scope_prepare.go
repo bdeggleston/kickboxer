@@ -233,7 +233,7 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 }
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
-var scopePreparePhase2 = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
+var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
 	if err := scopePrepareCheckResponses(s, instance, responses); err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	responses, err := scopeSendPrepare(s, instance)
 	if err != nil { return err }
 
-	err = scopePreparePhase2(s, instance, responses)
+	err = scopePrepareApply(s, instance, responses)
 	if err != nil {
 		return err
 	}
