@@ -118,6 +118,8 @@ func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
 			return scope.HandleCommit(request)
 		case *PrepareRequest:
 			return scope.HandlePrepare(request)
+		case *PrepareSuccessorRequest:
+			return scope.HandlePrepareSuccessor(request)
 		default:
 			return nil, fmt.Errorf("Unhandled scoped request type: %T", scopedRequest)
 

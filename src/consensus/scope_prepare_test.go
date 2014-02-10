@@ -962,30 +962,99 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 	c.Check(s2Calls, gocheck.Equals, 0)
 }
 
-
-
 type HandlePrepareSuccessorRequestTest struct {
-	basePrepareTest
+	baseReplicaTest
+	instance *Instance
+	oldScopePrepareInstance func(s *Scope, instance *Instance) error
 }
 
 var _ = gocheck.Suite(&HandlePrepareSuccessorRequestTest{})
 
+func (s *HandlePrepareSuccessorRequestTest) SetUpSuite(c *gocheck.C) {
+	s.baseReplicaTest.SetUpSuite(c)
+	s.oldScopePrepareInstance = scopePrepareInstance
+}
+
+func (s *HandlePrepareSuccessorRequestTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+	s.instance = s.scope.makeInstance(getBasicInstruction())
+	err := s.scope.preAcceptInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
+}
+
+func (s *HandlePrepareSuccessorRequestTest) TearDownSuite(c *gocheck.C) {
+	scopePrepareInstance = s.oldScopePrepareInstance
+}
+
 // tests that the prepare phase method is called asynchronously
 // if the instance has not been committed
-func (s HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C) {
+func (s *HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C) {
+	prepareInstanceCalls := 0
+	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+		prepareInstanceCalls++
+		return nil
+	}
 
+	request := &PrepareSuccessorRequest{
+		Scope: s.scope.name,
+		InstanceID: s.instance.InstanceID,
+	}
+
+	response, err := s.scope.HandlePrepareSuccessor(request)
+	runtime.Gosched()
+	c.Assert(err, gocheck.IsNil)
+
+	c.Assert(response.Instance, gocheck.NotNil)
+	c.Check(response.Instance, gocheck.Equals, s.instance)
+	c.Check(prepareInstanceCalls, gocheck.Equals, 1)
 }
 
 // tests that the prepare phase method is not called
 // if the instance has been committed
-func (s HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) {
+func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) {
+	err := s.scope.commitInstance(s.instance, false)
+	c.Assert(err, gocheck.IsNil)
 
+	prepareInstanceCalls := 0
+	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+		prepareInstanceCalls++
+		return nil
+	}
+
+	request := &PrepareSuccessorRequest{
+		Scope: s.scope.name,
+		InstanceID: s.instance.InstanceID,
+	}
+
+	response, err := s.scope.HandlePrepareSuccessor(request)
+	runtime.Gosched()
+	c.Assert(err, gocheck.IsNil)
+
+	c.Assert(response.Instance, gocheck.NotNil)
+	c.Check(response.Instance, gocheck.Equals, s.instance)
+	c.Check(prepareInstanceCalls, gocheck.Equals, 0)
 }
 
 // tests that a nil instance is returned if the success doesn't
 // know about the instance
-func (s HandlePrepareSuccessorRequestTest) TestUnknownInstance(c *gocheck.C) {
+func (s *HandlePrepareSuccessorRequestTest) TestUnknownInstance(c *gocheck.C) {
+	prepareInstanceCalls := 0
+	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+		prepareInstanceCalls++
+		return nil
+	}
 
+	request := &PrepareSuccessorRequest{
+		Scope: s.scope.name,
+		InstanceID: NewInstanceID(),
+	}
+
+	response, err := s.scope.HandlePrepareSuccessor(request)
+	runtime.Gosched()
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(response.Instance, gocheck.IsNil)
+	c.Check(prepareInstanceCalls, gocheck.Equals, 0)
 }
 
 
