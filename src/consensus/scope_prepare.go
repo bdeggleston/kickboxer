@@ -500,10 +500,7 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 	return true
 }
 
-// runs explicit prepare phase on instances where a command leader failure is suspected
-// during execution,
-func (s *Scope) preparePhase(instance *Instance) error {
-
+var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 	if !s.prepareShouldProceed(instance) {
 		return nil
 	}
@@ -531,6 +528,13 @@ func (s *Scope) preparePhase(instance *Instance) error {
 	err := scopePreparePhase(s, instance)
 	logger.Debug("Prepare phase completed")
 	return err
+}
+
+// TODO: rename to prepareInstance
+// runs explicit prepare phase on instances where a command leader failure is suspected
+// during execution,
+func (s *Scope) preparePhase(instance *Instance) error {
+	return scopePrepareInstance(s, instance)
 }
 
 // handles a prepare message from an instance attempting to take
