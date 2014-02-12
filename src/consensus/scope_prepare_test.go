@@ -170,8 +170,9 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	_, err := scopeSendPrepare(s.scope, s.instance)
+	responses, err := scopeSendPrepare(s.scope, s.instance)
 	runtime.Gosched()
+	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(10))
