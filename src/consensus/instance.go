@@ -136,37 +136,74 @@ func (i InstanceIDSet) String() string {
 	return s
 }
 
-type InstanceMap map[InstanceID]*Instance
-
-func NewInstanceMap() InstanceMap {
-	return make(InstanceMap)
+type InstanceMap struct {
+	instMap map[InstanceID]*Instance
+	lock sync.RWMutex
 }
 
-func (i InstanceMap) Add(instance *Instance) {
-	i[instance.InstanceID] = instance
+func NewInstanceMap() *InstanceMap {
+	return &InstanceMap{instMap: make(map[InstanceID]*Instance)}
 }
 
-func (i InstanceMap) Remove(instance *Instance) {
-	delete(i, instance.InstanceID)
+func (i *InstanceMap) Add(instance *Instance) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	i.instMap[instance.InstanceID] = instance
 }
 
-func (i InstanceMap) RemoveID(id InstanceID) {
-	delete(i, id)
+func (i *InstanceMap) Get(iid InstanceID) *Instance {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.instMap[iid]
 }
 
-func (i InstanceMap) ContainsID(id InstanceID) bool {
-	_, exists := i[id]
+func (i *InstanceMap) Len() int {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return len(i.instMap)
+}
+
+func (i *InstanceMap) Remove(instance *Instance) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	delete(i.instMap, instance.InstanceID)
+}
+
+func (i *InstanceMap) RemoveID(id InstanceID) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	delete(i.instMap, id)
+}
+
+func (i *InstanceMap) ContainsID(id InstanceID) bool {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	_, exists := i.instMap[id]
 	return exists
 }
 
-func (i InstanceMap) Contains(instance *Instance) bool {
+func (i *InstanceMap) Contains(instance *Instance) bool {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
 	return i.ContainsID(instance.InstanceID)
 }
 
-func (i InstanceMap) InstanceIDs() []InstanceID {
-	arr := make([]InstanceID, 0, len(i))
-	for key := range i {
+func (i *InstanceMap) InstanceIDs() []InstanceID {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	arr := make([]InstanceID, 0, len(i.instMap))
+	for key := range i.instMap {
 		arr = append(arr, key)
+	}
+	return arr
+}
+
+func (i *InstanceMap) Instances() []*Instance {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	arr := make([]*Instance, 0, len(i.instMap))
+	for _, instance := range i.instMap {
+		arr = append(arr, instance)
 	}
 	return arr
 }
