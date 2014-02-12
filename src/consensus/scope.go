@@ -44,11 +44,11 @@ var (
 
 	// the amount of time a node will wait on a
 	// successor response before timing out
-	SUCCESSOR_TIMEOUT = uint64(500)
+	SUCCESSOR_TIMEOUT = uint64(2000)
 
 	// how often a node should check that the
 	// successor is up while waiting on a prepare phase
-	SUCCESSOR_CONTACT_INTERVAL = uint64(500)
+	SUCCESSOR_CONTACT_INTERVAL = uint64(1000)
 
 	// wait period between retrying operations
 	// that failed due to ballot failures
