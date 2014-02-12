@@ -177,6 +177,11 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(10))
 }
 
+// tests that the ballot is always updated from prepare responses
+func (s *PrepareLeaderTest) TestBallotUpdateFromResponses(c *gocheck.C) {
+	// TODO: this
+}
+
 // tests the analyzePrepareResponses method
 type AnalyzePrepareResponsesTest struct {
 	basePrepareTest
