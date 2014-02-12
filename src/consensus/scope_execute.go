@@ -214,6 +214,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 			s.lock.Unlock()
 			continue
 		default:
+			s.lock.Unlock()
 			return nil, fmt.Errorf("Uncommitted dependencies should be handled before calling executeDependencyChain")
 		}
 
