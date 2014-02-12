@@ -97,6 +97,12 @@ func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
 	s.instance = s.scope.makeInstance(getBasicInstruction())
 }
 
+// tests that the local ballot is incremented before the
+// prepare message is sent
+func (s *PrepareLeaderTest) TestPreSendBallotIncrement(c *gocheck.C) {
+	// TODO: this
+}
+
 // tests message
 func (s *PrepareLeaderTest) TestSendSuccess(c *gocheck.C) {
 	// all replicas agree
