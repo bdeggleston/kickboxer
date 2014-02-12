@@ -75,7 +75,7 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) commitInstance(instance *Instance, incrementBallot bool) error {
 	s.lock.Lock()
-	s.lock.Unlock()
+	defer s.lock.Unlock()
 
 	return s.commitInstanceUnsafe(instance, incrementBallot)
 }
