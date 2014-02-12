@@ -16,32 +16,7 @@ func makePreAcceptCommitTimeout() time.Time {
 }
 
 func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	var instance *Instance
-	if existing, exists := s.instances[inst.InstanceID]; exists {
-		if existing.Status > INSTANCE_PREACCEPTED {
-			return NewInvalidStatusUpdateError(existing, INSTANCE_PREACCEPTED)
-		}
-		instance = existing
-		instance.Noop = inst.Noop
-	} else {
-		instance = inst
-	}
-
-	instance.Status = INSTANCE_PREACCEPTED
-	instance.Dependencies = s.getCurrentDepsUnsafe()
-	instance.Sequence = s.getNextSeqUnsafe()
-	instance.commitTimeout = makePreAcceptCommitTimeout()
-	if incrementBallot {
-		instance.MaxBallot++
-	}
-	s.inProgress.Add(instance)
-	s.instances.Add(instance)
-
-	if err := s.Persist(); err != nil {
-		return err
-	}
-
-	return nil
+	return s.preAcceptInstance(inst, incrementBallot)
 }
 
 // sets the given instance to preaccepted and updates, deps,
@@ -52,11 +27,18 @@ func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) er
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) preAcceptInstance(instance *Instance, incrementBallot bool) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
+	instance, _ := s.getOrSetInstance(inst)
+	if err := instance.preaccept(inst, incrementBallot); err != nil {
+		return err
+	}
 
-	return s.preAcceptInstanceUnsafe(instance, incrementBallot)
+	s.inProgress.Add(instance)
+	if err := s.Persist(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // sends pre accept responses to the given replicas, and returns their responses. An error will be returned

@@ -358,6 +358,40 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
 	return changes
 }
 
+// -------------- state changes --------------
+
+func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	if i.Status > INSTANCE_PREACCEPTED {
+		return NewInvalidStatusUpdateError(i, INSTANCE_PREACCEPTED)
+	}
+
+	if inst != nil {
+		i.Noop = inst.Noop
+	}
+	i.Status = INSTANCE_PREACCEPTED
+	i.Sequence, i.Dependencies = i.scope.getSeqAndDeps()
+	i.commitTimeout = makePreAcceptCommitTimeout()
+	if incrementBallot {
+		i.MaxBallot++
+	}
+	return nil
+}
+
+func (i *Instance) accept() {
+
+}
+
+func (i *Instance) commit() {
+
+}
+
+func (i *Instance) execute() {
+
+}
+
 // -------------- serialization --------------
 
 func instructionSerialize(instruction *store.Instruction, buf *bufio.Writer) error {
