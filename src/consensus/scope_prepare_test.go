@@ -171,11 +171,13 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 	}
 
 	responses, err := scopeSendPrepare(s.scope, s.instance)
+	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(6))
 	runtime.Gosched()
 	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
-	c.Assert(err, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
-	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(10))
+	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(11))
 }
 
 // tests that the ballot is always updated from prepare responses

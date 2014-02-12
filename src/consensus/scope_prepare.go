@@ -580,11 +580,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	if instance, ok := s.instances[request.InstanceID]; ok {
 		response.Instance = instance
 		if instance.Status < INSTANCE_COMMITTED {
-			go func() {
-				for i:=0;i<4;i++ {
-					s.preparePhase(instance)
-				}
-			}()
+			s.preparePhase(instance)
 		}
 	}
 	return response, nil
