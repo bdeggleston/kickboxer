@@ -24,7 +24,7 @@ func makeAcceptCommitTimeout() time.Time {
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
 	var instance *Instance
-	if existing, exists := s.instances[inst.InstanceID]; exists {
+	if existing := s.instances.Get(inst.InstanceID); existing != nil {
 		if existing.Status > INSTANCE_ACCEPTED {
 			logger.Debug("Accept: Can't accept instance %v with status %v", inst.InstanceID, inst.Status)
 			return NewInvalidStatusUpdateError(existing, INSTANCE_ACCEPTED)

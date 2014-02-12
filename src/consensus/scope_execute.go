@@ -30,8 +30,8 @@ func (i *iidSorter) Len() int {
 // returns true if the item at index x is less than
 // the item and index y
 func (i *iidSorter) Less(x, y int) bool {
-	i0 := i.scope.instances[i.iids[x]]
-	i1 := i.scope.instances[i.iids[y]]
+	i0 := i.scope.instances.Get(i.iids[x])
+	i1 := i.scope.instances.Get(i.iids[y])
 
 	// first check the sequence#
 	if i0.Sequence != i1.Sequence {
@@ -75,7 +75,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// be instances higher upstream that change the ordering
 	// of instances down here.
 	// TODO: figure out why that is
-	for _, inst := range s.instances {
+	for _, inst := range s.instances.Instances() {
 		addInstance(inst)
 	}
 
@@ -93,7 +93,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	}
 
 	for _, iid := range exOrder {
-		if s.instances[iid] == nil {
+		if s.instances.Get(iid) == nil {
 			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 		}
 	}
@@ -106,7 +106,7 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 	defer s.lock.RUnlock()
 	instances := make([]*Instance, 0)
 	for _, iid := range iids {
-		instance := s.instances[iid]
+		instance := s.instances.Get(iid)
 		if instance.Status < INSTANCE_COMMITTED {
 			instances = append(instances, instance)
 		}
@@ -138,7 +138,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 
 	// update scope bookkeeping
 	instance.Status = INSTANCE_EXECUTED
-	delete(s.committed, instance.InstanceID)
+	s.committed.Remove(instance)
 	s.executed = append(s.executed, instance.InstanceID)
 	if err := s.Persist(); err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 		val = nil
 		err = nil
 		s.lock.Lock()
-		instance := s.instances[iid]
+		instance := s.instances.Get(iid)
 		switch instance.Status {
 		case INSTANCE_COMMITTED:
 			//

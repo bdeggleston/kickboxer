@@ -21,7 +21,7 @@ func makeExecuteTimeout() time.Time {
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error {
 	var instance *Instance
-	if existing, exists := s.instances[inst.InstanceID]; exists {
+	if existing := s.instances.Get(inst.InstanceID); existing != nil {
 		if existing.Status > INSTANCE_COMMITTED {
 			logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
 			return NewInvalidStatusUpdateError(existing, INSTANCE_COMMITTED)
@@ -132,7 +132,7 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 		}
 	} else {
 		// asynchronously apply mutation
-		go s.executeInstance(s.instances[request.Instance.InstanceID])
+		go s.executeInstance(s.instances.Get(request.Instance.InstanceID))
 	}
 
 	logger.Debug("Commit message replied")

@@ -20,8 +20,8 @@ func (c *instMapContainsKeyChecker) Check(params []interface{}, names []string) 
 	if !ok {
 		return false, "second argument is not an InstanceID"
 	}
-	_, ok = mapObj[expectedKey]
-	if !ok {
+	instance := mapObj.Get(expectedKey)
+	if instance == nil {
 		return false, ""
 	}
 	return true, ""

@@ -544,7 +544,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	instance := s.instances[request.InstanceID]
+	instance := s.instances.Get(request.InstanceID)
 	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
 	response := &PrepareResponse{}
 	var responseBallot uint32
@@ -577,7 +577,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	response := &PrepareSuccessorResponse{}
-	if instance, ok := s.instances[request.InstanceID]; ok {
+	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
 		if instance.Status < INSTANCE_COMMITTED {
 			s.preparePhase(instance)

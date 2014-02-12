@@ -255,9 +255,9 @@ func getTimeoutEvent(d time.Duration) <-chan time.Time {
 // consensus operations
 type Scope struct {
 	name         string
-	instances    InstanceMap
-	inProgress   InstanceMap
-	committed    InstanceMap
+	instances    *InstanceMap
+	inProgress   *InstanceMap
+	committed    *InstanceMap
 	executed     []InstanceID
 	maxSeq       uint64
 	lock         sync.RWMutex
@@ -335,7 +335,7 @@ func (s *Scope) Persist() error {
 func (s *Scope) getInstance(iid InstanceID) *Instance {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	return s.instances[iid]
+	return s.instances.Get(iid)
 }
 
 // returns the local instance with the same id as the given instance,
@@ -373,7 +373,7 @@ func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...inte
 // this method doesn't implement any locking or persistence
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	// grab ALL instances as dependencies for now
-	numDeps := len(s.inProgress) + len(s.committed) + len(s.executed)
+	numDeps := s.inProgress.Len() + s.committed.Len() + len(s.executed)
 //	if len(s.executed) > 0 {
 //		numDeps += 1
 //	}

@@ -206,7 +206,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	}
 
 	// check agreement on seq and deps with leader
-	instance := s.instances[request.Instance.InstanceID]
+	instance := s.instances.Get(request.Instance.InstanceID)
 	newDeps := NewInstanceIDSet(instance.Dependencies)
 	instance.DependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
 
@@ -228,7 +228,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	}
 
 	for iid := range missingDeps {
-		inst := s.instances[iid]
+		inst := s.instances.Get(iid)
 		if inst != nil {
 			if instanceCopy, err := inst.Copy(); err != nil {
 				return nil, err
