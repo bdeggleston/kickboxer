@@ -338,6 +338,22 @@ func (s *Scope) getInstance(iid InstanceID) *Instance {
 	return s.instances[iid]
 }
 
+// returns the local instance with the same id as the given instance,
+// or sets the given instance locally. Does not handle any of the
+// committed, inprogress, executed logic
+func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
+	existedLocally := true
+	instance := s.getInstance(inst.InstanceID)
+	if instance == nil {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		instance = inst
+		s.instances.Add(inst)
+		existedLocally = false
+	}
+	return instance, existedLocally
+}
+
 func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
