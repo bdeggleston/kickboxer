@@ -153,7 +153,7 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		inst := copyInstance(s.instance)
-		inst.MaxBallot++
+		inst.MaxBallot += 5
 		return &PrepareResponse{
 			Accepted:         false,
 			Instance:        inst,
@@ -168,7 +168,7 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
-	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(6))
+	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(10))
 }
 
 // tests the analyzePrepareResponses method
