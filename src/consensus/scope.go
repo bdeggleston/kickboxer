@@ -348,6 +348,7 @@ func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		instance = inst
+		instance.scope = s
 		s.instances.Add(inst)
 		existedLocally = false
 	}
@@ -389,11 +390,32 @@ func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
 	return deps
 }
 
+func (s *Scope) getCurrentDeps() []InstanceID {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.getCurrentDepsUnsafe()
+}
+
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
 func (s *Scope) getNextSeqUnsafe() uint64 {
 	s.maxSeq++
 	return s.maxSeq
+}
+
+// returns the next available sequence number for a new instance
+// this method doesn't implement any locking or persistence
+func (s *Scope) getNextSeq() uint64 {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.getNextSeqUnsafe()
+
+}
+
+func (s *Scope) getSeqAndDeps() (uint64, []InstanceID) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.getNextSeqUnsafe(), s.getCurrentDepsUnsafe()
 }
 
 // creates a bare epaxos instance from the given instructions
