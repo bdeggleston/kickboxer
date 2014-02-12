@@ -92,9 +92,9 @@ func (c *opsCtrl) messageHandler(node *mockNode, msg message.Message) (message.M
 		reply: replyChan,
 	}
 	c.msgChan <- sendEvent
-	fmt.Printf("%T message put in channel\n", msg)
+	logger.Debug("%T message put in channel\n", msg)
 	reply := <- replyChan
-	fmt.Printf("%T reply received from channel\n", reply.msg)
+	logger.Debug("%T reply received from channel\n", reply.msg)
 	return reply.msg, reply.err
 }
 
@@ -168,7 +168,7 @@ func (c *opsCtrl) reactor() {
 			if c.simulateFailures {
 				nid := msgEvnt.node.id
 				if partitionMap[nid] > 0 {
-					c.c.Logf("** Node %v is partitioned, skipping %T msg", indexMap[nid], msgEvnt.msg)
+					logger.Debug("** Node %v is partitioned, skipping %T msg", indexMap[nid], msgEvnt.msg)
 					break
 				} else if (c.random.Uint32() % partionRatio) == 0 {
 					delay := partionLenBase
@@ -181,26 +181,26 @@ func (c *opsCtrl) reactor() {
 //							}
 //						}
 //					}
-					c.c.Logf("** Beginning partition for node: %v for %v ticks", indexMap[nid], delay)
+					logger.Debug("** Beginning partition for node: %v for %v ticks", indexMap[nid], delay)
 					break
 				} else if (c.random.Uint32() % dropRatio) == 0 {
-					c.c.Logf("** Dropping %T for node %v", msgEvnt.msg, indexMap[nid])
+					logger.Debug("** Dropping %T for node %v", msgEvnt.msg, indexMap[nid])
 					break
 				} else if (c.random.Uint32() % delayRatio) == 0 {
 					delay := delayLenBase
 					delay += (c.random.Uint32() % (delayLenRange * 2)) - delayLenRange
 					backLog := opsMsgBacklog{delay:delay, event:msgEvnt}
 					msgBacklog = append(msgBacklog, backLog)
-					c.c.Logf("** Delaying %T for node: %v for %v ticks", msgEvnt.msg, indexMap[nid], delay)
+					logger.Debug("** Delaying %T for node: %v for %v ticks", msgEvnt.msg, indexMap[nid], delay)
 					break
 				} else {
 					go handleMessage(msgEvnt)
-					c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
+					logger.Debug("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 				}
 			} else {
 				nid := msgEvnt.node.id
 				go handleMessage(msgEvnt)
-				c.c.Logf("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
+				logger.Debug("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 			}
 			runtime.Gosched()
 		case timeEvnt, open = <-c.timeoutChan:
@@ -455,7 +455,7 @@ func (c *opsCtrl) reactor() {
 			allGood = allGood && sizes[i] == *_test_queries
 
 		}
-		c.c.Logf("-- Instruction parity check ok [%v](%v)", len(instructionsSet), sizes)
+		logger.Debug("-- Instruction parity check ok [%v](%v)", len(instructionsSet), sizes)
 		if allGood {
 			c.c.Logf("All instructions processed")
 			return
@@ -508,7 +508,7 @@ func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(4)
 }
 
 func (s *ConsensusIntegrationTest) TearDownSuite(c *gocheck.C) {
@@ -543,32 +543,35 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 			f.Close()
 		}()
 	}
-//	oldPreacceptTimeout := PREACCEPT_TIMEOUT
-//	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT * 2
-//	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
-//	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT * 2
-//	oldAcceptTimeout := ACCEPT_TIMEOUT
-//	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT * 2
-//	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
-//	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT * 2
-//	oldPrepareTimeout := PREPARE_TIMEOUT
-//	PREPARE_TIMEOUT = PREPARE_TIMEOUT * 2
-//	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
-//	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT * 2
-//	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
-//	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME * 2
-//	oldExecuteTimeout := EXECUTE_TIMEOUT
-//	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT * 2
-//	defer func() {
-//		PREACCEPT_TIMEOUT = oldPreacceptTimeout
-//		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
-//		ACCEPT_TIMEOUT = oldAcceptTimeout
-//		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
-//		PREPARE_TIMEOUT = oldPrepareTimeout
-//		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
-//		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
-//		EXECUTE_TIMEOUT = oldExecuteTimeout
-//	}()
+	oldPreacceptTimeout := PREACCEPT_TIMEOUT
+	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT * 2
+	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
+	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT * 2
+	oldAcceptTimeout := ACCEPT_TIMEOUT
+	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT * 2
+	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
+	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT * 2
+	oldPrepareTimeout := PREPARE_TIMEOUT
+	PREPARE_TIMEOUT = PREPARE_TIMEOUT * 2
+	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
+	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT * 2
+	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
+	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME * 2
+	oldExecuteTimeout := EXECUTE_TIMEOUT
+	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT * 2
+	oldSuccessorTimeout := SUCCESSOR_TIMEOUT
+	SUCCESSOR_TIMEOUT = SUCCESSOR_TIMEOUT * 2
+	defer func() {
+		PREACCEPT_TIMEOUT = oldPreacceptTimeout
+		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
+		ACCEPT_TIMEOUT = oldAcceptTimeout
+		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
+		PREPARE_TIMEOUT = oldPrepareTimeout
+		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
+		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
+		EXECUTE_TIMEOUT = oldExecuteTimeout
+		SUCCESSOR_TIMEOUT = oldSuccessorTimeout
+	}()
 
 
 	semaphore := make(chan bool, *_test_concurrent_queries)
