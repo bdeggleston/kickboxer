@@ -77,7 +77,7 @@ func (s *Scope) acceptInstance(instance *Instance, incrementBallot bool) error {
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
-	instanceCopy, err := s.copyInstanceAtomic(instance)
+	instanceCopy, err := instance.Copy()
 	if err != nil {
 		return err
 	}

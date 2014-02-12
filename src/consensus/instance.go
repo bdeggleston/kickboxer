@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -15,7 +17,6 @@ import (
 	"node"
 	"serializer"
 	"store"
-	"bufio"
 )
 
 type InstanceStatus byte
@@ -234,6 +235,9 @@ type Instance struct {
 	// threads are notified immediately
 	commitEvent *event
 	executeEvent *event
+
+	// the instance's parent scope
+	scope *Scope
 }
 
 func (i *Instance) getCommitEvent() *event {
@@ -270,6 +274,32 @@ func (i *Instance) broadcastExecuteEvent() {
 	}
 }
 
+func (i *Instance) getStatus() InstanceStatus {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.Status
+}
+
+// returns a copy of the instance
+func (i *Instance) Copy() (*Instance, error) {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	buf := &bytes.Buffer{}
+	writer := bufio.NewWriter(buf)
+	if err := instanceSerialize(i, writer); err != nil {
+		return nil, err
+	}
+	if err := writer.Flush(); err != nil {
+		return nil, err
+	}
+	reader := bufio.NewReader(buf)
+	dst, err := instanceDeserialize(reader)
+	if err != nil {
+		return nil, err
+	}
+	return dst, nil
+}
+
 // merges sequence and dependencies onto this instance, and returns
 // true/false to indicate if there were any changes
 func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
@@ -290,6 +320,8 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
 	}
 	return changes
 }
+
+// -------------- serialization --------------
 
 func instructionSerialize(instruction *store.Instruction, buf *bufio.Writer) error {
 	if err := serializer.WriteFieldString(buf, instruction.Cmd); err != nil { return err }

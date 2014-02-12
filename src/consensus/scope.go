@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -348,30 +346,6 @@ func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) err
 		return err
 	}
 	return nil
-}
-
-func (s *Scope) copyInstanceUnsafe(src *Instance) (*Instance, error) {
-	buf := &bytes.Buffer{}
-	writer := bufio.NewWriter(buf)
-	if err := instanceSerialize(src, writer); err != nil {
-		return nil, err
-	}
-	if err := writer.Flush(); err != nil {
-		return nil, err
-	}
-	reader := bufio.NewReader(buf)
-	dst, err := instanceDeserialize(reader)
-	if err != nil {
-		return nil, err
-	}
-	return dst, nil
-}
-
-// copies an instance in the contect of a lock
-func (s *Scope) copyInstanceAtomic(src *Instance) (*Instance, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.copyInstanceUnsafe(src)
 }
 
 func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...interface {}) {

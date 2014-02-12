@@ -76,7 +76,7 @@ func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstanc
 		}
 	}
 
-	referenceInstance, err := s.copyInstanceUnsafe(localInstance)
+	referenceInstance, err := localInstance.Copy()
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +560,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 		} else {
 			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
-		if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
+		if instanceCopy, err := instance.Copy(); err != nil {
 			return nil, err
 		} else {
 			response.Instance = instanceCopy

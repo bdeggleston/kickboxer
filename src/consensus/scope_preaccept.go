@@ -64,7 +64,7 @@ func (s *Scope) preAcceptInstance(instance *Instance, incrementBallot bool) erro
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
 
-	instanceCopy, err := s.copyInstanceAtomic(instance)
+	instanceCopy, err := instance.Copy()
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 		MissingInstances: make([]*Instance, 0, len(missingDeps)),
 	}
 
-	if instanceCopy, err := s.copyInstanceUnsafe(instance); err != nil {
+	if instanceCopy, err := instance.Copy(); err != nil {
 		return nil, err
 	} else {
 		reply.Instance = instanceCopy
@@ -230,7 +230,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	for iid := range missingDeps {
 		inst := s.instances[iid]
 		if inst != nil {
-			if instanceCopy, err := s.copyInstanceUnsafe(inst); err != nil {
+			if instanceCopy, err := inst.Copy(); err != nil {
 				return nil, err
 			} else {
 				reply.MissingInstances = append(reply.MissingInstances, instanceCopy)
