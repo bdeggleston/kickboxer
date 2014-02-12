@@ -205,6 +205,13 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 			}
 		}
 
+		if maxBallot > instance.MaxBallot {
+			// update local ballot
+			instance.MaxBallot = maxBallot
+			if err := s.Persist(); err != nil {
+				return err
+			}
+		}
 		// update local ballot and/or status
 		if maxInstance != nil && maxInstance.Status > instance.Status {
 			switch maxInstance.Status {
@@ -216,12 +223,6 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 				if err := s.commitInstanceUnsafe(maxInstance, false); err != nil {
 					return err
 				}
-			}
-		} else if maxBallot > instance.MaxBallot {
-			// update local ballot
-			instance.MaxBallot = maxBallot
-			if err := s.Persist(); err != nil {
-				return err
 			}
 		}
 
@@ -579,7 +580,11 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	if instance, ok := s.instances[request.InstanceID]; ok {
 		response.Instance = instance
 		if instance.Status < INSTANCE_COMMITTED {
-			go s.preparePhase(instance)
+			go func() {
+				for i:=0;i<4;i++ {
+					s.preparePhase(instance)
+				}
+			}()
 		}
 	}
 	return response, nil
