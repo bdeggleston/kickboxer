@@ -73,8 +73,8 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	expected.Add(s.scope.executed...)
 
 	// sanity checks
-	c.Assert(len(s.scope.inProgress), gocheck.Equals, 4)
-	c.Assert(len(s.scope.committed), gocheck.Equals, 4)
+	c.Assert(s.scope.inProgress.Len(), gocheck.Equals, 4)
+	c.Assert(s.scope.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.scope.executed), gocheck.Equals, 4)
 
 	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())
@@ -91,8 +91,8 @@ func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
 	expected.Add(s.scope.committed.InstanceIDs()...)
 
 	// sanity checks
-	c.Assert(len(s.scope.inProgress), gocheck.Equals, 4)
-	c.Assert(len(s.scope.committed), gocheck.Equals, 4)
+	c.Assert(s.scope.inProgress.Len(), gocheck.Equals, 4)
+	c.Assert(s.scope.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.scope.executed), gocheck.Equals, 0)
 
 	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())

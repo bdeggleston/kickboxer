@@ -83,7 +83,7 @@ func (s *AcceptInstanceTest) TestNewInstanceSuccess(c *gocheck.C) {
 	c.Check(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, true)
 	c.Check(s.scope.committed.Contains(leaderInstance), gocheck.Equals, false)
 
-	replicaInstance := s.scope.instances[leaderInstance.InstanceID]
+	replicaInstance := s.scope.instances.Get(leaderInstance.InstanceID)
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 	c.Check(leaderInstance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 4)
@@ -134,10 +134,10 @@ func (s *AcceptInstanceTest) TestRepeatAccept(c *gocheck.C ) {
 
 	err = s.scope.acceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when
@@ -359,7 +359,7 @@ func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.scope.instances.ContainsID(leaderInstance.InstanceID), gocheck.Equals, true)
-	s.instance = s.scope.instances[leaderInstance.InstanceID]
+	s.instance = s.scope.instances.Get(leaderInstance.InstanceID)
 
 	c.Check(response.Accepted, gocheck.Equals, true)
 

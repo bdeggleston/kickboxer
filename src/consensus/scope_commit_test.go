@@ -93,7 +93,7 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 	c.Assert(s.scope.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.scope.committed.Contains(leaderInstance), gocheck.Equals, true)
 
-	replicaInstance := s.scope.instances[leaderInstance.InstanceID]
+	replicaInstance := s.scope.instances.Get(leaderInstance.InstanceID)
 
 	c.Check(replicaInstance.Status, gocheck.Equals,  INSTANCE_COMMITTED)
 	c.Check(leaderInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -147,10 +147,10 @@ func (s *CommitInstanceTest) TestRepeatCommit(c *gocheck.C ) {
 
 	err = s.scope.commitInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.scope.committed[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.committed[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.scope.committed.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.committed.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that instances with a commitNotify Cond object
@@ -262,7 +262,7 @@ func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 
-	instance := s.scope.instances[leaderInstance.InstanceID]
+	instance := s.scope.instances.Get(leaderInstance.InstanceID)
 
 	c.Assert(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }

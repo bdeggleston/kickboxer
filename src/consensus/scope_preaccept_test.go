@@ -86,10 +86,10 @@ func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 
 	err = s.scope.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
- 	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.instances[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Equals, instance)
-	c.Assert(s.scope.inProgress[instance.InstanceID], gocheck.Not(gocheck.Equals), repeat)
+ 	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when
@@ -102,7 +102,7 @@ func (s *PreAcceptInstanceTest) TestNewNoopPreaccept(c *gocheck.C) {
 	err = s.scope.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	c.Assert(s.scope.instances[instance.InstanceID].Noop, gocheck.Equals, true)
+	c.Assert(s.scope.instances.Get(instance.InstanceID).Noop, gocheck.Equals, true)
 }
 
 // tests that the noop flag is recognized when
@@ -362,7 +362,7 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 	c.Check(response.Accepted, gocheck.Equals, true)
 
 	// check dependencies
-	localInstance := s.scope.instances[instance.InstanceID]
+	localInstance := s.scope.instances.Get(instance.InstanceID)
 	expectedDeps := NewInstanceIDSet(instance.Dependencies)
 	actualDeps := NewInstanceIDSet(localInstance.Dependencies)
 
@@ -395,7 +395,7 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 		Instance: instance,
 	}
 
-	s.scope.instances[missingDep] = &Instance{InstanceID: missingDep}
+	s.scope.instances.Add(&Instance{InstanceID: missingDep})
 
 	// process the preaccept message
 	response, err := s.scope.HandlePreAccept(request)

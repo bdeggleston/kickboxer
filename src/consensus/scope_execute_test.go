@@ -96,19 +96,19 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 
 	// make all instances 'timed out'
 	for _, iid := range s.expectedOrder {
-		instance := s.scope.instances[iid]
+		instance := s.scope.instances.Get(iid)
 		instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
 	}
-	s.toExecute = s.scope.instances[s.expectedOrder[2]]
+	s.toExecute = s.scope.instances.Get(s.expectedOrder[2])
 	exOrder, err := s.scope.getExecutionOrder(s.toExecute)
 	c.Assert(err, gocheck.IsNil)
 	// commit all but the first instance
 	for _, iid := range exOrder[1:] {
-		instance := s.scope.instances[iid]
+		instance := s.scope.instances.Get(iid)
 		err := s.scope.commitInstance(instance, false)
 		c.Assert(err, gocheck.IsNil)
 	}
-	s.toPrepare = s.scope.instances[exOrder[0]]
+	s.toPrepare = s.scope.instances.Get(exOrder[0])
 	c.Assert(len(s.scope.getUncommittedInstances(exOrder)), gocheck.Equals, 1)
 }
 
@@ -253,14 +253,14 @@ var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
 // commits all instances
 func (s *ExecuteDependencyChainTest) commitInstances() {
 	for _, iid := range s.expectedOrder {
-		s.scope.commitInstance(s.scope.instances[iid], false)
+		s.scope.commitInstance(s.scope.instances.Get(iid), false)
 	}
 }
 
 func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
-	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
+	lastInstance := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
 	actual, err := s.scope.getExecutionOrder(lastInstance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(len(s.expectedOrder), gocheck.Equals, len(actual))
@@ -274,7 +274,7 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
 	s.commitInstances()
 
-	lastInstance := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 1]]
+	lastInstance := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
 	lastInstance.Dependencies = append(lastInstance.Dependencies, NewInstanceID())
 	actual, err := s.scope.getExecutionOrder(lastInstance)
 	c.Assert(actual, gocheck.IsNil)
@@ -286,13 +286,13 @@ func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
 // have a remote instance id
 func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx - 1]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[s.maxIdx - 1])
 
 	// set non-target dependency leaders to a remote node
 	remoteID := node.NewNodeId()
 	for i, iid := range s.expectedOrder {
 		if i > (s.maxIdx - 2) { break }
-		instance := s.scope.instances[iid]
+		instance := s.scope.instances.Get(iid)
 		instance.LeaderID = remoteID
 	}
 
@@ -315,7 +315,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
-		instance := s.scope.instances[s.expectedOrder[i]]
+		instance := s.scope.instances.Get(s.expectedOrder[i])
 
 		if i == len(s.expectedOrder) - 1 {
 			// unexecuted instance
@@ -332,9 +332,9 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	s.commitInstances()
-	rejectInst := s.scope.instances[s.expectedOrder[0]]
+	rejectInst := s.scope.instances.Get(s.expectedOrder[0])
 	rejectInst.Noop = true
-	targetInst := s.scope.instances[s.expectedOrder[1]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[1])
 
 	val, err := s.scope.executeInstance(targetInst)
 
@@ -350,11 +350,11 @@ func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 // have are past their execution grace period
 func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances[s.expectedOrder[len(s.expectedOrder) - 2]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 2])
 
 	for i, iid := range s.expectedOrder {
 		if i > (s.maxIdx - 2) { break }
-		instance := s.scope.instances[iid]
+		instance := s.scope.instances.Get(iid)
 		instance.executeTimeout = time.Now().Add(time.Duration(-1) * time.Second)
 	}
 
@@ -378,7 +378,7 @@ func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *goche
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
-		instance := s.scope.instances[s.expectedOrder[i]]
+		instance := s.scope.instances.Get(s.expectedOrder[i])
 
 		if i == len(s.expectedOrder) - 1 {
 			// unexecuted instance
@@ -399,9 +399,9 @@ func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *goche
 // and continue executing instances
 func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
 	s.commitInstances()
-	depInst := s.scope.instances[s.expectedOrder[0]]
+	depInst := s.scope.instances.Get(s.expectedOrder[0])
 	depInst.executeTimeout = time.Now().Add(time.Duration(10) * time.Millisecond)
-	targetInst := s.scope.instances[s.expectedOrder[1]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[1])
 
 	val, err := s.scope.executeInstance(targetInst)
 
@@ -419,7 +419,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gochec
 
 	// check all the instances, instructions, etc
 	for i:=0; i<2; i++ {
-		instance := s.scope.instances[s.expectedOrder[i]]
+		instance := s.scope.instances.Get(s.expectedOrder[i])
 
 		// executed instances
 		c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -434,9 +434,9 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gochec
 // continue executing instances
 func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
 	s.commitInstances()
-	depInst := s.scope.instances[s.expectedOrder[0]]
+	depInst := s.scope.instances.Get(s.expectedOrder[0])
 	depInst.executeTimeout = time.Now().Add(time.Duration(1) * time.Minute)
-	targetInst := s.scope.instances[s.expectedOrder[1]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[1])
 
 	var val store.Value
 	var err error
@@ -477,11 +477,11 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 // tests that instances are not executed twice
 func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances[s.expectedOrder[s.maxIdx]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[s.maxIdx])
 
 	// execute all but the target dependency
 	for i:=0; i<s.maxIdx; i++ {
-		instance := s.scope.instances[s.expectedOrder[i]]
+		instance := s.scope.instances.Get(s.expectedOrder[i])
 		instance.Status = INSTANCE_EXECUTED
 	}
 
@@ -500,7 +500,7 @@ func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 
 // tests that an error is returned if an uncommitted instance id is provided
 func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
-	targetInst := s.scope.instances[s.expectedOrder[0]]
+	targetInst := s.scope.instances.Get(s.expectedOrder[0])
 
 	val, err := s.scope.executeDependencyChain(s.expectedOrder, targetInst)
 

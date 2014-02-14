@@ -304,19 +304,19 @@ func (c *opsCtrl) reactor() {
 			var numInst []int
 			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
-				numInst[x] = len(scope.instances)
+				numInst[x] = scope.instances.Len()
 			}
 			fmt.Printf("%v <- known instances\n", numInst)
 
 			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
-				numInst[x] = len(scope.inProgress)
+				numInst[x] = scope.inProgress.Len()
 			}
 			fmt.Printf("%v <- in progress instances\n", numInst)
 
 			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
-				numInst[x] = len(scope.committed)
+				numInst[x] = scope.committed.Len()
 			}
 			fmt.Printf("%v <- committed instances\n", numInst)
 
@@ -337,7 +337,7 @@ func (c *opsCtrl) reactor() {
 
 			committed := NewInstanceIDSet([]InstanceID{})
 			for _, scp := range scopes {
-				for iid := range scp.committed {
+				for _, iid := range scp.committed.InstanceIDs() {
 					committed.Add(iid)
 				}
 			}
@@ -384,7 +384,7 @@ func (c *opsCtrl) reactor() {
 					if !c.c.Check(instruction, gocheck.DeepEquals, instructionsSet[i], gocheck.Commentf("node: %v, idx: %v", n, i)){
 
 						scopes := make([]*Scope, len(c.nodes))
-						instances := make([]InstanceMap, len(c.nodes))
+						instances := make([]*InstanceMap, len(c.nodes))
 						inst0 := 0
 						for i, inode := range c.nodes {
 							instances[i] = inode.manager.getScope("a").instances
@@ -393,13 +393,13 @@ func (c *opsCtrl) reactor() {
 
 						for i := range c.nodes {
 							if i == inst0 { continue }
-							for iid := range instances[inst0] {
-								if _, ok := instances[i][iid]; !ok {
+							for _, iid := range instances[inst0].InstanceIDs() {
+								if inst := instances[i].Get(iid); inst != nil {
 									fmt.Printf("%v, %v not found\n", i, iid)
 									continue
 								}
-								expected := instances[inst0][iid]
-								actual := instances[i][iid]
+								expected := instances[inst0].Get(iid)
+								actual := instances[i].Get(iid)
 								exOexpected, err0 := scopes[inst0].getExecutionOrder(expected)
 								exOactual, err1 := scopes[i].getExecutionOrder(actual)
 								if err0 != nil || err1 != nil {
@@ -411,8 +411,8 @@ func (c *opsCtrl) reactor() {
 								}
 								if !NewInstanceIDSet(expected.Dependencies).Equal(NewInstanceIDSet(actual.Dependencies)) {
 									fmt.Printf("%v / %v mismatch\n", inst0, i)
-									fmt.Printf("%+v\n", instances[inst0][iid].Dependencies)
-									fmt.Printf("%+v\n", instances[i][iid].Dependencies)
+									fmt.Printf("%+v\n", instances[inst0].Get(iid).Dependencies)
+									fmt.Printf("%+v\n", instances[i].Get(iid).Dependencies)
 								}
 								if expected.Sequence != actual.Sequence {
 									fmt.Printf("%v / %v mismatch\n", inst0, i)
@@ -423,7 +423,7 @@ func (c *opsCtrl) reactor() {
 						}
 
 						scope := node.manager.getScope("a")
-						localInst := scope.instances[scope.executed[len(scope.executed) - 1]]
+						localInst := scope.instances.Get(scope.executed[len(scope.executed) - 1])
 						//					fmt.Printf("Local:  %+v\n", localInst)
 
 						for _, onode := range c.nodes {
@@ -431,7 +431,7 @@ func (c *opsCtrl) reactor() {
 								continue
 							}
 							scope := onode.manager.getScope("a")
-							rInst := scope.instances[localInst.InstanceID]
+							rInst := scope.instances.Get(localInst.InstanceID)
 							if !c.c.Check(NewInstanceIDSet(rInst.Dependencies).Equal(NewInstanceIDSet(localInst.Dependencies)), gocheck.DeepEquals, true) {
 								fmt.Printf("%+v\n", NewInstanceIDSet(rInst.Dependencies))
 								fmt.Printf("%+v\n", NewInstanceIDSet(localInst.Dependencies))
