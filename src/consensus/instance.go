@@ -340,6 +340,8 @@ func (i *Instance) Copy() (*Instance, error) {
 // merges sequence and dependencies onto this instance, and returns
 // true/false to indicate if there were any changes
 func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	changes := false
 	if seq > i.Sequence {
 		changes = true

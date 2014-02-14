@@ -114,8 +114,6 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 // merges the attributes from the pre accept responses onto the local instance
 // and returns a bool indicating if any changes were made
 func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcceptResponse) (bool, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	logger.Debug("Merging preaccept attributes")
 	changes := false
 	for _, response := range responses {
@@ -170,8 +168,6 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 // this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
 	logger.Debug("PreAccept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	logger.Debug("Processing PreAccept message for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
 	extSeq := request.Instance.Sequence
