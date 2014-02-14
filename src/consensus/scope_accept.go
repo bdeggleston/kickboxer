@@ -161,8 +161,6 @@ func (s *Scope) acceptPhase(instance *Instance) error {
 // handles an accept message from the command leader for an instance
 // this executes the replica accept phase for the given instance
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	logger.Debug("Accept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
 	if len(request.MissingInstances) > 0 {
