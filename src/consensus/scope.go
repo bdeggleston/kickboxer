@@ -267,10 +267,6 @@ type Scope struct {
 	manager      *Manager
 	persistCount uint64
 
-	// prevents multiple goroutines from attempting
-	// an explicit prepare on the same instance
-	prepareLock map[InstanceID]*sync.Mutex
-
 	// ------------- runtime stats -------------
 
 	// ------------- commit stats -------------
@@ -320,7 +316,6 @@ func NewScope(name string, manager *Manager) *Scope {
 		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 		manager:    manager,
-		prepareLock: make(map[InstanceID]*sync.Mutex),
 	}
 }
 

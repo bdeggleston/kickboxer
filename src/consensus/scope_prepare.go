@@ -316,12 +316,7 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	defer instance.prepareLock.Unlock()
 
 	// check if the instance has been committed
-	isCommitted := func() bool {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		return instance.Status >= INSTANCE_COMMITTED
-	}
-	if isCommitted() {
+	if instance.getStatus() >= INSTANCE_COMMITTED {
 		return nil
 	}
 
@@ -332,8 +327,6 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	if err != nil {
 		return err
 	}
-
-	delete(s.prepareLock, instance.InstanceID)
 
 	return nil
 }
