@@ -444,6 +444,7 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 		LeaderID:     s.GetLocalID(),
 		Commands:     instructions,
 		Successors:   make([]node.NodeId, len(replicas)),
+		scope:		  s,
 	}
 
 	// add randomly ordered successors
@@ -482,8 +483,6 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 }
 
 func (s *Scope) addMissingInstances(instances ...*Instance) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	if err := s.addMissingInstancesUnsafe(instances...); err != nil {
 		return err
 	}
@@ -494,21 +493,17 @@ func (s *Scope) addMissingInstances(instances ...*Instance) error {
 }
 
 func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses []BallotMessage) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	ballot := instance.MaxBallot
+	var maxBallot uint32
 	for _, response := range responses {
-		if response.GetBallot() > ballot {
-			ballot = response.GetBallot()
+		if ballot := response.GetBallot(); ballot > maxBallot {
+			maxBallot = ballot
 		}
 	}
 
-	if ballot > instance.MaxBallot {
-		instance.MaxBallot = ballot
-	}
-	if err := s.Persist(); err != nil {
-		return err
+	if instance.updateBallot(maxBallot) {
+		if err := s.Persist(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

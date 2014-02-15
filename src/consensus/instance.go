@@ -335,6 +335,14 @@ func (i *Instance) getSeq() uint64 {
 	return i.Sequence
 }
 
+func (i *Instance) getSuccessors() []node.NodeId {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	result := make([]node.NodeId, len(i.Successors))
+	copy(result, i.Successors)
+	return result
+}
+
 func (i *Instance) updateBallot(ballot uint32) bool {
 	i.lock.Lock()
 	defer i.lock.Unlock()

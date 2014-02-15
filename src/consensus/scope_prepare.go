@@ -343,7 +343,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 		replicaMap[replica.GetId()] = replica
 	}
 
-	for _, nid := range instance.Successors {
+	for _, nid := range instance.getSuccessors() {
 		if nid == s.GetLocalID() {
 			break
 		}
@@ -375,26 +375,21 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 					continue
 				}
 
-				updateInstance := func() (bool, error) {
-					var proceed bool
-					var err error
-					s.lock.Lock()
-					defer s.lock.Unlock()
-					if response.Instance.Status > instance.Status {
-						switch response.Instance.Status {
-						case INSTANCE_ACCEPTED:
-							err = s.acceptInstanceUnsafe(instance, false)
-						case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-							proceed = true
-							err = s.commitInstanceUnsafe(instance, false)
+				if response.Instance.Status > instance.getStatus() {
+					switch response.Instance.Status {
+					case INSTANCE_ACCEPTED:
+						if err := s.acceptInstance(instance, false); err != nil {
+							return false, err
 						}
+						return false, nil
+					case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+						if err := s.commitInstance(instance, false); err != nil {
+							return false, err
+						}
+						return true, nil
 					}
-					if err != nil {
-						return false, err
-					}
-					return proceed, nil
 				}
-				return updateInstance()
+				return false, nil
 
 			case <- errChan:
 				// there was an error communicating with the successor, go to the next one
