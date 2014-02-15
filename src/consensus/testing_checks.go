@@ -12,7 +12,7 @@ func (c *instMapContainsKeyChecker) Check(params []interface{}, names []string) 
 	if len(params) != 2 {
 		return false, "2 arguments required"
 	}
-	mapObj, ok := params[0].(InstanceMap)
+	mapObj, ok := params[0].(*InstanceMap)
 	if !ok {
 		return false, "first argument is not an InstanceMap"
 	}
