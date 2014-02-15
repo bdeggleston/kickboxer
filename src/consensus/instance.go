@@ -393,6 +393,7 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 	defer i.lock.Unlock()
 
 	if i.Status > INSTANCE_ACCEPTED {
+		logger.Debug("Accept: Can't accept instance %v with status %v", inst.InstanceID, inst.Status)
 		return NewInvalidStatusUpdateError(i, INSTANCE_ACCEPTED)
 	}
 
@@ -410,8 +411,33 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 	return nil
 }
 
-func (i *Instance) commit() {
+// commits the instance
+// the broadcast event is not sent here because the
+// instance needs to be persisted before the event is sent
+func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
 
+	if i.Status > INSTANCE_COMMITTED {
+		logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
+		return NewInvalidStatusUpdateError(i, INSTANCE_COMMITTED)
+	}
+
+	if inst != nil {
+		// this replica may have missed an accept message
+		// so copy the seq & deps onto the existing instance
+		i.Dependencies = inst.Dependencies
+		i.Sequence = inst.Sequence
+		i.MaxBallot = inst.MaxBallot
+		i.Noop = inst.Noop
+	}
+	i.Status = INSTANCE_COMMITTED
+	i.executeTimeout = makeExecuteTimeout()
+
+	if incrementBallot {
+		i.MaxBallot++
+	}
+	return nil
 }
 
 func (i *Instance) execute() {

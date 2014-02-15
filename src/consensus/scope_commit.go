@@ -20,39 +20,35 @@ func makeExecuteTimeout() time.Time {
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	var instance *Instance
-	if existing := s.instances.Get(inst.InstanceID); existing != nil {
-		if existing.Status > INSTANCE_COMMITTED {
-			logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
-			return NewInvalidStatusUpdateError(existing, INSTANCE_COMMITTED)
-		} else {
-			logger.Debug("Commit: committing existing instance %v", inst.InstanceID)
-			// this replica may have missed an accept message
-			// so copy the seq & deps onto the existing instance
-			existing.Dependencies = inst.Dependencies
-			existing.Sequence = inst.Sequence
-			existing.MaxBallot = inst.MaxBallot
-			existing.Noop = inst.Noop
-		}
-		instance = existing
+	return s.commitInstance(inst, incrementBallot)
+}
+
+// sets the given instance as committed
+// in the case of handling messages from leaders to replicas
+// the message instance should be passed in. It will either
+// update the existing instance in place, or add the message
+// instance to the scope's instance
+// returns a bool indicating that the instance was actually
+// accepted (and not skipped), and an error, if applicable
+func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
+	instance, existed := s.getOrSetInstance(inst)
+
+	if existed {
+		logger.Debug("Commit: committing existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("Commit: committing new instance %v", inst.InstanceID)
-		instance = inst
 	}
 
-	instance.Status = INSTANCE_COMMITTED
-	if incrementBallot {
-		instance.MaxBallot++
+	if err := instance.commit(inst, incrementBallot); err != nil {
+		return err
 	}
+
+	s.updateSeq(instance.getSeq())
+
+	// update scope bookeeping
 	s.inProgress.Remove(instance)
 	s.instances.Add(instance)
 	s.committed.Add(instance)
-
-	if instance.Sequence > s.maxSeq {
-		s.maxSeq = instance.Sequence
-	}
-
-	instance.executeTimeout = makeExecuteTimeout()
 
 	if err := s.Persist(); err != nil {
 		return err
@@ -64,20 +60,6 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 
 	logger.Debug("Commit: success for Instance: %v", instance.InstanceID)
 	return nil
-}
-
-// sets the given instance as committed
-// in the case of handling messages from leaders to replicas
-// the message instance should be passed in. It will either
-// update the existing instance in place, or add the message
-// instance to the scope's instance
-// returns a bool indicating that the instance was actually
-// accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstance(instance *Instance, incrementBallot bool) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.commitInstanceUnsafe(instance, incrementBallot)
 }
 
 // Mark the instance as committed locally, persist state to disk, then send
@@ -122,8 +104,6 @@ func (s *Scope) commitPhase(instance *Instance) error {
 // handles an commit message from the command leader for an instance
 // this executes the replica commit phase for the given instance
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
 	if err := s.commitInstanceUnsafe(request.Instance, false); err != nil {
