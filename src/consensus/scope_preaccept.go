@@ -28,7 +28,14 @@ func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) er
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
-	instance, _ := s.getOrSetInstance(inst)
+	instance, existed := s.getOrSetInstance(inst)
+
+	if existed {
+		logger.Debug("PreAccept: preaccepting existing instance %v", inst.InstanceID)
+	} else {
+		logger.Debug("PreAccept: preaccepting new instance %v", inst.InstanceID)
+	}
+
 	if err := instance.preaccept(inst, incrementBallot); err != nil {
 		return err
 	}
@@ -39,6 +46,7 @@ func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
 		return err
 	}
 
+	logger.Debug("PreAccept: success for Instance: %v", instance.InstanceID)
 	return nil
 }
 

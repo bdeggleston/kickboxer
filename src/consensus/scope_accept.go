@@ -34,7 +34,14 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
-	instance, _ := s.getOrSetInstance(inst)
+	instance, existed := s.getOrSetInstance(inst)
+
+	if existed {
+		logger.Debug("Accept: accepting existing instance %v", inst.InstanceID)
+	} else {
+		logger.Debug("Accept: accepting new instance %v", inst.InstanceID)
+	}
+
 	if err := instance.accept(inst, incrementBallot); err != nil {
 		return err
 	}
@@ -45,6 +52,7 @@ func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
 		return err
 	}
 
+	logger.Debug("Accept: success for Instance: %v", instance.InstanceID)
 	return nil
 }
 
