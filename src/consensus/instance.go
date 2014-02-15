@@ -390,6 +390,9 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 
 	if inst != nil {
 		i.Noop = inst.Noop
+		if inst.MaxBallot > i.MaxBallot {
+			i.MaxBallot = inst.MaxBallot
+		}
 	}
 	i.Status = INSTANCE_PREACCEPTED
 	i.Sequence, i.Dependencies = i.scope.getSeqAndDeps()
@@ -412,8 +415,10 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 	if inst != nil {
 		i.Dependencies = inst.Dependencies
 		i.Sequence = inst.Sequence
-		i.MaxBallot = inst.MaxBallot
 		i.Noop = inst.Noop
+		if inst.MaxBallot > i.MaxBallot {
+			i.MaxBallot = inst.MaxBallot
+		}
 	}
 	i.Status = INSTANCE_ACCEPTED
 	i.commitTimeout = makeAcceptCommitTimeout()
@@ -440,8 +445,10 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		// so copy the seq & deps onto the existing instance
 		i.Dependencies = inst.Dependencies
 		i.Sequence = inst.Sequence
-		i.MaxBallot = inst.MaxBallot
 		i.Noop = inst.Noop
+		if inst.MaxBallot > i.MaxBallot {
+			i.MaxBallot = inst.MaxBallot
+		}
 	}
 	i.Status = INSTANCE_COMMITTED
 	i.executeTimeout = makeExecuteTimeout()
@@ -452,8 +459,10 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 	return nil
 }
 
-func (i *Instance) execute() {
-
+func (i *Instance) setNoop() {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	i.Noop = true
 }
 
 // -------------- serialization --------------

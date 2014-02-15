@@ -176,9 +176,6 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 // if any of the responses have been rejected, the local ballot will be updated,
 // as well as it's status if there are any responses with a higher status
 var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []*PrepareResponse) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	accepted := true
 	var maxBallot uint32
 	var maxStatus InstanceStatus
@@ -205,22 +202,15 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 			}
 		}
 
-		if maxBallot > instance.MaxBallot {
-			// update local ballot
-			instance.MaxBallot = maxBallot
-			if err := s.Persist(); err != nil {
-				return err
-			}
-		}
 		// update local ballot and/or status
 		if maxInstance != nil && maxInstance.Status > instance.Status {
 			switch maxInstance.Status {
 			case INSTANCE_ACCEPTED:
-				if err := s.acceptInstanceUnsafe(maxInstance, false); err != nil {
+				if err := s.acceptInstance(maxInstance, false); err != nil {
 					return err
 				}
 			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-				if err := s.commitInstanceUnsafe(maxInstance, false); err != nil {
+				if err := s.commitInstance(maxInstance, false); err != nil {
 					return err
 				}
 			}
@@ -239,32 +229,6 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 		return err
 	}
 
-	// sets the instance's noop flag to true
-	setNoop := func() error {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		instance.Noop = true
-		if err := s.Persist(); err != nil {
-			return err
-		}
-		return nil
-	}
-
-//	var status InstanceStatus
-//	var prepareInstance *Instance
-//	if remoteInstance != nil {
-//		if err := checkAndMatchBallot(); err != nil {
-//			return nil
-//		}
-//		prepareInstance = remoteInstance
-//		status = remoteInstance.Status
-//	} else {
-//		logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
-//		setNoop()
-//		status = INSTANCE_PREACCEPTED
-//		prepareInstance = instance
-//	}
-
 	remoteInstance := s.analyzePrepareResponses(responses)
 	var status InstanceStatus
 	var prepareInstance *Instance
@@ -278,7 +242,7 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 	} else {
 		if instance.Status <= INSTANCE_PREACCEPTED {
 			logger.Warning("Instance %v not recognized by other replicas, committing noop", instance.InstanceID)
-			setNoop()
+			instance.setNoop()
 			status = INSTANCE_PREACCEPTED
 			prepareInstance = instance
 		} else {
