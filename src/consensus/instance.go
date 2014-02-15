@@ -335,6 +335,16 @@ func (i *Instance) getSeq() uint64 {
 	return i.Sequence
 }
 
+func (i *Instance) updateBallot(ballot uint32) bool {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	if ballot > i.MaxBallot {
+		i.MaxBallot = ballot
+		return true
+	}
+	return false
+}
+
 // returns a copy of the instance
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()

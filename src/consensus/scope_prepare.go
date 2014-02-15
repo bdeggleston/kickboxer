@@ -191,6 +191,14 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 		}
 		accepted = accepted && response.Accepted
 	}
+
+	// update the local ballot
+	if instance.updateBallot(maxBallot) {
+		if err := s.Persist(); err != nil {
+			return err
+		}
+	}
+
 	if !accepted {
 		var maxInstance *Instance
 		for _, response := range responses {
