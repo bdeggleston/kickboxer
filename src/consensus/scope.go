@@ -122,6 +122,8 @@ add a method to get or set instances on scope, get instances, and a method of up
 attributes and scope bookkeeping while both are locked. May need to move some functionality onto the
 instance, and make all instances aware of the local scope (could be handled in the get or set method)
 
+TODO: think about potential race conditions caused by multiple goroutines running executeDependencyChain concurrently
+
 ------ older notes ------
 
 1) The scope needs to know the consistency level, and have a means of querying the cluster

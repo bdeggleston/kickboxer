@@ -311,6 +311,18 @@ func (i *Instance) broadcastExecuteEvent() {
 	}
 }
 
+func (i *Instance) getExecuteTimeoutEvent() <-chan time.Time {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return getTimeoutEvent(i.executeTimeout.Sub(time.Now()))
+}
+
+func (i *Instance) getCommitTimeoutEvent() <-chan time.Time {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return getTimeoutEvent(i.executeTimeout.Sub(time.Now()))
+}
+
 func (i *Instance) getStatus() InstanceStatus {
 	i.lock.RLock()
 	defer i.lock.RUnlock()

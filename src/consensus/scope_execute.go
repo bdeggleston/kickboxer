@@ -117,34 +117,52 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 
 // executes an instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
-	if instance.Status != INSTANCE_COMMITTED {
-		return nil, fmt.Errorf("instance not committed")
-	}
-	var val store.Value
-	var err error
-	if !instance.Noop {
-		for _, instruction := range instance.Commands {
-			val, err = s.manager.cluster.ApplyQuery(
-				instruction.Cmd,
-				instruction.Key,
-				instruction.Args,
-				instruction.Timestamp,
-			)
-			if err != nil {
-				return nil, err
+
+	// lock both
+	synchronizedApply := func() (store.Value, error) {
+		instance.lock.Lock()
+		defer instance.lock.Unlock()
+		if instance.Status == INSTANCE_EXECUTED {
+			return nil, nil
+		} else if instance.Status != INSTANCE_COMMITTED {
+			return nil, fmt.Errorf("instance not committed")
+		}
+		var val store.Value
+		var err error
+		if !instance.Noop {
+			for _, instruction := range instance.Commands {
+				val, err = s.manager.cluster.ApplyQuery(
+					instruction.Cmd,
+					instruction.Key,
+					instruction.Args,
+					instruction.Timestamp,
+				)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
+
+		// update scope bookkeeping
+		instance.Status = INSTANCE_EXECUTED
+		s.committed.Remove(instance)
+		func() {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+			s.executed = append(s.executed, instance.InstanceID)
+		}()
+		if err := s.Persist(); err != nil {
+			return nil, err
+		}
+		s.statExecuteCount++
+
+		return val, err
 	}
 
-	// update scope bookkeeping
-	instance.Status = INSTANCE_EXECUTED
-	s.committed.Remove(instance)
-	s.executed = append(s.executed, instance.InstanceID)
-	if err := s.Persist(); err != nil {
+	val, err := synchronizedApply()
+	if err != nil {
 		return nil, err
 	}
-	s.statExecuteCount++
-
 	// wake up any goroutines waiting on this instance
 	instance.broadcastExecuteEvent()
 
@@ -156,54 +174,41 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 	var val store.Value
 	var err error
 
-	// applies the instance and unlocks the lock, even if the apply
-	// call panics. The lock must be aquired before calling this
-	applyAndUnlock := func(instance *Instance) (store.Value, error) {
-		defer s.lock.Unlock()
-		return s.applyInstance(instance)
-	}
-
 	// don't execute instances 'out from under' client requests. Use the
 	// execution grace period first, check the leader id, if it's not this
 	// node, go ahead and execute it if it is, wait for the execution timeout
 	for _, iid := range iids {
 		val = nil
 		err = nil
-		s.lock.Lock()
 		instance := s.instances.Get(iid)
-		switch instance.Status {
+		switch instance.getStatus() {
 		case INSTANCE_COMMITTED:
 			//
 			if instance.InstanceID == target.InstanceID {
 				// execute
-				val, err = applyAndUnlock(instance)
+				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
 				s.statExecuteLocalSuccess++
 			} else if instance.LeaderID != s.manager.GetLocalID() {
 				// execute
-				val, err = applyAndUnlock(instance)
+				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
 				s.statExecuteRemote++
 			} else {
 				// wait for the execution grace period to end
 				if time.Now().After(instance.executeTimeout) {
-					val, err = applyAndUnlock(instance)
+					val, err = s.applyInstance(instance)
 					if err != nil { return nil, err }
 					s.statExecuteLocalTimeout++
 				} else {
-
-					timeoutEvent := getTimeoutEvent(instance.executeTimeout.Sub(time.Now()))
-					s.lock.Unlock()
 
 					select {
 					case <- instance.getExecuteEvent().getChan():
 						// instance was executed by another goroutine
 						s.statExecuteLocalSuccessWait++
-					case <- timeoutEvent:
+					case <- instance.getExecuteTimeoutEvent():
 						// execution timed out
-						s.lock.Lock()
-
-						val, err = applyAndUnlock(instance)
+						val, err = s.applyInstance(instance)
 						if err != nil { return nil, err }
 						s.statExecuteLocalTimeout++
 						s.statExecuteLocalTimeoutWait++
@@ -211,10 +216,8 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 				}
 			}
 		case INSTANCE_EXECUTED:
-			s.lock.Unlock()
 			continue
 		default:
-			s.lock.Unlock()
 			return nil, fmt.Errorf("Uncommitted dependencies should be handled before calling executeDependencyChain")
 		}
 
