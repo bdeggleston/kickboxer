@@ -186,15 +186,15 @@ func (s *PrepareLeaderTest) TestBallotUpdateFromResponses(c *gocheck.C) {
 }
 
 // tests the analyzePrepareResponses method
-type AnalyzePrepareResponsesTest struct {
+type PrepareAnalyzeResponsesTest struct {
 	basePrepareTest
 }
 
-var _ = gocheck.Suite(&PreparePhaseTest{})
+var _ = gocheck.Suite(&PrepareAnalyzeResponsesTest{})
 
 
 // tests that the instance with the highest ballot/status is returned
-func (s *AnalyzePrepareResponsesTest) TestSuccessCase(c *gocheck.C) {
+func (s *PrepareAnalyzeResponsesTest) TestSuccessCase(c *gocheck.C) {
 	responses := make([]*PrepareResponse, 0)
 	addResponse := func(ballot uint32, status InstanceStatus) {
 		instance := copyInstance(s.instance)
@@ -221,7 +221,7 @@ func (s *AnalyzePrepareResponsesTest) TestSuccessCase(c *gocheck.C) {
 
 // tests that a mix of responses with nil instances, and not nil instances
 // is safe from nil pointer errors
-func (s *AnalyzePrepareResponsesTest) TestMixedNilResponses(c *gocheck.C) {
+func (s *PrepareAnalyzeResponsesTest) TestMixedNilResponses(c *gocheck.C) {
 
 }
 

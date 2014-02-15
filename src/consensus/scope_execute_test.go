@@ -508,13 +508,13 @@ func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
 	c.Assert(val, gocheck.IsNil)
 }
 
-type ApplyInstanceTest struct {
+type ExecuteApplyInstanceTest struct {
 	baseScopeTest
 }
 
-var _ = gocheck.Suite(&ApplyInstanceTest{})
+var _ = gocheck.Suite(&ExecuteApplyInstanceTest{})
 
-func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
+func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	err := s.scope.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
@@ -528,7 +528,7 @@ func (s *ApplyInstanceTest) TestSuccess(c *gocheck.C) {
 }
 
 //
-func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
+func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	instance.Status = INSTANCE_COMMITTED
 	instance.Noop = true
@@ -542,7 +542,7 @@ func (s *ApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 // tests the executing an instance against the store
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map
-func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
+func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	s.scope.commitInstance(instance, false)
 	instance.getExecuteEvent()
@@ -567,7 +567,7 @@ func (s *ApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
-func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
+func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
 	s.scope.commitInstance(instance, false)
@@ -587,7 +587,7 @@ func (s *ApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 }
 
 // tests that apply instance fails if the instance is not committed
-func (s *ApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
+func (s *ExecuteApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
 	instance := s.scope.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
 	s.scope.acceptInstance(instance, false)
