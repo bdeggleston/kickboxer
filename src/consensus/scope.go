@@ -339,11 +339,11 @@ func (s *Scope) getInstance(iid InstanceID) *Instance {
 // or sets the given instance locally. Does not handle any of the
 // committed, inprogress, executed logic
 func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	existedLocally := true
-	instance := s.getInstance(inst.InstanceID)
+	instance := s.instances.Get(inst.InstanceID)
 	if instance == nil {
-		s.lock.Lock()
-		defer s.lock.Unlock()
 		instance = inst
 		instance.scope = s
 		s.instances.Add(inst)
