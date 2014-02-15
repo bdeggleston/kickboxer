@@ -154,6 +154,39 @@ func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
 	c.Assert(executed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
+//
+func (s *ScopeTest) TestGetOrSetNewInstance(c *gocheck.C) {
+	instance, existed := s.scope.getOrSetInstance(makeInstance(node.NewNodeId(), []InstanceID{}))
+	c.Assert(instance.scope, gocheck.Equals, s.scope)
+	c.Assert(existed, gocheck.Equals, false)
+}
+
+func (s *ScopeTest) TestGetOrSetExistingInstance(c *gocheck.C) {
+	getInst := func(status InstanceStatus) *Instance {
+		inst := s.scope.makeInstance(getBasicInstruction())
+		inst.Status = status
+		return inst
+	}
+	instance := getInst(INSTANCE_PREACCEPTED)
+	s.scope.instances.Add(instance)
+
+	_, existed := s.scope.getOrSetInstance(instance)
+	c.Assert(existed, gocheck.Equals, true)
+}
+
+// tests that get or set sets new instances to committed if the
+// new instance has an status of executed
+func (s *ScopeTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
+	getInst := func(status InstanceStatus) *Instance {
+		inst := s.scope.makeInstance(getBasicInstruction())
+		inst.Status = status
+		return inst
+	}
+
+	instance, _ := s.scope.getOrSetInstance(getInst(INSTANCE_EXECUTED))
+	c.Assert(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
+}
+
 type ScopeExecuteQueryTest struct {
 	baseScopeTest
 }

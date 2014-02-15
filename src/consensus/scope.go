@@ -346,6 +346,9 @@ func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	if instance == nil {
 		instance = inst
 		instance.scope = s
+		if instance.Status > INSTANCE_COMMITTED {
+			instance.Status = INSTANCE_COMMITTED
+		}
 		s.instances.Add(inst)
 		existedLocally = false
 	}
