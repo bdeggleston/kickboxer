@@ -41,7 +41,6 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	leaderInstance := copyInstance(replicaInstance)
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
-
 	err := s.scope.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 

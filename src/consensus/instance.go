@@ -317,6 +317,12 @@ func (i *Instance) getStatus() InstanceStatus {
 	return i.Status
 }
 
+func (i *Instance) getSeq() uint64 {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.Sequence
+}
+
 // returns a copy of the instance
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()
@@ -382,8 +388,26 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 	return nil
 }
 
-func (i *Instance) accept() {
+func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
 
+	if i.Status > INSTANCE_ACCEPTED {
+		return NewInvalidStatusUpdateError(i, INSTANCE_ACCEPTED)
+	}
+
+	if inst != nil {
+		i.Dependencies = inst.Dependencies
+		i.Sequence = inst.Sequence
+		i.MaxBallot = inst.MaxBallot
+		i.Noop = inst.Noop
+	}
+	i.Status = INSTANCE_ACCEPTED
+	i.commitTimeout = makeAcceptCommitTimeout()
+	if incrementBallot {
+		i.MaxBallot++
+	}
+	return nil
 }
 
 func (i *Instance) commit() {

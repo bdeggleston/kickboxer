@@ -23,41 +23,7 @@ func makeAcceptCommitTimeout() time.Time {
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	var instance *Instance
-	if existing := s.instances.Get(inst.InstanceID); existing != nil {
-		if existing.Status > INSTANCE_ACCEPTED {
-			logger.Debug("Accept: Can't accept instance %v with status %v", inst.InstanceID, inst.Status)
-			return NewInvalidStatusUpdateError(existing, INSTANCE_ACCEPTED)
-		} else {
-			logger.Debug("Accept: accepting existing instance %v", inst.InstanceID)
-			existing.Dependencies = inst.Dependencies
-			existing.Sequence = inst.Sequence
-			existing.MaxBallot = inst.MaxBallot
-			existing.Noop = inst.Noop
-		}
-		instance = existing
-	} else {
-		logger.Debug("Accept: accept new instance %v", inst.InstanceID)
-		instance = inst
-	}
-
-	instance.Status = INSTANCE_ACCEPTED
-	instance.commitTimeout = makeAcceptCommitTimeout()
-	if incrementBallot {
-		instance.MaxBallot++
-	}
-	s.instances.Add(instance)
-	s.inProgress.Add(instance)
-
-	if instance.Sequence > s.maxSeq {
-		s.maxSeq = instance.Sequence
-	}
-
-	if err := s.Persist(); err != nil {
-		return err
-	}
-	logger.Debug("Accept: success for Instance: %+v", *inst.Commands[0])
-	return nil
+	return s.acceptInstance(inst, incrementBallot)
 }
 
 // sets the given instance as accepted
@@ -67,11 +33,19 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstance(instance *Instance, incrementBallot bool) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
+	instance, _ := s.getOrSetInstance(inst)
+	if err := instance.accept(inst, incrementBallot); err != nil {
+		return err
+	}
 
-	return s.acceptInstanceUnsafe(instance, incrementBallot)
+	s.inProgress.Add(instance)
+	s.updateSeq(instance.getSeq())
+	if err := s.Persist(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {

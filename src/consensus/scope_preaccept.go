@@ -34,6 +34,7 @@ func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
 	}
 
 	s.inProgress.Add(instance)
+	s.updateSeq(instance.getSeq())
 	if err := s.Persist(); err != nil {
 		return err
 	}

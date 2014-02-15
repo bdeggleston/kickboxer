@@ -418,6 +418,27 @@ func (s *Scope) getSeqAndDeps() (uint64, []InstanceID) {
 	return s.getNextSeqUnsafe(), s.getCurrentDepsUnsafe()
 }
 
+// updates the scope's sequence number, if the given
+// number is higher
+func (s *Scope) updateSeq(seq uint64) error {
+	existing := func() uint64 {
+		s.lock.RLock()
+		defer s.lock.RUnlock()
+		return s.maxSeq
+	}()
+
+	if existing < seq {
+		func() {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+			if s.maxSeq < seq {
+				s.maxSeq = seq
+			}
+		}()
+	}
+	return nil
+}
+
 // creates a bare epaxos instance from the given instructions
 func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 	replicas := s.manager.getScopeReplicas(s)
