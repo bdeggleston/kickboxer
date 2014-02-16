@@ -30,10 +30,13 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance
 	}
 
 	// find the highest response status
-	maxStatus := InstanceStatus(byte(0))
+	var maxStatus InstanceStatus
 	var instance *Instance
 	for _, response := range responses {
 		if response.Instance == nil {
+			continue
+		}
+		if response.Instance.MaxBallot < maxBallot {
 			continue
 		}
 		if status := response.Instance.Status; status > maxStatus {
@@ -534,12 +537,10 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 
 // handles a message from a replica requesting that a prepare phase is executed on the given instance
 func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*PrepareSuccessorResponse, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
-		if instance.Status < INSTANCE_COMMITTED {
+		if instance.getStatus() < INSTANCE_COMMITTED {
 			s.preparePhase(instance)
 		}
 	}
