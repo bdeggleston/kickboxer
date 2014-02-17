@@ -311,10 +311,22 @@ func (i *Instance) broadcastExecuteEvent() {
 	}
 }
 
+func (i *Instance) getExecuteTimeout() time.Time {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.executeTimeout
+}
+
 func (i *Instance) getExecuteTimeoutEvent() <-chan time.Time {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	return getTimeoutEvent(i.executeTimeout.Sub(time.Now()))
+}
+
+func (i *Instance) getCommitTimeout() time.Time {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.commitTimeout
 }
 
 func (i *Instance) getCommitTimeoutEvent() <-chan time.Time {

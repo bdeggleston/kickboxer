@@ -75,8 +75,6 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 		}
 	}
 
-	// lock the scope so other goroutines
-	// don't changes attributes on the instance
 	for _, replica := range replicas {
 		go sendMsg(replica)
 	}

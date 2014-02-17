@@ -419,21 +419,13 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 // determines a prepare phase should proceed for the given instance
 // will block if waiting on a timeout / notification
 func (s *Scope) prepareShouldProceed(instance *Instance) bool {
-	// gets the instance status and timeout in a lock
-	getStatusAndTimeout := func() (InstanceStatus, time.Time) {
-		s.lock.RLock()
-		defer s.lock.RUnlock()
-		return instance.Status, instance.commitTimeout
-	}
-
-	status, timeout := getStatusAndTimeout()
 
 	// bail out if the instance has already been committed
-	if status >= INSTANCE_COMMITTED {
+	if instance.getStatus() >= INSTANCE_COMMITTED {
 		return false
 	}
 
-	if time.Now().After(timeout) {
+	if time.Now().After(instance.getCommitTimeout()) {
 		logger.Debug("Prepare: commit grace period expired. proceeding")
 		// proceed, the instance's commit grace period
 		// has expired
@@ -446,14 +438,11 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 			// instance was executed by another goroutine
 			s.statCommitTimeoutWait++
 			return false
-		case <- getTimeoutEvent(timeout.Sub(time.Now())):
+		case <- instance.getCommitTimeoutEvent():
 			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
 			// execution timed out
 
-			// check that instance was not executed by another
-			// waking goroutine
-			status, _ = getStatusAndTimeout()
-			if status >= INSTANCE_COMMITTED {
+			if instance.getStatus() >= INSTANCE_COMMITTED {
 				// unlock and continue if it was
 				return false
 			} else {
@@ -542,7 +531,39 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 		response.Instance = instance
 		if instance.getStatus() < INSTANCE_COMMITTED {
 			// TODO: run multiple times, like in execute
-			go s.preparePhase(instance)
+			successors := instance.getSuccessors()
+			successorNum := len(successors)
+			for i, nid := range successors {
+				if nid == s.GetLocalID() {
+					successorNum = i
+				}
+			}
+			go func(){
+				for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+					if err := s.preparePhase(instance); err != nil {
+						if _, ok := err.(BallotError); ok {
+							logger.Debug("Prepare failed with BallotError, waiting to try again")
+
+							// wait on broadcast event or timeout
+							waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(successorNum)
+							logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
+							timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
+							select {
+							case <- instance.getCommitEvent().getChan():
+								// another goroutine committed
+								// the instance
+								return
+							case <-timeoutEvent:
+								// continue with the prepare
+							}
+						}
+
+					} else {
+						return
+					}
+				}
+			}()
+//			go s.preparePhase(instance)
 		}
 	}
 	return response, nil
