@@ -241,6 +241,7 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 	}
 
 	remoteInstance := s.analyzePrepareResponses(responses)
+
 	var status InstanceStatus
 	var prepareInstance *Instance
 	if remoteInstance != nil {
@@ -541,7 +542,8 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
 		if instance.getStatus() < INSTANCE_COMMITTED {
-			s.preparePhase(instance)
+			// TODO: run multiple times, like in execute
+			go s.preparePhase(instance)
 		}
 	}
 	return response, nil
