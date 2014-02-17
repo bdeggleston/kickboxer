@@ -505,11 +505,9 @@ func (s *Scope) preparePhase(instance *Instance) error {
 // handles a prepare message from an instance attempting to take
 // control of an instance.
 func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	instance := s.instances.Get(request.InstanceID)
 	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
+
+	instance := s.getInstance(request.InstanceID)
 	response := &PrepareResponse{}
 	var responseBallot uint32
 	if instance == nil {
@@ -517,9 +515,10 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	} else {
 		response.Accepted = request.Ballot > instance.MaxBallot
 		if response.Accepted {
-			instance.MaxBallot = request.Ballot
-			if err := s.Persist(); err != nil {
-				return nil, err
+			if instance.updateBallot(request.Ballot) {
+				if err := s.Persist(); err != nil {
+					return nil, err
+				}
 			}
 		} else {
 			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
