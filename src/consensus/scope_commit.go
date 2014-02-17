@@ -112,6 +112,7 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 		}
 	} else {
 		// asynchronously apply mutation
+		// TODO: delay based on munber of inProgress instances
 		go s.executeInstance(s.instances.Get(request.Instance.InstanceID))
 	}
 
