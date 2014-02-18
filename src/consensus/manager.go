@@ -6,6 +6,10 @@ import (
 )
 
 import (
+	"github.com/cactus/go-statsd-client/statsd"
+)
+
+import (
 	cluster "clusterproto"
 	"message"
 	"node"
@@ -17,13 +21,23 @@ type Manager struct {
 	scopeMap map[string]*Scope
 	lock     sync.RWMutex
 	cluster  cluster.Cluster
+	stats    statsd.Statter
 }
 
 func NewManager(cluster cluster.Cluster) *Manager {
+	stats, _ := statsd.NewNoop()
 	return &Manager{
 		scopeMap: make(map[string]*Scope),
 		cluster:  cluster,
+		stats:    stats,
 	}
+}
+
+func (m *Manager) setStatter(s statsd.Statter) {
+	if s == nil {
+		panic("cannot set nil statter")
+	}
+	m.stats = s
 }
 
 func (m *Manager) getScope(key string) *Scope {
