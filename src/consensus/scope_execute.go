@@ -154,7 +154,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		if err := s.Persist(); err != nil {
 			return nil, err
 		}
-		s.statExecuteCount++
+		s.statsInc("execute.success", 1)
 
 		return val, err
 	}
@@ -188,30 +188,30 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 				// execute
 				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statExecuteLocalSuccess++
+				s.statsInc("execute.local.success", 1)
 			} else if instance.LeaderID != s.manager.GetLocalID() {
 				// execute
 				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statExecuteRemote++
+				s.statsInc("execute.remote.success", 1)
 			} else {
 				// wait for the execution grace period to end
 				if time.Now().After(instance.executeTimeout) {
 					val, err = s.applyInstance(instance)
 					if err != nil { return nil, err }
-					s.statExecuteLocalTimeout++
+					s.statsInc("execute.local.timeout", 1)
 				} else {
 
 					select {
 					case <- instance.getExecuteEvent().getChan():
 						// instance was executed by another goroutine
-						s.statExecuteLocalSuccessWait++
+						s.statsInc("execute.local.wait.event", 1)
 					case <- instance.getExecuteTimeoutEvent():
 						// execution timed out
 						val, err = s.applyInstance(instance)
 						if err != nil { return nil, err }
-						s.statExecuteLocalTimeout++
-						s.statExecuteLocalTimeoutWait++
+						s.statsInc("execute.local.timeout", 1)
+						s.statsInc("execute.local.timeout.wait", 1)
 					}
 				}
 			}

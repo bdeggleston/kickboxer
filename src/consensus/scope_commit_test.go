@@ -45,7 +45,7 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Assert(s.scope.maxSeq, gocheck.Equals, uint64(3))
 	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, true)
 
-	oldStatCommitCount := s.scope.statCommitCount
+	oldStatCommitCount := s.scope.manager.stats.(*mockStatter).counters["commit.success"]
 	err := s.scope.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
@@ -58,7 +58,7 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 5)
 	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(4))
 	c.Check(s.scope.maxSeq, gocheck.Equals, uint64(4))
-	c.Check(s.scope.statCommitCount, gocheck.Equals, oldStatCommitCount + 1)
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["commit.success"], gocheck.Equals, oldStatCommitCount + 1)
 	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, false)
 	c.Check(replicaInstance.executeTimeout.After(time.Now()), gocheck.Equals, true)
 }

@@ -429,14 +429,14 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 		logger.Debug("Prepare: commit grace period expired. proceeding")
 		// proceed, the instance's commit grace period
 		// has expired
-		s.statCommitTimeout++
+		s.statsInc("prepare.commit.timeout", 1)
 	} else {
 		logger.Debug("Prepare: waiting on commit grace period to expire")
 		select {
 		case <- instance.getCommitEvent().getChan():
 			logger.Debug("Prepare: commit broadcast event received for %v", instance.InstanceID)
 			// instance was executed by another goroutine
-			s.statCommitTimeoutWait++
+			s.statsInc("prepare.commit.wait.event", 1)
 			return false
 		case <- instance.getCommitTimeoutEvent():
 			logger.Debug("Prepare: commit grace period expired for %v. proceeding", instance.InstanceID)
@@ -446,8 +446,8 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 				// unlock and continue if it was
 				return false
 			} else {
-				s.statCommitTimeout++
-				s.statCommitTimeoutWait++
+				s.statsInc("prepare.commit.timeout", 1)
+				s.statsInc("prepare.commit.timeout.wait", 1)
 			}
 		}
 	}

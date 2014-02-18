@@ -37,6 +37,7 @@ func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
 		logger.Debug("Commit: committing existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("Commit: committing new instance %v", inst.InstanceID)
+		s.statsInc("commit.new_instance", 1)
 	}
 
 	if err := instance.commit(inst, incrementBallot); err != nil {
@@ -56,7 +57,7 @@ func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
 
 	// wake up any goroutines waiting on this instance
 	instance.broadcastCommitEvent()
-	s.statCommitCount++
+	s.statsInc("commit.success", 1)
 
 	logger.Debug("Commit: success for Instance: %v", instance.InstanceID)
 	return nil
@@ -78,6 +79,7 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	for _, replica := range replicas {
 		go sendCommitMessage(replica)
 	}
+	s.statsInc("commit.message.sent", 1)
 	return nil
 }
 
@@ -105,6 +107,7 @@ func (s *Scope) commitPhase(instance *Instance) error {
 // this executes the replica commit phase for the given instance
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
+	s.statsInc("commit.message.received", 1)
 
 	if err := s.commitInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {

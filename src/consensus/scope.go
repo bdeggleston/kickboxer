@@ -63,7 +63,7 @@ var (
 	// assumed to have failed, and they execute it
 	EXECUTE_TIMEOUT = uint64(500)
 
-	STATS_SAMPLE_RATE = 1.0
+	STATS_SAMPLE_RATE = float32(1.0)
 )
 
 /*
@@ -269,47 +269,6 @@ type Scope struct {
 	lock         sync.RWMutex
 	cmdLock      sync.Mutex
 	manager      *Manager
-	persistCount uint64
-
-	// ------------- runtime stats -------------
-
-	// ------------- commit stats -------------
-
-	// total number of committed instances
-	statCommitCount uint64
-
-	// total number of timed out commits
-	statCommitTimeout uint64
-
-	// number of times a goroutine was waiting on
-	// an instance to execute
-	statCommitTimeoutWait uint64
-
-	// ------------- execution stats -------------
-
-	// total number of executed instances
-	statExecuteCount uint64
-
-	// number of times a local instance was not executed
-	// by it's originating goroutine because it's execution
-	// grace period had passed
-	statExecuteLocalTimeout uint64
-
-	// number of times a local instance was not executed
-	// by it's originating goroutine because it timed out
-	// while another goroutine was waiting on it
-	statExecuteLocalTimeoutWait uint64
-
-	// number of times a local instances was executed
-	// by it's originating goroutine
-	statExecuteLocalSuccess uint64
-
-	// number of times a goroutine was waiting on a local
-	// instance to execute
-	statExecuteLocalSuccessWait uint64
-
-	// number of remote instances executed
-	statExecuteRemote uint64
 }
 
 func NewScope(name string, manager *Manager) *Scope {
@@ -329,7 +288,7 @@ func (s *Scope) GetLocalID() node.NodeId {
 
 // persists the scope's state to disk
 func (s *Scope) Persist() error {
-	s.persistCount++
+	s.statsInc("scope.persist", 1)
 	return nil
 }
 
@@ -344,7 +303,7 @@ func (s *Scope) statsGauge(stat string, delta int64) error {
 func (s *Scope) statsTiming(stat string, start time.Time) error {
 	end := time.Now()
 	delta := end.Sub(start) / time.Millisecond
-	return s.manager.stats.Inc(stat, delta, STATS_SAMPLE_RATE)
+	return s.manager.stats.Inc(stat, int64(delta), STATS_SAMPLE_RATE)
 }
 
 func (s *Scope) getInstance(iid InstanceID) *Instance {

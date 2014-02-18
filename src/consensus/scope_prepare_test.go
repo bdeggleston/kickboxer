@@ -281,8 +281,8 @@ func (s *PreparePhaseTest) TestCommitExpiredTimeout(c *gocheck.C) {
 	err := s.scope.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(2))
-	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(0))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.timeout"], gocheck.Equals, int64(2))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.timeout.wait"], gocheck.Equals, int64(0))
 }
 
 // tests that the prepare phase starts after the commit grace
@@ -302,8 +302,8 @@ func (s *PreparePhaseTest) TestCommitTimeout(c *gocheck.C) {
 	err := s.scope.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(2))
-	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(1))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.timeout"], gocheck.Equals, int64(2))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.timeout.wait"], gocheck.Equals, int64(1))
 }
 
 // tests that the prepare phase will wait on the commit notify
@@ -333,8 +333,8 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 0)
-	c.Check(s.scope.statCommitTimeout, gocheck.Equals, uint64(0))
-	c.Check(s.scope.statCommitTimeoutWait, gocheck.Equals, uint64(1))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.timeout"], gocheck.Equals, int64(0))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["prepare.commit.wait.event"], gocheck.Equals, int64(1))
 }
 
 // tests that the prepare mutex prevents multiple goroutines from
