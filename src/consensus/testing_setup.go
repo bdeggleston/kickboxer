@@ -153,6 +153,7 @@ func (s *baseScopeTest) getInstructions(values ...int) []*store.Instruction {
 func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
 	s.cluster = newMockCluster()
 	s.manager = NewManager(s.cluster)
+	s.manager.stats = newMockStatter()
 	s.scope = NewScope("a", s.manager)
 }
 
@@ -180,6 +181,7 @@ func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	s.replicas = s.nodes[1:]
 
 	s.manager = s.leader.manager
+	s.manager.stats = newMockStatter()
 	s.cluster = s.manager.cluster.(*mockCluster)
 	s.scope = s.manager.getScope("a")
 }
