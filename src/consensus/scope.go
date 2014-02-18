@@ -62,6 +62,8 @@ var (
 	// execute it's committed instance before it's
 	// assumed to have failed, and they execute it
 	EXECUTE_TIMEOUT = uint64(500)
+
+	STATS_SAMPLE_RATE = 1.0
 )
 
 /*
@@ -329,6 +331,20 @@ func (s *Scope) GetLocalID() node.NodeId {
 func (s *Scope) Persist() error {
 	s.persistCount++
 	return nil
+}
+
+func (s *Scope) statsInc(stat string, delta int64) error {
+	return s.manager.stats.Inc(stat, delta, STATS_SAMPLE_RATE)
+}
+
+func (s *Scope) statsGauge(stat string, delta int64) error {
+	return s.manager.stats.Gauge(stat, delta, STATS_SAMPLE_RATE)
+}
+
+func (s *Scope) statsTiming(stat string, start time.Time) error {
+	end := time.Now()
+	delta := end.Sub(start) / time.Millisecond
+	return s.manager.stats.Inc(stat, delta, STATS_SAMPLE_RATE)
 }
 
 func (s *Scope) getInstance(iid InstanceID) *Instance {
