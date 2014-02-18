@@ -107,6 +107,9 @@ func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstanc
 }
 
 var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, error) {
+	start := time.Now()
+	defer s.statsTiming("prepare.message.receive", start)
+
 	replicas := s.manager.getScopeReplicas(s)
 
 	// increment ballot and return message object
@@ -316,6 +319,9 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 }
 
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
+	start := time.Now()
+	defer s.statsTiming("prepare.phase", start)
+
 	instance.prepareLock.Lock()
 	defer instance.prepareLock.Unlock()
 
@@ -462,13 +468,16 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 	//
 	for proceed, err := scopeDeferToSuccessor(s, instance); !proceed || err != nil; {
 		if err != nil {
+			s.statsInc("prepare.defer.error")
 			return err
 		}
+		s.statsInc("prepare.defer.wait")
 		select {
 		case <- getTimeoutEvent(time.Duration(SUCCESSOR_CONTACT_INTERVAL)):
 			// interval passed, contact successor again
 		case <- instance.getCommitEvent().getChan():
 			// instance was committed
+			s.statsInc("prepare.defer.wait.event")
 			return nil
 		}
 	}
@@ -494,6 +503,10 @@ func (s *Scope) preparePhase(instance *Instance) error {
 // handles a prepare message from an instance attempting to take
 // control of an instance.
 func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error) {
+	start := time.Now()
+	defer s.statsTiming("prepare.message.response", start)
+	s.statsInc("prepare.message.received")
+
 	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
 
 	instance := s.getInstance(request.InstanceID)
@@ -510,6 +523,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 				}
 			}
 		} else {
+			s.statsInc("prepare.message.rejected")
 			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
 		if instanceCopy, err := instance.Copy(); err != nil {
@@ -526,6 +540,10 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 
 // handles a message from a replica requesting that a prepare phase is executed on the given instance
 func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*PrepareSuccessorResponse, error) {
+	start := time.Now()
+	defer s.statsTiming("prepare.successor.message.response", start)
+	s.statsInc("prepare.successor.message.received")
+
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance

@@ -31,6 +31,8 @@ func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
+	start := time.Now()
+	defer s.statsTiming("commit.instance", start)
 	instance, existed := s.getOrSetInstance(inst)
 
 	if existed {
@@ -84,6 +86,8 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 }
 
 var scopeCommitPhase = func(s *Scope, instance *Instance) error {
+	start := time.Now()
+	defer s.statsTiming("commit.phase", start)
 	s.debugInstanceLog(instance, "Commit phase started")
 	replicas := s.manager.getScopeReplicas(s)
 
@@ -96,6 +100,7 @@ var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 		return err
 	}
 	s.debugInstanceLog(instance, "Commit phase completed")
+	s.statsInc("commit.phase.success", 1)
 	return nil
 }
 
@@ -106,10 +111,14 @@ func (s *Scope) commitPhase(instance *Instance) error {
 // handles an commit message from the command leader for an instance
 // this executes the replica commit phase for the given instance
 func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
-	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 	s.statsInc("commit.message.received", 1)
+	start := time.Now()
+	defer s.statsTiming("commit.message.response", start)
+
+	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
 	if err := s.commitInstanceUnsafe(request.Instance, false); err != nil {
+		s.statsInc("commit.message.failure", 1)
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return nil, err
 		}

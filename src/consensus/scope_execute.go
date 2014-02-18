@@ -58,8 +58,10 @@ func (i *iidSorter) Swap(x, y int) {
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
 func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
+	start := time.Now()
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	defer s.statsTiming("execute.dependencies.order", start)
 
 	// build a directed graph
 	depGraph := make(map[interface {}][]interface {}, len(instance.Dependencies) + 1)
@@ -117,6 +119,8 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 
 // executes an instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
+	start := time.Now()
+	defer s.statsTiming("execute.apply", start)
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {
@@ -141,6 +145,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 					return nil, err
 				}
 			}
+			s.statsInc("execute.noop", 1)
 		}
 
 		// update scope bookkeeping
@@ -231,6 +236,8 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 }
 
 var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
+	start := time.Now()
+	defer s.statsTiming("execute.phase", start)
 	logger.Debug("Execute phase started")
 	// get dependency instance ids, sorted in execution order
 	exOrder, err := s.getExecutionOrder(instance)
