@@ -66,6 +66,7 @@ var (
 
 /*
 
+TODO: instrument with statsd for better insight into what's happening during integration test
 TODO: make execute query tolerant of prepare phases updating the status of it's instance
 TODO: implement an order of prepare phase succession, enable other replicas to initiate it
 
