@@ -168,3 +168,62 @@ func transformMockNodeArray(src []*mockNode) []node.Node {
 	return dst
 }
 
+// implements the statter interface
+// used for testing things were called internally
+// guages and timers only keep the most recent value
+type mockStatter struct {
+	mutex sync.RWMutex
+	counters map[string]int64
+	timers map[string]int64
+	guages map[string]int64
+}
+
+func newMockStatter() *mockStatter {
+	return &mockStatter{
+		counters: make(map[string]int64),
+		timers: make(map[string]int64),
+		guages: make(map[string]int64),
+	}
+}
+
+func (s *mockStatter) Inc(stat string, value int64, rate float32) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.counters[stat] += value
+	return nil
+}
+
+func (s *mockStatter) Dec(stat string, value int64, rate float32) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.counters[stat] -= value
+	return nil
+}
+
+func (s *mockStatter) Gauge(stat string, value int64, rate float32) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.guages[stat] = value
+	return nil
+}
+
+func (s *mockStatter) GaugeDelta(stat string, value int64, rate float32) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.guages[stat] += value
+	return nil
+}
+
+func (s *mockStatter) Timing(stat string, delta int64, rate float32) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.timers[stat] = delta
+	return nil
+}
+
+func (s *mockStatter) SetPrefix(prefix string) {
+}
+
+func (s *mockStatter) Close() error {
+	return nil
+}
