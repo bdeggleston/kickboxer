@@ -5,8 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+)
+
+import (
+	"github.com/cactus/go-statsd-client/statsd"
 )
 
 import (
@@ -97,6 +102,7 @@ type mockNode struct {
 	sentMessages   []message.Message
 	lock		   sync.Mutex
 	partition     bool
+	stats			statsd.Statter
 }
 
 func newMockNode() *mockNode {
@@ -108,6 +114,7 @@ func newMockNode() *mockNode {
 		manager:        NewManager(cluster),
 		messageHandler: mockNodeDefaultMessageHandler,
 		sentMessages:   make([]message.Message, 0),
+		stats:			newMockStatter(),
 	}
 }
 
@@ -120,38 +127,77 @@ func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp
 
 func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, error) {
 	var err error
+	var start time.Time
+
+	getDuration := func(s time.Time) int64 {
+		e := time.Now()
+		delta := e.Sub(s) / time.Millisecond
+		return int64(delta)
+	}
+
 	buf := &bytes.Buffer{}
 	if n.partition {
 		logger.Debug("Skipping sent message from partitioned node")
 		return nil, fmt.Errorf("Partition")
 	}
 	n.lock.Lock()
+	start = time.Now()
 	err = message.WriteMessage(buf, srcRequest)
+	n.stats.Timing(
+		strings.Replace(fmt.Sprintf("serialize.%T", srcRequest), "*", "", -1),
+		getDuration(start),
+		1.0,
+	)
+
 	if err != nil {
 		return nil, err
 //		panic(err)
 	}
+	start = time.Now()
 	dstRequest, err := message.ReadMessage(buf)
+	n.stats.Timing(
+		strings.Replace(fmt.Sprintf("deserialize.%T", dstRequest), "*", "", -1),
+		getDuration(start),
+		1.0,
+	)
 	if err != nil {
 		return nil, err
 //		panic(err)
 	}
 	n.sentMessages = append(n.sentMessages, dstRequest)
 	n.lock.Unlock()
+	start = time.Now()
 	srcResponse, err := n.messageHandler(n, dstRequest)
+	n.stats.Timing(
+		strings.Replace(fmt.Sprintf("process.%T", srcResponse), "*", "", -1),
+		getDuration(start),
+		1.0,
+	)
 	if err != nil {
 		return nil, err
 //		panic(err)
 	}
 	n.lock.Lock()
 	buf.Reset()
+	start = time.Now()
 	err = message.WriteMessage(buf, srcResponse)
+	n.stats.Timing(
+		strings.Replace(fmt.Sprintf("serialize.%T", srcResponse), "*", "", -1),
+		getDuration(start),
+		1.0,
+	)
 	if err != nil {
 		return nil, err
 //		panic(err)
 	}
 	logger.Debug("Response size: %v\n", len(buf.Bytes()))
+	start = time.Now()
 	dstResponse, err := message.ReadMessage(buf)
+	n.stats.Timing(
+		strings.Replace(fmt.Sprintf("deserialize.%T", dstResponse), "*", "", -1),
+		getDuration(start),
+		1.0,
+	)
 	n.lock.Unlock()
 	if err != nil {
 		return nil, err
