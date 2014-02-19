@@ -112,19 +112,9 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 
 	replicas := s.manager.getScopeReplicas(s)
 
-	// increment ballot and return message object
-	getMsg := func() (*PrepareRequest, error) {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		instance.MaxBallot++
-		msg := &PrepareRequest{Scope:s.name, Ballot:instance.MaxBallot, InstanceID:instance.InstanceID}
-		if err := s.Persist(); err != nil {
-			return nil, err
-		}
-		return msg, nil
-	}
-	msg, err := getMsg()
-	if err != nil {
+	ballot := instance.incrementBallot()
+	msg := &PrepareRequest{Scope:s.name, Ballot:ballot, InstanceID:instance.InstanceID}
+	if err := s.Persist(); err != nil {
 		return nil, err
 	}
 
@@ -322,9 +312,6 @@ var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	start := time.Now()
 	defer s.statsTiming("prepare.phase", start)
 
-	instance.prepareLock.Lock()
-	defer instance.prepareLock.Unlock()
-
 	// check if the instance has been committed
 	if instance.getStatus() >= INSTANCE_COMMITTED {
 		return nil
@@ -461,6 +448,9 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 }
 
 var scopePrepareInstance = func(s *Scope, instance *Instance) error {
+	instance.prepareLock.Lock()
+	defer instance.prepareLock.Unlock()
+
 	if !s.prepareShouldProceed(instance) {
 		return nil
 	}
