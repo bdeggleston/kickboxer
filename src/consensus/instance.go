@@ -341,6 +341,12 @@ func (i *Instance) getStatus() InstanceStatus {
 	return i.Status
 }
 
+func (i *Instance) getBallot() uint32 {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.MaxBallot
+}
+
 func (i *Instance) getSeq() uint64 {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
@@ -353,6 +359,13 @@ func (i *Instance) getSuccessors() []node.NodeId {
 	result := make([]node.NodeId, len(i.Successors))
 	copy(result, i.Successors)
 	return result
+}
+
+func (i *Instance) incrementBallot() uint32 {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	i.MaxBallot++
+	return i.MaxBallot
 }
 
 func (i *Instance) updateBallot(ballot uint32) bool {
