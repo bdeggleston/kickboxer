@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+import (
+	"github.com/cactus/go-statsd-client/statsd"
+)
 
 import (
 	"launchpad.net/gocheck"
@@ -195,11 +198,13 @@ func (c *opsCtrl) reactor() {
 					break
 				} else {
 					go handleMessage(msgEvnt)
+					runtime.Gosched()
 					logger.Debug("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 				}
 			} else {
 				nid := msgEvnt.node.id
 				go handleMessage(msgEvnt)
+				runtime.Gosched()
 				logger.Debug("++ Handling %T for node: %v", msgEvnt.msg, indexMap[nid])
 			}
 			runtime.Gosched()
@@ -258,6 +263,10 @@ func (c *opsCtrl) reactor() {
 
 		}
 
+//		if i%50 != 0 {
+//			continue
+//		}
+
 		// check the store instructions,
 		highNode := 0
 		maxInstructions := 0
@@ -271,6 +280,7 @@ func (c *opsCtrl) reactor() {
 			}
 		}
 
+		fmt.Println("Time: ", time.Now())
 		if *_test_show_progress {
 			lastLen = len(instructionsSet)
 			start := 0
@@ -278,15 +288,16 @@ func (c *opsCtrl) reactor() {
 				start = len(instructionsSet) - 30
 			}
 			for i:=start; i<lastLen; i++ {
+				outStr := ""
 				for _, node := range c.nodes {
 					if len(node.cluster.instructions) < i + 1 {
-						fmt.Printf(" -- ")
+						outStr += " -- "
 					} else {
 						instruction := node.cluster.instructions[i]
-						fmt.Printf(" %v ", instruction.Args[0])
+						outStr += fmt.Sprintf(" %v ", instruction.Args[0])
 					}
 				}
-				fmt.Printf("\n")
+				fmt.Println(outStr)
 			}
 		}
 
@@ -297,9 +308,9 @@ func (c *opsCtrl) reactor() {
 				scopes[n] = node.manager.getScope("a")
 			}
 
-			// lock all scopes while testing
-			for _, scope := range scopes {
-				scope.lock.Lock()
+			// lock all clusters while testing
+			for _, n := range c.nodes {
+				n.cluster.lock.Lock()
 			}
 			var numInst []int
 			numInst = make([]int, len(c.nodes))
@@ -442,9 +453,9 @@ func (c *opsCtrl) reactor() {
 				}
 			}
 
-			// unlock all scopes
-			for _, scope := range scopes {
-				scope.lock.Unlock()
+			// unlock all clusters
+			for _, n := range c.nodes {
+				n.cluster.lock.Unlock()
 			}
 		}
 
@@ -529,49 +540,59 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 
 	s.baseReplicaTest.SetUpTest(c)
 	s.ctrl = newCtrl(s.random, s.nodes, c)
+
+	for i, n := range s.nodes {
+		n.manager.stats = statsd.New("localhost:8125", fmt.Sprintf("node%v", i))
+		n.manager.stats.Inc("integration.setup", 1, 1.0)
+	}
+//	os.Exit(0)
 }
 
 func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 	if *_test_cpu_profile {
 		fmt.Println("profiling")
+		m, err := os.Create("integration_test.mem.prof")
+		if err != nil { panic(err) }
 		f, err := os.Create("integration_test.prof")
 		if err != nil { panic(err) }
 		err = pprof.StartCPUProfile(f)
 		if err != nil { panic(err) }
 		defer func() {
+			pprof.WriteHeapProfile(m)
 			pprof.StopCPUProfile()
+			m.Close()
 			f.Close()
 		}()
 	}
-	oldPreacceptTimeout := PREACCEPT_TIMEOUT
-	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT * 2
-	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
-	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT * 2
-	oldAcceptTimeout := ACCEPT_TIMEOUT
-	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT * 2
-	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
-	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT * 2
-	oldPrepareTimeout := PREPARE_TIMEOUT
-	PREPARE_TIMEOUT = PREPARE_TIMEOUT * 2
-	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
-	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT * 2
-	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
-	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME * 2
-	oldExecuteTimeout := EXECUTE_TIMEOUT
-	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT * 2
-	oldSuccessorTimeout := SUCCESSOR_TIMEOUT
-	SUCCESSOR_TIMEOUT = SUCCESSOR_TIMEOUT * 2
-	defer func() {
-		PREACCEPT_TIMEOUT = oldPreacceptTimeout
-		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
-		ACCEPT_TIMEOUT = oldAcceptTimeout
-		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
-		PREPARE_TIMEOUT = oldPrepareTimeout
-		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
-		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
-		EXECUTE_TIMEOUT = oldExecuteTimeout
-		SUCCESSOR_TIMEOUT = oldSuccessorTimeout
-	}()
+//	oldPreacceptTimeout := PREACCEPT_TIMEOUT
+//	PREACCEPT_TIMEOUT = PREACCEPT_TIMEOUT * 2
+//	oldPreacceptCommitTimeout := PREACCEPT_COMMIT_TIMEOUT
+//	PREACCEPT_COMMIT_TIMEOUT = PREACCEPT_COMMIT_TIMEOUT * 2
+//	oldAcceptTimeout := ACCEPT_TIMEOUT
+//	ACCEPT_TIMEOUT = ACCEPT_TIMEOUT * 2
+//	oldAcceptCommitTimeout := ACCEPT_COMMIT_TIMEOUT
+//	ACCEPT_COMMIT_TIMEOUT = ACCEPT_COMMIT_TIMEOUT * 2
+//	oldPrepareTimeout := PREPARE_TIMEOUT
+//	PREPARE_TIMEOUT = PREPARE_TIMEOUT * 2
+//	oldPrepareCommitTimeout := PREPARE_COMMIT_TIMEOUT
+//	PREPARE_COMMIT_TIMEOUT = PREPARE_COMMIT_TIMEOUT * 2
+//	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
+//	BALLOT_FAILURE_WAIT_TIME = BALLOT_FAILURE_WAIT_TIME * 2
+//	oldExecuteTimeout := EXECUTE_TIMEOUT
+//	EXECUTE_TIMEOUT = EXECUTE_TIMEOUT * 2
+//	oldSuccessorTimeout := SUCCESSOR_TIMEOUT
+//	SUCCESSOR_TIMEOUT = SUCCESSOR_TIMEOUT * 2
+//	defer func() {
+//		PREACCEPT_TIMEOUT = oldPreacceptTimeout
+//		PREACCEPT_COMMIT_TIMEOUT = oldPreacceptCommitTimeout
+//		ACCEPT_TIMEOUT = oldAcceptTimeout
+//		ACCEPT_COMMIT_TIMEOUT = oldAcceptCommitTimeout
+//		PREPARE_TIMEOUT = oldPrepareTimeout
+//		PREPARE_COMMIT_TIMEOUT = oldPrepareCommitTimeout
+//		BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime
+//		EXECUTE_TIMEOUT = oldExecuteTimeout
+//		SUCCESSOR_TIMEOUT = oldSuccessorTimeout
+//	}()
 
 
 	semaphore := make(chan bool, *_test_concurrent_queries)
@@ -589,8 +610,16 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 			if err != nil {
 				fmt.Printf("FAILED QUERY: %v\n", err)
 				errors++
+			} else {
+				fmt.Println("QUERY COMPLETE")
 			}
 			<- semaphore
+//			select {
+//			case <- semaphore:
+//				//
+//			default:
+//				//
+//			}
 			wg.Done()
 		}()
 		runtime.Gosched()
