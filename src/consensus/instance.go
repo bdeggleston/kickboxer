@@ -332,7 +332,7 @@ func (i *Instance) getCommitTimeout() time.Time {
 func (i *Instance) getCommitTimeoutEvent() <-chan time.Time {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	return getTimeoutEvent(i.executeTimeout.Sub(time.Now()))
+	return getTimeoutEvent(i.commitTimeout.Sub(time.Now()))
 }
 
 func (i *Instance) getStatus() InstanceStatus {
