@@ -542,7 +542,11 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 	s.ctrl = newCtrl(s.random, s.nodes, c)
 
 	for i, n := range s.nodes {
-		n.manager.stats = statsd.New("localhost:8125", fmt.Sprintf("node%v", i))
+		var err error
+		n.manager.stats, err = statsd.New("localhost:8125", fmt.Sprintf("node%v", i))
+		if err != nil {
+			panic(err)
+		}
 		n.manager.stats.Inc("integration.setup", 1, 1.0)
 	}
 //	os.Exit(0)
