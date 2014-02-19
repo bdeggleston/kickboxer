@@ -166,7 +166,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 
 	// should the ballot even matter here? If we're receiving an accept response,
 	// it means that a quorum of preaccept responses were received by a node
-	if instance, exists := s.instances[request.Instance.InstanceID]; exists {
+	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
 			s.statsInc("accept.message.rejected", 1)
 			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)

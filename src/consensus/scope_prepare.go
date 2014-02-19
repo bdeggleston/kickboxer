@@ -468,16 +468,16 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 	//
 	for proceed, err := scopeDeferToSuccessor(s, instance); !proceed || err != nil; {
 		if err != nil {
-			s.statsInc("prepare.defer.error")
+			s.statsInc("prepare.defer.error", 1)
 			return err
 		}
-		s.statsInc("prepare.defer.wait")
+		s.statsInc("prepare.defer.wait", 1)
 		select {
 		case <- getTimeoutEvent(time.Duration(SUCCESSOR_CONTACT_INTERVAL)):
 			// interval passed, contact successor again
 		case <- instance.getCommitEvent().getChan():
 			// instance was committed
-			s.statsInc("prepare.defer.wait.event")
+			s.statsInc("prepare.defer.wait.event", 1)
 			return nil
 		}
 	}
@@ -505,7 +505,7 @@ func (s *Scope) preparePhase(instance *Instance) error {
 func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error) {
 	start := time.Now()
 	defer s.statsTiming("prepare.message.response", start)
-	s.statsInc("prepare.message.received")
+	s.statsInc("prepare.message.received", 1)
 
 	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
 
@@ -523,7 +523,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 				}
 			}
 		} else {
-			s.statsInc("prepare.message.rejected")
+			s.statsInc("prepare.message.rejected", 1)
 			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
 		if instanceCopy, err := instance.Copy(); err != nil {
@@ -542,7 +542,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*PrepareSuccessorResponse, error) {
 	start := time.Now()
 	defer s.statsTiming("prepare.successor.message.response", start)
-	s.statsInc("prepare.successor.message.received")
+	s.statsInc("prepare.successor.message.received", 1)
 
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
