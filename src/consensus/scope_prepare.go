@@ -558,6 +558,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 			}
 			go func(){
 				for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+					s.statsInc(fmt.Sprintf("prepare.successor.%v", successorNum), 1)
 					if err := s.preparePhase(instance); err != nil {
 						if _, ok := err.(BallotError); ok {
 							logger.Debug("Prepare failed with BallotError, waiting to try again")
