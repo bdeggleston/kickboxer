@@ -508,6 +508,7 @@ type ConsensusIntegrationTest struct {
 	random *rand.Rand
 	oldTimeoutHandler func(d time.Duration) <-chan time.Time
 	seedVal int64
+	stats statsd.Statter
 }
 
 var _ = gocheck.Suite(&ConsensusIntegrationTest{})
@@ -519,7 +520,13 @@ func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(1)
+
+	var err error
+	s.stats, err = statsd.New("localhost:8125", "integration.test")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *ConsensusIntegrationTest) TearDownSuite(c *gocheck.C) {
@@ -541,15 +548,21 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 	s.ctrl = newCtrl(s.random, s.nodes, c)
 
+	nodeStats, err := statsd.New("localhost:8125", "integration.node")
+	if err != nil {
+		panic(err)
+	}
 	for i, n := range s.nodes {
 		var err error
-		n.manager.stats, err = statsd.New("localhost:8125", fmt.Sprintf("node%v", i))
+		_ = i
+//		n.manager.stats, err = statsd.New("localhost:8125", fmt.Sprintf("node%v", i))
+		n.manager.stats, err = statsd.New("localhost:8125", "integration")
 		if err != nil {
 			panic(err)
 		}
-		n.manager.stats.Inc("integration.setup", 1, 1.0)
+		n.stats = nodeStats
 	}
-//	os.Exit(0)
+	s.stats.Inc("setup", 1, 1.0)
 }
 
 func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
@@ -608,13 +621,16 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 		c.Logf("Iteration %v", i)
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
+		s.stats.Gauge("query", int64(i), 1.0)
 		semaphore <- true
 		go func() {
 			_, err := manager.ExecuteQuery(instructions)
 			if err != nil {
 				fmt.Printf("FAILED QUERY: %v\n", err)
+				s.stats.Inc("query.failed", 1, 1.0)
 				errors++
 			} else {
+				s.stats.Inc("query.success", 1, 1.0)
 				fmt.Println("QUERY COMPLETE")
 			}
 			<- semaphore
