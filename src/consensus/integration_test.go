@@ -220,6 +220,8 @@ func (c *opsCtrl) reactor() {
 			timeBacklog = append(timeBacklog, backLog)
 			c.c.Logf("Handling timeout request")
 			runtime.Gosched()
+		case <- time.After(10 * time.Second):
+			panic("deadlock")
 		}
 
 		oldMsgBacklog := msgBacklog
