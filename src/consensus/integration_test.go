@@ -561,6 +561,9 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 			panic(err)
 		}
 		n.stats = nodeStats
+		for _, r := range n.cluster.nodes {
+			r.(*mockNode).stats = nodeStats
+		}
 	}
 	s.stats.Inc("setup", 1, 1.0)
 }

@@ -108,7 +108,7 @@ func (s *Scope) applyPrepareResponses(responses []*PrepareResponse, localInstanc
 
 var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, error) {
 	start := time.Now()
-	defer s.statsTiming("prepare.message.receive", start)
+	defer s.statsTiming("prepare.message.receive.time", start)
 
 	replicas := s.manager.getScopeReplicas(s)
 
@@ -145,10 +145,12 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 	for numReceived < quorumSize {
 		select {
 		case response = <-recvChan:
+			s.statsInc("prepare.message.receive.success.count", 1)
 			logger.Debug("Prepare response received: %v", instance.InstanceID)
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
+			s.statsInc("prepare.message.receive.timeout.count", 1)
 			logger.Debug("Prepare timeout for instance: %v", instance.InstanceID)
 			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
@@ -310,7 +312,7 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 
 var scopePreparePhase = func(s *Scope, instance *Instance) error {
 	start := time.Now()
-	defer s.statsTiming("prepare.phase", start)
+	defer s.statsTiming("prepare.phase.time", start)
 
 	// check if the instance has been committed
 	if instance.getStatus() >= INSTANCE_COMMITTED {
@@ -371,6 +373,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 					logger.Debug("Prepare Successor: nil instance received from %v for instance %v", nid, instance.InstanceID)
 					continue
 				}
+				s.statsInc("prepare.successor.message.receive.success", 1)
 
 				if response.Instance.Status > instance.getStatus() {
 					switch response.Instance.Status {
@@ -391,14 +394,17 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 			case <- errChan:
 				// there was an error communicating with the successor, go to the next one
 				// the send/receive go routine handles the logging
+				s.statsInc("prepare.successor.message.receive.error", 1)
 
 			case <- instance.getCommitEvent().getChan():
 				// instance was committed while waiting for a PrepareSuccessorResponse
+				s.statsInc("prepare.successor.message.receive.commit", 1)
 				logger.Debug("Prepare Successor: commit event received for instance %v", instance.InstanceID)
 				return true, nil
 
 			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
 				// timeout, go to the next successor
+				s.statsInc("prepare.successor.message.receive.timeout", 1)
 				logger.Debug("Prepare Successor: timeout communicating with %v for instance %v", nid, instance.InstanceID)
 
 			}
@@ -464,6 +470,7 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 		s.statsInc("prepare.defer.wait", 1)
 		select {
 		case <- getTimeoutEvent(time.Duration(SUCCESSOR_CONTACT_INTERVAL)):
+			s.statsInc("prepare.defer.timeout", 1)
 			// interval passed, contact successor again
 		case <- instance.getCommitEvent().getChan():
 			// instance was committed
@@ -494,8 +501,8 @@ func (s *Scope) preparePhase(instance *Instance) error {
 // control of an instance.
 func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error) {
 	start := time.Now()
-	defer s.statsTiming("prepare.message.response", start)
-	s.statsInc("prepare.message.received", 1)
+	defer s.statsTiming("prepare.message.response.time", start)
+	s.statsInc("prepare.message.response.count", 1)
 
 	logger.Debug("Prepare message received for instance %v, ballot: %v", request.InstanceID, request.Ballot)
 
@@ -507,13 +514,14 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	} else {
 		response.Accepted = request.Ballot > instance.MaxBallot
 		if response.Accepted {
+			s.statsInc("prepare.message.accepted.count", 1)
 			if instance.updateBallot(request.Ballot) {
 				if err := s.Persist(); err != nil {
 					return nil, err
 				}
 			}
 		} else {
-			s.statsInc("prepare.message.rejected", 1)
+			s.statsInc("prepare.message.rejected.count", 1)
 			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
 		if instanceCopy, err := instance.Copy(); err != nil {
@@ -531,8 +539,8 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 // handles a message from a replica requesting that a prepare phase is executed on the given instance
 func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*PrepareSuccessorResponse, error) {
 	start := time.Now()
-	defer s.statsTiming("prepare.successor.message.response", start)
-	s.statsInc("prepare.successor.message.received", 1)
+	defer s.statsTiming("prepare.successor.message.response.time", start)
+	s.statsInc("prepare.successor.message.received.count", 1)
 
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {

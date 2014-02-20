@@ -132,7 +132,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	getDuration := func(s time.Time) int64 {
 		e := time.Now()
 		delta := e.Sub(s) / time.Millisecond
-		return int64(delta)
+		return int64(delta) + 1
 	}
 
 	buf := &bytes.Buffer{}
@@ -174,6 +174,11 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 		1.0,
 	)
 	if err != nil {
+		n.stats.Inc(
+			strings.Replace(fmt.Sprintf("error.%T", srcRequest), "*", "", -1),
+			1,
+			1.0,
+		)
 		return nil, err
 //		panic(err)
 	}
