@@ -26,21 +26,28 @@ func (s *Scope) preAcceptInstanceUnsafe(inst *Instance, incrementBallot bool) er
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
+	start := time.Now()
+	defer s.statsTiming("preaccept.instance.time", start)
+	s.statsInc("preaccept.instance.count", 1)
+
 	instance, existed := s.getOrSetInstance(inst)
 
 	if existed {
 		logger.Debug("PreAccept: preaccepting existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("PreAccept: preaccepting new instance %v", inst.InstanceID)
+		s.statsInc("preaccept.instance.new", 1)
 	}
 
 	if err := instance.preaccept(inst, incrementBallot); err != nil {
+		s.statsInc("preaccept.instance.error", 1)
 		return err
 	}
 
 	s.inProgress.Add(instance)
 	s.updateSeq(instance.getSeq())
 	if err := s.Persist(); err != nil {
+		s.statsInc("preaccept.instance.error", 1)
 		return err
 	}
 
@@ -52,7 +59,8 @@ func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
 // if there are problems, or a quorum of responses were not received within the timeout
 func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreAcceptResponse, error) {
 	start := time.Now()
-	defer s.statsTiming("preaccept.message.receive", start)
+	defer s.statsTiming("preaccept.message.send.time", start)
+	s.statsInc("preaccept.message.send.count", 1)
 
 	recvChan := make(chan *PreAcceptResponse, len(replicas))
 
@@ -92,7 +100,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
-			s.statsInc("preaccept.message.receive.timeout", 1)
+			s.statsInc("preaccept.message.send.timeout", 1)
 			logger.Debug("PreAccept timeout for instance: %v", instance.InstanceID)
 			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
@@ -107,7 +115,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 
 	// handle rejected pre-accept messages
 	if !accepted {
-		s.statsInc("preaccept.message.receive.rejected", 1)
+		s.statsInc("preaccept.message.send.rejected", 1)
 		logger.Debug("PreAccept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
@@ -168,7 +176,8 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 // a bool indicating if an accept phase is required or not
 func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err error) {
 	start := time.Now()
-	defer s.statsTiming("preaccept.phase", start)
+	defer s.statsTiming("preaccept.phase.time", start)
+	s.statsInc("preaccept.phase.count", 1)
 
 	logger.Debug("PreAccept phase started")
 	acceptRequired, err = scopePreAcceptPhase(s, instance)
@@ -180,9 +189,9 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 // handles a preaccept message from the command leader for an instance
 // this executes the replica preaccept phase for the given instance
 func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, error) {
-	s.statsInc("preaccept.message.received", 1)
+	s.statsInc("preaccept.message.received.count", 1)
 	start := time.Now()
-	defer s.statsTiming("preaccept.message.response", start)
+	defer s.statsTiming("preaccept.message.response.time", start)
 
 	logger.Debug("PreAccept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 	logger.Debug("Processing PreAccept message for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
@@ -194,14 +203,14 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	instanceStart := time.Now()
 	if err := s.preAcceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			s.statsInc("accept.message.error", 1)
+			s.statsInc("accept.message.response.error", 1)
 			logger.Debug("Error processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 			return nil, err
 		} else {
 			logger.Debug("InvalidStatusUpdateError processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 		}
 	}
-	s.statsTiming("preaccept.message.response.instance", instanceStart)
+	s.statsTiming("preaccept.message.response.instance.time", instanceStart)
 
 	// check agreement on seq and deps with leader
 	instance := s.instances.Get(request.Instance.InstanceID)
@@ -236,7 +245,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 			}
 		}
 	}
-	s.statsTiming("preaccept.message.response.missing", missingStart)
+	s.statsTiming("preaccept.message.response.missing.time", missingStart)
 
 	logger.Debug("PreAccept message replied with accepted for %v: %v", request.Instance.InstanceID, reply.Accepted)
 	if len(reply.MissingInstances) > 0 {

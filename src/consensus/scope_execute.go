@@ -61,7 +61,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	start := time.Now()
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	defer s.statsTiming("execute.dependencies.order", start)
+	defer s.statsTiming("execute.dependencies.order.time", start)
 
 	// build a directed graph
 	depGraph := make(map[interface {}][]interface {}, len(instance.Dependencies) + 1)
@@ -118,7 +118,7 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 // executes an instance against the store
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	start := time.Now()
-	defer s.statsTiming("execute.apply", start)
+	defer s.statsTiming("execute.instance.apply.time", start)
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {
@@ -143,7 +143,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 					return nil, err
 				}
 			}
-			s.statsInc("execute.noop", 1)
+			s.statsInc("execute.instance.noop.count", 1)
 		}
 
 		// update scope bookkeeping
@@ -157,7 +157,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		if err := s.Persist(); err != nil {
 			return nil, err
 		}
-		s.statsInc("execute.success", 1)
+		s.statsInc("execute.instance.success.count", 1)
 
 		return val, err
 	}
@@ -191,30 +191,30 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 				// execute
 				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statsInc("execute.local.success", 1)
+				s.statsInc("execute.local.success.count", 1)
 			} else if instance.LeaderID != s.manager.GetLocalID() {
 				// execute
 				val, err = s.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statsInc("execute.remote.success", 1)
+				s.statsInc("execute.remote.success.count", 1)
 			} else {
 				// wait for the execution grace period to end
 				if time.Now().After(instance.executeTimeout) {
 					val, err = s.applyInstance(instance)
 					if err != nil { return nil, err }
-					s.statsInc("execute.local.timeout", 1)
+					s.statsInc("execute.local.timeout.count", 1)
 				} else {
 
 					select {
 					case <- instance.getExecuteEvent().getChan():
 						// instance was executed by another goroutine
-						s.statsInc("execute.local.wait.event", 1)
+						s.statsInc("execute.local.wait.event.count", 1)
 					case <- instance.getExecuteTimeoutEvent():
 						// execution timed out
 						val, err = s.applyInstance(instance)
 						if err != nil { return nil, err }
-						s.statsInc("execute.local.timeout", 1)
-						s.statsInc("execute.local.timeout.wait", 1)
+						s.statsInc("execute.local.timeout.count", 1)
+						s.statsInc("execute.local.timeout.wait.count", 1)
 					}
 				}
 			}
@@ -235,7 +235,9 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 
 var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
 	start := time.Now()
-	defer s.statsTiming("execute.phase", start)
+	defer s.statsTiming("execute.phase.time", start)
+	s.statsInc("execute.phase.count", 1)
+
 	logger.Debug("Execute phase started")
 	// get dependency instance ids, sorted in execution order
 	exOrder, err := s.getExecutionOrder(instance)
@@ -257,6 +259,10 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 			var success bool
 			var ballotErr bool
 			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+				prepareStart := time.Now()
+				defer s.statsTiming("execute.phase.prepare.time", prepareStart)
+				s.statsInc("execute.phase.prepare.count", 1)
+
 				ballotErr = false
 				if err = s.preparePhase(inst); err != nil {
 					if _, ok := err.(BallotError); ok {

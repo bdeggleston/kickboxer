@@ -492,6 +492,9 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 // this method designates the node it's called on as the command leader for the given query
 // and therefore, should only be called once per client query
 func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
+	start := time.Now()
+	defer s.statsTiming("scope.client.query.time", start)
+	s.statsInc("scope.client.query.count", 1)
 
 	if !s.manager.checkLocalScopeEligibility(s) {
 		return nil, fmt.Errorf("This node is not eligible to act as the command leader for this scope")

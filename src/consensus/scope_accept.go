@@ -32,22 +32,28 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
+	start := time.Now()
+	defer s.statsTiming("accept.instance.time", start)
+	s.statsInc("accept.instance.count", 1)
+
 	instance, existed := s.getOrSetInstance(inst)
 
 	if existed {
 		logger.Debug("Accept: accepting existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("Accept: accepting new instance %v", inst.InstanceID)
-		s.statsInc("preaccept.new_instance", 1)
+		s.statsInc("accept.instance.new", 1)
 	}
 
 	if err := instance.accept(inst, incrementBallot); err != nil {
+		s.statsInc("accept.instance.error", 1)
 		return err
 	}
 
 	s.inProgress.Add(instance)
 	s.updateSeq(instance.getSeq())
 	if err := s.Persist(); err != nil {
+		s.statsInc("accept.instance.error", 1)
 		return err
 	}
 
@@ -57,7 +63,8 @@ func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
 
 func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 	start := time.Now()
-	defer s.statsTiming("accept.message.receive", start)
+	defer s.statsTiming("accept.message.send.time", start)
+	s.statsInc("accept.message.send.count", 1)
 
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
@@ -95,7 +102,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
-			s.statsInc("accept.message.receive.timeout", 1)
+			s.statsInc("accept.message.send.timeout", 1)
 			logger.Debug("Accept timeout for instance: %v", instance.InstanceID)
 			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
@@ -110,7 +117,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 	// handle rejected pre-accept messages
 	if !accepted {
-		s.statsInc("accept.message.receive.rejected", 1)
+		s.statsInc("accept.message.send.rejected", 1)
 		logger.Debug("Accept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
@@ -126,7 +133,8 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 // assigned to var for testing
 var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 	start := time.Now()
-	defer s.statsTiming("accept.phase", start)
+	defer s.statsTiming("accept.phase.time", start)
+	s.statsInc("accept.phase.count", 1)
 
 	logger.Debug("Accept phase started")
 
@@ -151,9 +159,9 @@ func (s *Scope) acceptPhase(instance *Instance) error {
 // handles an accept message from the command leader for an instance
 // this executes the replica accept phase for the given instance
 func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
-	s.statsInc("accept.message.received", 1)
+	s.statsInc("accept.message.received.count", 1)
 	start := time.Now()
-	defer s.statsTiming("accept.message.response", start)
+	defer s.statsTiming("accept.message.response.time", start)
 
 	logger.Debug("Accept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
@@ -166,7 +174,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	// it means that a quorum of preaccept responses were received by a node
 	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
 		if instance.MaxBallot >= request.Instance.MaxBallot {
-			s.statsInc("accept.message.rejected", 1)
+			s.statsInc("accept.message.response.rejected", 1)
 			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)
 			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
 		}
@@ -174,7 +182,7 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 
 	if err := s.acceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			s.statsInc("accept.message.error", 1)
+			s.statsInc("accept.message.response.error", 1)
 			return nil, err
 		}
 	}
