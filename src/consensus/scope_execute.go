@@ -104,8 +104,6 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 }
 
 func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	instances := make([]*Instance, 0)
 	for _, iid := range iids {
 		instance := s.instances.Get(iid)
