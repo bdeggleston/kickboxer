@@ -119,6 +119,7 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	start := time.Now()
 	defer s.statsTiming("execute.instance.apply.time", start)
+	s.statsInc("execute.instance.apply.count", 1)
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {

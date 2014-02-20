@@ -302,9 +302,9 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.remote.success"], gocheck.Equals, int64(4))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.success"], gocheck.Equals, int64(5))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.remote.success.count"], gocheck.Equals, int64(4))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success.count"], gocheck.Equals, int64(1))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -364,10 +364,11 @@ func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *goche
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout"], gocheck.Equals, int64(4))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout.wait"], gocheck.Equals, int64(0))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.success"], gocheck.Equals, int64(5))
+	stats := s.scope.manager.stats.(*mockStatter)
+	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(4))
+	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
+	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -409,10 +410,11 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gochec
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout.wait"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.success"], gocheck.Equals, int64(2))
+	stats := s.scope.manager.stats.(*mockStatter)
+	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(2))
 
 	// check the number of instructions
 	c.Assert(len(s.cluster.instructions), gocheck.Equals, 2)
@@ -447,7 +449,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	runtime.Gosched()  // yield
 
 	// goroutine should be waiting
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.success"], gocheck.Equals, int64(0))
+	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(0))
 
 	// release wait
 	depInst.broadcastExecuteEvent()
@@ -457,11 +459,12 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.wait.event"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout"], gocheck.Equals, int64(0))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.timeout.wait"], gocheck.Equals, int64(0))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.success"], gocheck.Equals, int64(1))
+	stats := s.scope.manager.stats.(*mockStatter)
+	c.Check(stats.counters["execute.local.wait.event.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(0))
+	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
+	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
+	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(1))
 
 	// depInst should not have been executed, by receiving the broadcastEvent,
 	// it should have assumed that another goroutine executed the instance
