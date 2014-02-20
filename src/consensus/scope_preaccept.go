@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"math/rand"
 	"time"
 )
 
@@ -11,7 +10,6 @@ import (
 
 func makePreAcceptCommitTimeout() time.Time {
 	waitTime := PREACCEPT_COMMIT_TIMEOUT
-	waitTime += uint64(rand.Int63()) % (PREACCEPT_COMMIT_TIMEOUT / 10)
 	return time.Now().Add(time.Duration(waitTime) * time.Millisecond)
 }
 
@@ -193,6 +191,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	// TODO: check ballot
+	instanceStart := time.Now()
 	if err := s.preAcceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("accept.message.error", 1)
@@ -202,6 +201,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 			logger.Debug("InvalidStatusUpdateError processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 		}
 	}
+	s.statsTiming("preaccept.message.response.instance", instanceStart)
 
 	// check agreement on seq and deps with leader
 	instance := s.instances.Get(request.Instance.InstanceID)
@@ -212,6 +212,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 		return nil, err
 	}
 
+	missingStart := time.Now()
 	missingDeps := newDeps.Subtract(extDeps)
 	reply := &PreAcceptResponse{
 		Accepted:         true,
@@ -235,6 +236,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 			}
 		}
 	}
+	s.statsTiming("preaccept.message.response.missing", missingStart)
 
 	logger.Debug("PreAccept message replied with accepted for %v: %v", request.Instance.InstanceID, reply.Accepted)
 	if len(reply.MissingInstances) > 0 {
