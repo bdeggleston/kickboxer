@@ -85,6 +85,7 @@ type opsCtrl struct {
 	timeoutChan chan opsTimeoutEvent
 	simulateFailures bool
 	completed int
+	stats statsd.Statter
 }
 
 func (c *opsCtrl) messageHandler(node *mockNode, msg message.Message) (message.Message, error) {
@@ -336,6 +337,8 @@ func (c *opsCtrl) reactor() {
 				numInst[x] = len(scope.executed)
 			}
 			fmt.Printf("%v <- executed instances\n", numInst)
+			c.stats.Gauge("num_goroutines", int64(runtime.NumGoroutine()), 0.5)
+			fmt.Printf("Num Goroutines: %v\n", runtime.NumGoroutine())
 
 			exMax := 0
 			exSizeMax := 0
@@ -520,7 +523,7 @@ func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(4)
 
 	var err error
 	s.stats, err = statsd.New("localhost:8125", "integration.test")
@@ -566,6 +569,10 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 		}
 	}
 	s.stats.Inc("setup", 1, 1.0)
+	s.ctrl.stats, err = statsd.New("localhost:8125", "integration.ctrl")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
@@ -645,7 +652,6 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 //			}
 			wg.Done()
 		}()
-		runtime.Gosched()
 	}
 	wg.Wait()
 	c.Logf("%v queries completed with %v failed client requests\n", numQueries, errors)
