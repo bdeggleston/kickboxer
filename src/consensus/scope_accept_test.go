@@ -250,6 +250,7 @@ func (s *AcceptLeaderTest) TestSendAcceptBallotFailure(c *gocheck.C) {
 		}, nil
 	}
 
+	originalBallot := s.instance.MaxBallot
 	for i, replica := range s.replicas {
 		if i == 0 {
 			replica.messageHandler = responseFunc
@@ -261,6 +262,7 @@ func (s *AcceptLeaderTest) TestSendAcceptBallotFailure(c *gocheck.C) {
 	err := s.scope.sendAccept(s.instance, transformMockNodeArray(s.replicas))
 	c.Assert(err, gocheck.NotNil)
 	c.Check(err, gocheck.FitsTypeOf, BallotError{})
+	c.Check(s.instance.MaxBallot, gocheck.Equals, originalBallot + 1)
 }
 
 /** replica **/
