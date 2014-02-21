@@ -979,6 +979,35 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 	c.Check(s2Calls, gocheck.Equals, 0)
 }
 
+
+// tests that,if defer to successor first returns false, and then true,
+// the prepare phase will continue
+func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
+	deferCalls := 0
+	oldSuccessorContactInterval := SUCCESSOR_CONTACT_INTERVAL
+	oldDeferToSuccessor := scopeDeferToSuccessor
+	defer func() {
+		scopeDeferToSuccessor = oldDeferToSuccessor
+		SUCCESSOR_CONTACT_INTERVAL = oldSuccessorContactInterval
+	}()
+	SUCCESSOR_CONTACT_INTERVAL = 10
+	scopeDeferToSuccessor = func(scope *Scope, instance *Instance) (bool, error) {
+		defer func() {deferCalls++}()
+		if deferCalls == 0 {
+			return false, nil
+		}
+
+		err := instance.commit(instance, false)
+		c.Assert(err, gocheck.IsNil)
+		return true, nil
+	}
+	s.instance.commitTimeout = time.Now()
+
+	err := scopePrepareInstance(s.scope, s.instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(deferCalls, gocheck.Equals, 2)
+}
+
 type HandlePrepareSuccessorRequestTest struct {
 	baseReplicaTest
 	instance *Instance

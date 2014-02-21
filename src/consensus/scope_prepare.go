@@ -471,7 +471,8 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 	}
 
 	//
-	for proceed, err := scopeDeferToSuccessor(s, instance); !proceed || err != nil; {
+	deferred, err := scopeDeferToSuccessor(s, instance)
+	for !deferred || err != nil {
 		if err != nil {
 			s.statsInc("prepare.instance.defer.error", 1)
 			return err
@@ -486,6 +487,7 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 			s.statsInc("prepare.defer.commit.wait.broadcast.count", 1)
 			return nil
 		}
+		deferred, err = scopeDeferToSuccessor(s, instance)
 	}
 
 	// double check we should proceed
