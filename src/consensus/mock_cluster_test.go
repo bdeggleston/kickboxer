@@ -13,10 +13,10 @@ import (
 
 import (
 	"github.com/cactus/go-statsd-client/statsd"
+	"launchpad.net/gocheck"
 )
 
 import (
-	"launchpad.net/gocheck"
 	"message"
 	"node"
 	"store"

@@ -162,6 +162,7 @@ type baseReplicaTest struct {
 	nodes []*mockNode
 	leader *mockNode
 	replicas []*mockNode
+	nodeMap map[node.NodeId]*mockNode
 
 	numNodes int
 }
@@ -177,6 +178,12 @@ func (s *baseReplicaTest) SetUpSuite(c *gocheck.C) {
 func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	c.Assert(s.numNodes > 2, gocheck.Equals, true)
 	s.nodes = setupReplicaSet(s.numNodes)
+
+	s.nodeMap = make(map[node.NodeId]*mockNode, s.numNodes)
+	for _, n := range s.nodes {
+		s.nodeMap[n.id] = n
+	}
+
 	s.leader = s.nodes[0]
 	s.replicas = s.nodes[1:]
 
