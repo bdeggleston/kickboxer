@@ -215,6 +215,38 @@ func (s *CommitLeaderTest) TestSendSuccess(c *gocheck.C) {
 	}
 }
 
+// tests that the accept messages sent out have the same ballot
+// as the local instance
+func (s *CommitLeaderTest) TestCommitMessageBallotIsUpToDate(c *gocheck.C) {
+	var sentBallot uint32
+	// all replicas agree
+	responseWaitChan := make(chan bool, len(s.replicas))
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		request := m.(*CommitRequest)
+		sentBallot = request.Instance.MaxBallot
+		responseWaitChan <- true
+		return &CommitResponse{}, nil
+	}
+
+	for _, replica := range s.replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	duplicateInstance, err := s.instance.Copy()
+	c.Assert(err, gocheck.IsNil)
+
+	expectedBallot := duplicateInstance.MaxBallot + 1
+	err = s.scope.commitPhase(duplicateInstance)
+
+	// wait for all of the nodes to receive their messages
+	for i:=0;i<len(s.replicas);i++ {
+		<-responseWaitChan
+	}
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(sentBallot, gocheck.Equals, expectedBallot)
+}
+
 
 type CommitReplicaTest struct {
 	baseScopeTest
