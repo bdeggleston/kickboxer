@@ -507,7 +507,7 @@ func newCtrl(r *rand.Rand, nodes []*mockNode, c *gocheck.C) *opsCtrl {
 	return ctrl
 }
 
-type ConsensusIntegrationTest struct {
+type MockClusterIntegrationTest struct {
 	baseReplicaTest
 	ctrl *opsCtrl
 	random *rand.Rand
@@ -516,16 +516,16 @@ type ConsensusIntegrationTest struct {
 	stats statsd.Statter
 }
 
-var _ = gocheck.Suite(&ConsensusIntegrationTest{})
+var _ = gocheck.Suite(&MockClusterIntegrationTest{})
 
-func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) SetUpSuite(c *gocheck.C) {
 	s.baseReplicaTest.SetUpSuite(c)
 	s.numNodes = *_test_replicas
 	s.oldTimeoutHandler = consensusTimeoutEvent
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(1)
 
 	var err error
 	s.stats, err = statsd.New("localhost:8125", "integration.test")
@@ -534,11 +534,11 @@ func (s *ConsensusIntegrationTest) SetUpSuite(c *gocheck.C) {
 	}
 }
 
-func (s *ConsensusIntegrationTest) TearDownSuite(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) TearDownSuite(c *gocheck.C) {
 	consensusTimeoutEvent = s.oldTimeoutHandler
 }
 
-func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) SetUpTest(c *gocheck.C) {
 	if *_test_seed != 0 {
 		s.seedVal = *_test_seed
 		c.Log("Using seed arg: ", s.seedVal)
@@ -548,7 +548,7 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 	rand.Seed(s.seedVal)
 	s.random = rand.New(rand.NewSource(s.seedVal))
 
-	c.Log("ConsensusIntegrationTest seeded with: ", s.seedVal)
+	c.Log("MockClusterIntegrationTest seeded with: ", s.seedVal)
 
 	s.baseReplicaTest.SetUpTest(c)
 	s.ctrl = newCtrl(s.random, s.nodes, c)
@@ -577,7 +577,7 @@ func (s *ConsensusIntegrationTest) SetUpTest(c *gocheck.C) {
 	}
 }
 
-func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 	if *_test_cpu_profile {
 		fmt.Println("profiling")
 		m, err := os.Create("integration_test.mem.prof")
@@ -662,14 +662,14 @@ func (s *ConsensusIntegrationTest) runTest(c *gocheck.C) {
 
 // tests the operation of an egalitarian paxos cluster
 // without any communication failures between nodes
-func (s *ConsensusIntegrationTest) TestSuccessCase(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	c.Log("Testing success case")
 	s.runTest(c)
 }
 
 // tests the operation of an egalitarian paxos cluster
 // with communication failures between nodes
-func (s *ConsensusIntegrationTest) TestFailureCase(c *gocheck.C) {
+func (s *MockClusterIntegrationTest) TestFailureCase(c *gocheck.C) {
 	c.Log("Testing failure case")
 	s.ctrl.simulateFailures = true
 	s.runTest(c)
