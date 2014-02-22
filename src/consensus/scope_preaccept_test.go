@@ -326,6 +326,35 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesMissingInstances(c *gocheck.C) 
 	c.Assert(s.scope.instances.Contains(missingInst), gocheck.Equals, true)
 }
 
+// tests that the accept messages sent out have the same ballot
+// as the local instance
+func (s *PreAcceptLeaderTest) TestPreAcceptMessageBallotIsUpToDate(c *gocheck.C) {
+	var sentBallot uint32
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		request := m.(*PreAcceptRequest)
+		sentBallot = request.Instance.MaxBallot
+		return &PreAcceptResponse{
+			Accepted:         true,
+			MaxBallot:        request.Instance.MaxBallot,
+			Instance:         request.Instance,
+			MissingInstances: []*Instance{},
+		}, nil
+	}
+
+	for _, replica := range s.replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	duplicateInstance, err := s.instance.Copy()
+	c.Assert(err, gocheck.IsNil)
+
+	expectedBallot := duplicateInstance.MaxBallot + 1
+	_, err = s.scope.preAcceptPhase(duplicateInstance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(sentBallot, gocheck.Equals, expectedBallot)
+}
+
 type PreAcceptReplicaTest struct {
 	baseScopeTest
 }

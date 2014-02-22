@@ -161,6 +161,10 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 		}
 	}
 
+	// the given instance is out of date if it was new to this
+	// node, switch over to the local instance
+	instance = s.instances.Get(instance.InstanceID)
+
 	// send instance pre-accept to replicas
 	paResponses, err := s.sendPreAccept(instance, replicas)
 	if err != nil {
