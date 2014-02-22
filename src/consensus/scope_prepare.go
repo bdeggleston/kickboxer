@@ -112,14 +112,14 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 	replicas := s.manager.getScopeReplicas(s)
 
 	ballot := instance.incrementBallot()
-	msg := &PrepareRequest{Scope:s.name, Ballot:ballot, InstanceID:instance.InstanceID}
 	if err := s.Persist(); err != nil {
 		return nil, err
 	}
+	msg := &PrepareRequest{Scope:s.name, Ballot:ballot, InstanceID:instance.InstanceID}
 
 	recvChan := make(chan *PrepareResponse, len(replicas))
 	sendMsg := func(n node.Node) {
-		logger.Debug("Sending prepare request to node %v", n.GetId())
+		logger.Debug("Sending prepare request to node %v with ballot", n.GetId(), msg.Ballot)
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PrepareResponse: %v", err)
 		} else {
