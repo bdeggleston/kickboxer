@@ -265,6 +265,33 @@ func (s *AcceptLeaderTest) TestSendAcceptBallotFailure(c *gocheck.C) {
 	c.Check(s.instance.MaxBallot, gocheck.Equals, originalBallot + 1)
 }
 
+// tests that the accept messages sent out have the same ballot
+// as the local instance
+func (s *AcceptLeaderTest) TestAcceptMessageBallotIsUpToDate(c *gocheck.C) {
+	var sentBallot uint32
+	// all replicas agree
+	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
+		request := m.(*AcceptRequest)
+		sentBallot = request.Instance.MaxBallot
+		return &AcceptResponse{
+			Accepted:         true,
+			MaxBallot:        s.instance.MaxBallot,
+		}, nil
+	}
+
+	for _, replica := range s.replicas {
+		replica.messageHandler = responseFunc
+	}
+
+	duplicateInstance, err := s.instance.Copy()
+	c.Assert(err, gocheck.IsNil)
+
+	expectedBallot := duplicateInstance.MaxBallot + 1
+	err = s.scope.acceptPhase(duplicateInstance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(sentBallot, gocheck.Equals, expectedBallot)
+}
+
 /** replica **/
 
 type AcceptReplicaTest struct {

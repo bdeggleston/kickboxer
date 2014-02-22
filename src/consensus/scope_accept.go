@@ -145,6 +145,11 @@ var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 			return err
 		}
 	}
+
+	// the given instance is out of date if it was new to this
+	// node, switch over to the local instance
+	instance = s.instances.Get(instance.InstanceID)
+
 	if err := s.sendAccept(instance, replicas); err != nil {
 		return err
 	}
