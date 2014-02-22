@@ -465,10 +465,11 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 	return true
 }
 
-var scopePrepareInstance = func(s *Scope, instance *Instance) error {
+var scopePrepareInstance = func(s *Scope, inst *Instance) error {
 	start := time.Now()
 	defer s.statsTiming("prepare.instance.time", start)
 	s.statsInc("prepare.instance.count", 1)
+	instance, _ := s.getOrSetInstance(inst)
 	instance.prepareLock.Lock()
 	defer instance.prepareLock.Unlock()
 
