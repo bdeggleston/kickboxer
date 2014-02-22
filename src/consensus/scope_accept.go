@@ -103,7 +103,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 			numReceived++
 		case <-timeoutEvent:
 			s.statsInc("accept.message.send.timeout", 1)
-			logger.Debug("Accept timeout for instance: %v", instance.InstanceID)
+			logger.Info("Accept timeout for instance: %v", instance.InstanceID)
 			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
 	}
@@ -115,10 +115,10 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 		accepted = accepted && response.Accepted
 	}
 
-	// handle rejected pre-accept messages
+	// handle rejected accept messages
 	if !accepted {
 		s.statsInc("accept.message.send.rejected", 1)
-		logger.Debug("Accept request rejected for instance %v", instance.InstanceID)
+		logger.Info("Accept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
 		for i, response := range responses {
@@ -173,10 +173,10 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 	// should the ballot even matter here? If we're receiving an accept response,
 	// it means that a quorum of preaccept responses were received by a node
 	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
-		if instance.MaxBallot >= request.Instance.MaxBallot {
+		if ballot := instance.getBallot(); ballot >= request.Instance.MaxBallot {
 			s.statsInc("accept.message.response.rejected", 1)
-			logger.Debug("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, instance.MaxBallot, request.Instance.MaxBallot)
-			return &AcceptResponse{Accepted: false, MaxBallot: instance.MaxBallot}, nil
+			logger.Info("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, ballot, request.Instance.MaxBallot)
+			return &AcceptResponse{Accepted: false, MaxBallot: ballot}, nil
 		}
 	}
 

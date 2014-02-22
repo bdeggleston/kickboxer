@@ -101,7 +101,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 			numReceived++
 		case <-timeoutEvent:
 			s.statsInc("preaccept.message.send.timeout", 1)
-			logger.Debug("PreAccept timeout for instance: %v", instance.InstanceID)
+			logger.Info("PreAccept timeout for instance: %v", instance.InstanceID)
 			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
 	}
@@ -116,7 +116,7 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	// handle rejected pre-accept messages
 	if !accepted {
 		s.statsInc("preaccept.message.send.rejected", 1)
-		logger.Debug("PreAccept request rejected for instance %v", instance.InstanceID)
+		logger.Info("PreAccept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
 		for i, response := range responses {
@@ -204,10 +204,10 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	if err := s.preAcceptInstanceUnsafe(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("accept.message.response.error", 1)
-			logger.Debug("Error processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
+			logger.Warning("Error processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 			return nil, err
 		} else {
-			logger.Debug("InvalidStatusUpdateError processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
+			logger.Info("InvalidStatusUpdateError processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
 		}
 	}
 	s.statsTiming("preaccept.message.response.instance.time", instanceStart)

@@ -438,18 +438,22 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 	for _, instance := range instances {
 		if !s.instances.ContainsID(instance.InstanceID) {
+			s.statsInc("scope.missing_instance.count", 1)
 			switch instance.Status {
 			case INSTANCE_PREACCEPTED:
+				s.statsInc("scope.missing_instance.preaccept", 1)
 				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
 					return nil
 				}
 			case INSTANCE_ACCEPTED:
+				s.statsInc("scope.missing_instance.accept", 1)
 				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.acceptInstanceUnsafe(instance, false); err != nil {
 					return err
 				}
 			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+				s.statsInc("scope.missing_instance.commit", 1)
 				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 				if err := s.commitInstanceUnsafe(instance, false); err != nil {
 					return err

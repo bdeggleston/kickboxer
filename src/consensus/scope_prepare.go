@@ -41,9 +41,7 @@ func (s *Scope) analyzePrepareResponses(responses []*PrepareResponse) (*Instance
 		}
 		if status := response.Instance.Status; status > maxStatus {
 			maxStatus = status
-			if response.Instance != nil {
-				instance = response.Instance
-			}
+			instance = response.Instance
 		}
 	}
 
@@ -152,7 +150,7 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 			numReceived++
 		case <-timeoutEvent:
 			s.statsInc("prepare.message.receive.timeout.count", 1)
-			logger.Debug("Prepare timeout for instance: %v", instance.InstanceID)
+			logger.Info("Prepare timeout for instance: %v", instance.InstanceID)
 			return nil, NewTimeoutError("Timeout while awaiting pre accept responses")
 		}
 	}
@@ -210,7 +208,7 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 		}
 
 		// update local ballot and/or status
-		if maxInstance != nil && maxInstance.Status > instance.Status {
+		if maxInstance != nil && maxInstance.Status > instance.getStatus() {
 			switch maxInstance.Status {
 			case INSTANCE_ACCEPTED:
 				if err := s.acceptInstance(maxInstance, false); err != nil {
@@ -223,7 +221,7 @@ var scopePrepareCheckResponses = func(s *Scope, instance *Instance, responses []
 			}
 		}
 
-		logger.Debug("Prepare request(s) rejected")
+		logger.Info("Prepare request(s) rejected")
 		return NewBallotError("Prepare request(s) rejected")
 	}
 
@@ -272,9 +270,11 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 	switch status {
 	case INSTANCE_PREACCEPTED:
 		// run pre accept phase
+		s.statsInc("prepare.apply.preaccept.count", 1)
 		logger.Debug("Prepare phase starting at PreAccept phase for %v on %v", instance.InstanceID, s.GetLocalID())
 		acceptRequired, err = s.preAcceptPhase(prepareInstance)
 		if err != nil {
+			s.statsInc("prepare.apply.preaccept.error", 1)
 			logger.Debug("Prepare PreAccept error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
 			return err
 		}
@@ -283,12 +283,14 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 	case INSTANCE_ACCEPTED:
 		// run accept phase
 		if acceptRequired {
+			s.statsInc("prepare.apply.accept.count", 1)
 			logger.Debug("Prepare phase starting at Accept phase for %v on %v", instance.InstanceID, s.GetLocalID())
 			// use the remote instance to initiate the new accept phase, otherwise
 			// the existing (potentially incorrect) attributes will be used for the accept
 			err = s.acceptPhase(prepareInstance)
 			if err != nil {
-				logger.Debug("Prepare Accept error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
+				s.statsInc("prepare.apply.accept.error", 1)
+				logger.Info("Prepare Accept error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
 				return err
 			}
 			prepareInstance = instance
@@ -296,15 +298,18 @@ var scopePrepareApply = func(s *Scope, instance *Instance, responses []*PrepareR
 		fallthrough
 	case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
 		// commit instance
+		s.statsInc("prepare.apply.commit.count", 1)
 		logger.Debug("Prepare phase starting at Commit phase for %v on %v", instance.InstanceID, s.GetLocalID())
 		// use the remote instance to initiate the new commit phase, otherwise
 		// the existing (potentially incorrect) attributes will be committed
 		err = s.commitPhase(prepareInstance)
 		if err != nil {
-			logger.Debug("Prepare Commit error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
+			s.statsInc("prepare.apply.commit.error", 1)
+			logger.Warning("Prepare Commit error for %v on %v: %v", instance.InstanceID, s.GetLocalID(), err)
 			return err
 		}
 	default:
+		s.statsInc("prepare.apply.error", 1)
 		return fmt.Errorf("Unknown instance status: %v", remoteInstance.Status)
 	}
 
@@ -355,6 +360,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 			recvChan := make(chan *PrepareSuccessorResponse)
 			errChan := make(chan bool)
 			go func() {
+				s.statsInc("prepare.successor.messages.send.count", 1)
 				msg := &PrepareSuccessorRequest{InstanceID: instance.InstanceID, Scope: s.name}
 				logger.Debug("Prepare Successor: Sending message to node %v for instance %v", replica.GetId(), instance.InstanceID)
 				if response, err := replica.SendMessage(msg); err != nil {
@@ -410,7 +416,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 			case <- getTimeoutEvent(time.Duration(SUCCESSOR_TIMEOUT) * time.Millisecond):
 				// timeout, go to the next successor
 				s.statsInc("prepare.successor.message.receive.timeout.count", 1)
-				logger.Debug("Prepare Successor: timeout communicating with %v for instance %v", nid, instance.InstanceID)
+				logger.Info("Prepare Successor: timeout communicating with %v for instance %v", nid, instance.InstanceID)
 
 			}
 		}
@@ -484,7 +490,7 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 			// interval passed, contact successor again
 		case <- instance.getCommitEvent().getChan():
 			// instance was committed
-			s.statsInc("prepare.defer.commit.wait.broadcast.count", 1)
+			s.statsInc("prepare.instance.defer.commit.wait.broadcast.count", 1)
 			return nil
 		}
 		deferred, err = scopeDeferToSuccessor(s, instance)
@@ -496,7 +502,7 @@ var scopePrepareInstance = func(s *Scope, instance *Instance) error {
 	}
 
 	logger.Debug("Prepare phase started")
-	err := scopePreparePhase(s, instance)
+	err = scopePreparePhase(s, instance)
 	logger.Debug("Prepare phase completed")
 	return err
 }
@@ -523,7 +529,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 	if instance == nil {
 		response.Accepted = true
 	} else {
-		response.Accepted = request.Ballot > instance.MaxBallot
+		response.Accepted = request.Ballot > instance.getBallot()
 		if response.Accepted {
 			s.statsInc("prepare.message.response.accepted.count", 1)
 			if instance.updateBallot(request.Ballot) {
@@ -533,7 +539,7 @@ func (s *Scope) HandlePrepare(request *PrepareRequest) (*PrepareResponse, error)
 			}
 		} else {
 			s.statsInc("prepare.message.response.rejected", 1)
-			logger.Debug("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
+			logger.Info("Prepare message rejected for %v, %v >= %v", request.InstanceID, instance.MaxBallot, request.Ballot)
 		}
 		if instanceCopy, err := instance.Copy(); err != nil {
 			return nil, err
@@ -557,7 +563,6 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
 		if instance.getStatus() < INSTANCE_COMMITTED {
-			// TODO: run multiple times, like in execute
 			successors := instance.getSuccessors()
 			successorNum := len(successors)
 			for i, nid := range successors {
@@ -577,7 +582,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 
 							// wait on broadcast event or timeout
 							waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(successorNum)
-							logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
+							logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 							timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 							select {
 							case <- instance.getCommitEvent().getChan():
@@ -587,6 +592,9 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 							case <-timeoutEvent:
 								// continue with the prepare
 							}
+						} else {
+							s.statsInc("prepare.successor.prepare.error", 1)
+							logger.Error("Prepare successor failed with error: %v", err)
 						}
 
 					} else {
@@ -594,7 +602,6 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 					}
 				}
 			}()
-//			go s.preparePhase(instance)
 		}
 	}
 	return response, nil

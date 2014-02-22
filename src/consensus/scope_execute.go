@@ -107,7 +107,7 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 	instances := make([]*Instance, 0)
 	for _, iid := range iids {
 		instance := s.instances.Get(iid)
-		if instance.Status < INSTANCE_COMMITTED {
+		if instance.getStatus() < INSTANCE_COMMITTED {
 			instances = append(instances, instance)
 		}
 	}
@@ -267,13 +267,13 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 				ballotErr = false
 				if err = s.preparePhase(inst); err != nil {
 					if _, ok := err.(BallotError); ok {
-						logger.Debug("Prepare failed with BallotError, waiting to try again")
+						logger.Info("Prepare failed with BallotError, waiting to try again")
 						ballotErr = true
 
 						// wait on broadcast event or timeout
 						waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(i + 1)
 						waitTime += uint64(rand.Uint32()) % (waitTime / 2)
-						logger.Debug("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
+						logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
 						case <- inst.getCommitEvent().getChan():
@@ -286,6 +286,8 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 						}
 
 					} else {
+						s.statsInc("execute.phase.prepare.error", 1)
+						logger.Warning("Execute prepare failed with error: %v", err)
 						errors <- err
 						break
 					}
