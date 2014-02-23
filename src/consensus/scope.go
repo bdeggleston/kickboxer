@@ -335,67 +335,58 @@ func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...inte
 	logger.Debug("%v for instance %v on node: %v", message, instance.InstanceID, s.GetLocalID())
 }
 
+// TODO: delete
 // returns the current dependencies for a new instance
 // this method doesn't implement any locking or persistence
 func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
+	return s.getCurrentDeps()
+
+}
+
+func (s *Scope) getCurrentDeps() []InstanceID {
+	s.executedLock.RLock()
+	defer s.executedLock.RUnlock()
+
 	// grab ALL instances as dependencies for now
 	numDeps := s.inProgress.Len() + s.committed.Len() + len(s.executed)
-//	if len(s.executed) > 0 {
-//		numDeps += 1
-//	}
 
 	deps := make([]InstanceID, 0, numDeps)
 	deps = append(deps, s.inProgress.InstanceIDs()...)
 	deps = append(deps, s.committed.InstanceIDs()...)
 	deps = append(deps, s.executed...)
-//	if len(s.executed) > 0 {
-//		deps = append(deps, s.executed[len(s.executed)-1])
-//	}
 
 	return deps
 }
 
-func (s *Scope) getCurrentDeps() []InstanceID {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return s.getCurrentDepsUnsafe()
-}
-
+// TODO: delete
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
 func (s *Scope) getNextSeqUnsafe() uint64 {
-	s.maxSeq++
-	return s.maxSeq
+	return s.getNextSeq()
 }
 
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
 func (s *Scope) getNextSeq() uint64 {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.getNextSeqUnsafe()
-
-}
-
-func (s *Scope) getSeqAndDeps() (uint64, []InstanceID) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.getNextSeqUnsafe(), s.getCurrentDepsUnsafe()
+	s.maxSeqLock.Lock()
+	defer s.maxSeqLock.Unlock()
+	s.maxSeq++
+	return s.maxSeq
 }
 
 // updates the scope's sequence number, if the given
 // number is higher
 func (s *Scope) updateSeq(seq uint64) error {
 	existing := func() uint64 {
-		s.lock.RLock()
-		defer s.lock.RUnlock()
+		s.maxSeqLock.RLock()
+		defer s.maxSeqLock.RUnlock()
 		return s.maxSeq
 	}()
 
 	if existing < seq {
 		func() {
-			s.lock.Lock()
-			defer s.lock.Unlock()
+			s.maxSeqLock.Lock()
+			defer s.maxSeqLock.Unlock()
 			if s.maxSeq < seq {
 				s.maxSeq = seq
 			}

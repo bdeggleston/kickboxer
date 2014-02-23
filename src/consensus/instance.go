@@ -463,7 +463,8 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 		}
 	}
 	i.Status = INSTANCE_PREACCEPTED
-	i.Sequence, i.Dependencies = i.scope.getSeqAndDeps()
+	i.Sequence = i.scope.getNextSeq()
+	i.Dependencies = i.scope.getCurrentDeps()
 	i.commitTimeout = makePreAcceptCommitTimeout()
 	if incrementBallot {
 		i.MaxBallot++
