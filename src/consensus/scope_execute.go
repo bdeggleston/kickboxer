@@ -76,12 +76,17 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// be instances higher upstream that change the ordering
 	// of instances down here.
 	// TODO: figure out why that is
+	prepStart := time.Now()
 	for _, inst := range s.instances.Instances() {
 		addInstance(inst)
 	}
+	s.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
 	// sort with tarjan's algorithm
+	sortStart := time.Now()
 	tSorted := tarjan.Connections(depGraph)
+	s.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
+	subSortStart := time.Now()
 	exOrder := make([]InstanceID, 0, len(instance.Dependencies) + 1)
 	for _, set := range tSorted {
 		iids := make([]InstanceID, len(set))
@@ -92,6 +97,8 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		sort.Sort(sorter)
 		exOrder = append(exOrder, sorter.iids...)
 	}
+	s.statsTiming("execute.dependencies.order.sort.sub_graph.time", subSortStart)
+	s.statsTiming("execute.dependencies.order.sort.time", sortStart)
 
 	for _, iid := range exOrder {
 		if s.instances.Get(iid) == nil {
@@ -143,6 +150,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 					return nil, err
 				}
 			}
+		} else {
 			s.statsInc("execute.instance.noop.count", 1)
 		}
 

@@ -240,6 +240,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	}
 
 	for iid := range missingDeps {
+		s.statsInc("preaccept.message.response.missing.count", 1)
 		inst := s.instances.Get(iid)
 		if inst != nil {
 			if instanceCopy, err := inst.Copy(); err != nil {
