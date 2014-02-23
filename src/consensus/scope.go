@@ -316,6 +316,11 @@ func (s *Scope) getInstance(iid InstanceID) *Instance {
 // or sets the given instance locally. Does not handle any of the
 // committed, inprogress, executed logic
 func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
+	// first, try with a read lock
+	if instance := s.getInstance(inst.InstanceID); instance != nil {
+		return instance, true
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	existedLocally := true
@@ -330,16 +335,6 @@ func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
 		existedLocally = false
 	}
 	return instance, existedLocally
-}
-
-func (s *Scope) setInstanceStatus(instance *Instance, status InstanceStatus) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	instance.Status = status
-	if err := s.Persist(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...interface {}) {
