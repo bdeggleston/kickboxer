@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -416,20 +415,30 @@ func (i *Instance) updateBallot(ballot uint32) bool {
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	buf := &bytes.Buffer{}
-	writer := bufio.NewWriter(buf)
-	if err := instanceSerialize(i, writer); err != nil {
-		return nil, err
+
+	newInst := &Instance{
+		InstanceID: i.InstanceID,
+		LeaderID: i.LeaderID,
+		Successors: make([]node.NodeId, len(i.Successors)),
+		Commands: make([]*store.Instruction, len(i.Commands)),
+		Dependencies: make([]InstanceID, len(i.Dependencies)),
+		Sequence: i.Sequence,
+		Status: i.Status,
+		MaxBallot: i.MaxBallot,
+		Noop: i.Noop,
+		DependencyMatch: i.DependencyMatch,
+		commitTimeout: i.commitTimeout,
+		executeTimeout: i.executeTimeout,
+		scope: i.scope,
 	}
-	if err := writer.Flush(); err != nil {
-		return nil, err
+	copy(newInst.Successors, i.Successors)
+	copy(newInst.Dependencies, i.Dependencies)
+
+	for i, instr := range i.Commands {
+		newInst.Commands[i] = instr.Copy()
 	}
-	reader := bufio.NewReader(buf)
-	dst, err := instanceDeserialize(reader)
-	if err != nil {
-		return nil, err
-	}
-	return dst, nil
+
+	return newInst, nil
 }
 
 // merges sequence and dependencies onto this instance, and returns

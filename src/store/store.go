@@ -52,6 +52,17 @@ func (i *Instruction) Equal(o *Instruction) bool {
 	return true
 }
 
+func (i *Instruction) Copy() *Instruction {
+	newInstr := &Instruction{
+		Cmd: i.Cmd,
+		Key: i.Key,
+		Args: make([]string, len(i.Args)),
+		Timestamp: i.Timestamp,
+	}
+	copy(newInstr.Args, i.Args)
+	return newInstr
+}
+
 type Store interface {
 
 	Start() error
