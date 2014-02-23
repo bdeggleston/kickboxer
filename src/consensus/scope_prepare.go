@@ -564,14 +564,14 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
 		if instance.getStatus() < INSTANCE_COMMITTED {
-			successors := instance.getSuccessors()
-			successorNum := len(successors)
-			for i, nid := range successors {
-				if nid == s.GetLocalID() {
-					successorNum = i
-				}
-			}
 			go func(){
+				successors := instance.getSuccessors()
+				successorNum := len(successors)
+				for i, nid := range successors {
+					if nid == s.GetLocalID() {
+						successorNum = i
+					}
+				}
 				for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
 					prepareStart := time.Now()
 					defer s.statsTiming("prepare.successor.prepare.time", prepareStart)
