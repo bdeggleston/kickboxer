@@ -386,6 +386,15 @@ func (i *Instance) getSuccessors() []node.NodeId {
 	return result
 }
 
+func (i *Instance) getDependencies() []InstanceID {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	result := make([]InstanceID, len(i.Dependencies))
+	copy(result, i.Dependencies)
+	return result
+}
+
+
 func (i *Instance) incrementBallot() uint32 {
 	i.lock.Lock()
 	defer i.lock.Unlock()

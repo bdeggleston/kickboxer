@@ -34,8 +34,8 @@ func (i *iidSorter) Less(x, y int) bool {
 	i1 := i.scope.instances.Get(i.iids[y])
 
 	// first check the sequence#
-	if i0.Sequence != i1.Sequence {
-		return i0.Sequence < i1.Sequence
+	if i0s, i1s := i0.getSeq(), i1.getSeq(); i0s != i1s {
+		return i0s < i1s
 	} else {
 		// then the embedded timestamp
 		t0, _ := i0.InstanceID.UUID().Time()
@@ -59,15 +59,14 @@ func (i *iidSorter) Swap(x, y int) {
 // connected components
 func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	start := time.Now()
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	defer s.statsTiming("execute.dependencies.order.time", start)
 
 	// build a directed graph
-	depGraph := make(map[interface {}][]interface {}, len(instance.Dependencies) + 1)
+	depGraph := make(map[interface {}][]interface {}, s.instances.Len() + 1)
 	addInstance := func(inst *Instance) {
-		iids := make([]interface {}, len(inst.Dependencies))
-		for i, iid := range inst.Dependencies {
+		deps := inst.getDependencies()
+		iids := make([]interface {}, len(deps))
+		for i, iid := range deps {
 			iids[i] = iid
 		}
 		depGraph[inst.InstanceID] = iids
@@ -151,8 +150,8 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		instance.Status = INSTANCE_EXECUTED
 		s.committed.Remove(instance)
 		func() {
-			s.lock.Lock()
-			defer s.lock.Unlock()
+			s.executedLock.Lock()
+			defer s.executedLock.Unlock()
 			s.executed = append(s.executed, instance.InstanceID)
 		}()
 		if err := s.Persist(); err != nil {
