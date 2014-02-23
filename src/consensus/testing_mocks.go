@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -144,10 +143,11 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	start = time.Now()
 	err = message.WriteMessage(buf, srcRequest)
 	n.stats.Timing(
-		strings.Replace(fmt.Sprintf("serialize.%T", srcRequest), "*", "", -1),
+		fmt.Sprintf("serialize.%T.time", srcRequest),
 		getDuration(start),
 		1.0,
 	)
+	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcRequest), 1, 1.0)
 
 	if err != nil {
 		return nil, err
@@ -156,10 +156,12 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	start = time.Now()
 	dstRequest, err := message.ReadMessage(buf)
 	n.stats.Timing(
-		strings.Replace(fmt.Sprintf("deserialize.%T", dstRequest), "*", "", -1),
+		fmt.Sprintf("deserialize.%T.time", dstRequest),
 		getDuration(start),
 		1.0,
 	)
+	n.stats.Inc(fmt.Sprintf("deserialize.%T.count", dstRequest), 1, 1.0)
+
 	if err != nil {
 		return nil, err
 //		panic(err)
@@ -169,16 +171,19 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	start = time.Now()
 	srcResponse, err := n.messageHandler(n, dstRequest)
 	n.stats.Timing(
-		strings.Replace(fmt.Sprintf("process.%T", srcResponse), "*", "", -1),
+		fmt.Sprintf("process.%T.time", srcResponse),
 		getDuration(start),
 		1.0,
 	)
+	n.stats.Inc(fmt.Sprintf("process.%T.count", srcResponse), 1, 1.0)
+
 	if err != nil {
 		n.stats.Inc(
-			strings.Replace(fmt.Sprintf("error.%T", srcRequest), "*", "", -1),
+			fmt.Sprintf("error.%T.time", srcRequest),
 			1,
 			1.0,
 		)
+		n.stats.Inc(fmt.Sprintf("error.%T.count", srcRequest), 1, 1.0)
 		return nil, err
 //		panic(err)
 	}
@@ -187,10 +192,11 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	start = time.Now()
 	err = message.WriteMessage(buf, srcResponse)
 	n.stats.Timing(
-		strings.Replace(fmt.Sprintf("serialize.%T", srcResponse), "*", "", -1),
+		fmt.Sprintf("serialize.%T.time", srcResponse),
 		getDuration(start),
 		1.0,
 	)
+	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcResponse), 1, 1.0)
 	if err != nil {
 		return nil, err
 //		panic(err)
@@ -199,10 +205,12 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	start = time.Now()
 	dstResponse, err := message.ReadMessage(buf)
 	n.stats.Timing(
-		strings.Replace(fmt.Sprintf("deserialize.%T", dstResponse), "*", "", -1),
+		fmt.Sprintf("deserialize.%T.time", dstResponse),
 		getDuration(start),
 		1.0,
 	)
+	n.stats.Inc(fmt.Sprintf("deserialize.%T.count", dstResponse), 1, 1.0)
+
 	n.lock.Unlock()
 	if err != nil {
 		return nil, err
