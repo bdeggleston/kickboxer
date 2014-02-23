@@ -157,6 +157,31 @@ func (i *InstanceMap) Get(iid InstanceID) *Instance {
 	return i.instMap[iid]
 }
 
+// gets an existing instance matching the given instance's iid, or adds the
+// given instance to the map. The initialize function, if not nil, is run
+// on the instance if it's being added to the map, before the map locks
+// are released
+func (i *InstanceMap) GetOrSet(inst *Instance, initialize func(*Instance)) (*Instance, bool) {
+	if instance := i.Get(inst.InstanceID); instance != nil {
+		return instance, true
+	}
+
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	instance := i.instMap[inst.InstanceID]
+	existed := true
+	if instance == nil {
+		if initialize != nil {
+			initialize(inst)
+		}
+		i.instMap[inst.InstanceID] = inst
+		existed = false
+		instance = inst
+	}
+	return instance, existed
+}
+
 func (i *InstanceMap) Len() int {
 	i.lock.RLock()
 	defer i.lock.RUnlock()

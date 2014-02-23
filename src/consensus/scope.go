@@ -264,8 +264,13 @@ type Scope struct {
 	instances    *InstanceMap
 	inProgress   *InstanceMap
 	committed    *InstanceMap
+
 	executed     []InstanceID
+	executedLock sync.RWMutex
+
 	maxSeq       uint64
+	maxSeqLock   sync.RWMutex
+
 	lock         sync.RWMutex
 	cmdLock      sync.Mutex
 	manager      *Manager
@@ -307,8 +312,6 @@ func (s *Scope) statsTiming(stat string, start time.Time) error {
 }
 
 func (s *Scope) getInstance(iid InstanceID) *Instance {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	return s.instances.Get(iid)
 }
 
@@ -316,25 +319,15 @@ func (s *Scope) getInstance(iid InstanceID) *Instance {
 // or sets the given instance locally. Does not handle any of the
 // committed, inprogress, executed logic
 func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
-	// first, try with a read lock
-	if instance := s.getInstance(inst.InstanceID); instance != nil {
-		return instance, true
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	existedLocally := true
-	instance := s.instances.Get(inst.InstanceID)
-	if instance == nil {
-		instance = inst
-		instance.scope = s
-		if instance.Status > INSTANCE_COMMITTED {
-			instance.Status = INSTANCE_COMMITTED
+	initialize := func(i *Instance) {
+		i.lock.Lock()
+		defer i.lock.Unlock()
+		i.scope = s
+		if i.Status > INSTANCE_COMMITTED {
+			i.Status = INSTANCE_COMMITTED
 		}
-		s.instances.Add(inst)
-		existedLocally = false
 	}
-	return instance, existedLocally
+	return s.instances.GetOrSet(inst, initialize)
 }
 
 func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...interface {}) {
