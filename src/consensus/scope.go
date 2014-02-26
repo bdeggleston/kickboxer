@@ -306,7 +306,7 @@ func (s *Scope) statsGauge(stat string, delta int64) error {
 func (s *Scope) statsTiming(stat string, start time.Time) error {
 	end := time.Now()
 	delta := end.Sub(start) / time.Millisecond
-	return s.manager.stats.Inc(stat, int64(delta), STATS_SAMPLE_RATE)
+	return s.manager.stats.Timing(stat, int64(delta), STATS_SAMPLE_RATE)
 }
 
 func (s *Scope) getInstance(iid InstanceID) *Instance {
