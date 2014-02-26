@@ -64,7 +64,9 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// build a directed graph
 	depGraph := make(map[interface {}][]interface {}, s.instances.Len() + 1)
 	addInstance := func(inst *Instance) {
-		deps := inst.getDependencies()
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+		deps := inst.Dependencies
 		iids := make([]interface {}, len(deps))
 		for i, iid := range deps {
 			iids[i] = iid
