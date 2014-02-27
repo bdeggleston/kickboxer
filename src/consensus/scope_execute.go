@@ -268,6 +268,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 			var err error
 			var success bool
 			var ballotErr bool
+			var commitEvent <- chan bool
 			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
 				prepareStart := time.Now()
 				defer s.statsTiming("execute.phase.prepare.time", prepareStart)
@@ -276,6 +277,14 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 				ballotErr = false
 				if err = s.preparePhase(inst); err != nil {
 					if _, ok := err.(BallotError); ok {
+						// refresh the local instance pointer and
+						// assign the commit event so a goroutine is not
+						// spun up for each attempt
+						inst = s.instances.Get(inst.InstanceID)
+						if commitEvent == nil {
+							commitEvent = inst.getCommitEvent().getChan()
+						}
+
 						logger.Info("Prepare failed with BallotError, waiting to try again")
 						ballotErr = true
 
@@ -285,7 +294,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 						logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 						select {
-						case <- inst.getCommitEvent().getChan():
+						case <- commitEvent:
 							// another goroutine committed
 							// the instance
 							success = true

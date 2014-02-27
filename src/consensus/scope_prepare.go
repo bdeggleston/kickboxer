@@ -572,7 +572,16 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 						successorNum = i
 					}
 				}
+				var commitEvent <- chan bool
 				for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+					// refresh the local instance pointer and
+					// assign the commit event so a goroutine is not
+					// spun up for each attempt
+					instance = s.instances.Get(instance.InstanceID)
+					if commitEvent == nil {
+						commitEvent = instance.getCommitEvent().getChan()
+					}
+
 					prepareStart := time.Now()
 					defer s.statsTiming("prepare.successor.prepare.time", prepareStart)
 					s.statsInc("prepare.successor.prepare.count", 1)
@@ -586,7 +595,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 							logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 							timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
 							select {
-							case <- instance.getCommitEvent().getChan():
+							case <- commitEvent:
 								// another goroutine committed
 								// the instance
 								return
