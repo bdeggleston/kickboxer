@@ -150,6 +150,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcRequest), 1, 1.0)
 
 	if err != nil {
+		n.lock.Unlock()
 		return nil, err
 //		panic(err)
 	}
@@ -198,6 +199,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	)
 	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcResponse), 1, 1.0)
 	if err != nil {
+		n.lock.Unlock()
 		return nil, err
 //		panic(err)
 	}
