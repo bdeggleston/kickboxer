@@ -33,7 +33,7 @@ import (
 		Failure Scenarios:
 			* Network partition
 			* Unresponsive node
-			* Deloyed / Out of order messages
+			* Delayed / Out of order messages
 			* Missing messages
 		Also to do:
 			* wrap timeout event creation in a method that can be mocked out so the
@@ -44,6 +44,7 @@ var _test_integration = flag.Bool("test.integration", false, "run the integratio
 var _test_show_progress = flag.Bool("test.progress", false, "run the integration tests")
 var _test_seed = flag.Int64("test.seed", 0, "the random seed to use")
 var _test_queries = flag.Int("test.queries", 1000, "the number of queries to run")
+var _test_query_rate = flag.Int("test.rate", 20, "the number of queries per second")
 var _test_replicas = flag.Int("test.replicas", 5, "the number of replicas in the test cluster")
 var _test_concurrent_queries = flag.Int("test.concurrent", 10, "the number of concurrent queries to run")
 var _test_cpu_profile = flag.Bool("test.profile", false, "profile the integration test")
@@ -270,6 +271,15 @@ func (c *opsCtrl) reactor() {
 //			continue
 //		}
 
+		if i%50 != 0 {
+			continue
+		}
+
+		// lock all clusters while testing
+		for _, n := range c.nodes {
+			n.cluster.lock.Lock()
+		}
+
 		// check the store instructions,
 		highNode := 0
 		maxInstructions := 0
@@ -311,10 +321,6 @@ func (c *opsCtrl) reactor() {
 				scopes[n] = node.manager.getScope("a")
 			}
 
-			// lock all clusters while testing
-			for _, n := range c.nodes {
-				n.cluster.lock.Lock()
-			}
 			var numInst []int
 			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
@@ -458,10 +464,6 @@ func (c *opsCtrl) reactor() {
 				}
 			}
 
-			// unlock all clusters
-			for _, n := range c.nodes {
-				n.cluster.lock.Unlock()
-			}
 		}
 
 		sizes := make([]int, len(c.nodes))
@@ -477,6 +479,11 @@ func (c *opsCtrl) reactor() {
 			return
 		}
 		c.completed = len(instructionsSet)
+
+		// unlock all clusters
+		for _, n := range c.nodes {
+			n.cluster.lock.Unlock()
+		}
 	}
 }
 
@@ -486,7 +493,7 @@ func newCtrl(r *rand.Rand, nodes []*mockNode, c *gocheck.C) *opsCtrl {
 		c: c,
 		random: r,
 		nodes: nodes,
-		msgChan: make(chan opsMsgSendEvent, 100000),  // should this be buffered?
+		msgChan: make(chan opsMsgSendEvent),  // should this be buffered?
 		timeoutChan: make(chan opsTimeoutEvent, 1000),  // should this be buffered?
 	}
 
@@ -624,7 +631,8 @@ func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 //	}()
 
 
-	semaphore := make(chan bool, *_test_concurrent_queries)
+//	semaphore := make(chan bool, *_test_concurrent_queries)
+	queryWait := time.Duration(1000 / *_test_query_rate) * time.Millisecond
 	numQueries := *_test_queries
 	wg := sync.WaitGroup{}
 	wg.Add(numQueries)
@@ -634,18 +642,18 @@ func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
 		instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(i)}, time.Now())}
 		s.stats.Gauge("query", int64(i), 1.0)
-		semaphore <- true
+//		semaphore <- true
 		go func() {
 			_, err := manager.ExecuteQuery(instructions)
 			if err != nil {
-				fmt.Printf("FAILED QUERY: %v\n", err)
 				s.stats.Inc("query.failed", 1, 1.0)
+				fmt.Printf("FAILED QUERY: %v\n", err)
 				errors++
 			} else {
 				s.stats.Inc("query.success", 1, 1.0)
 				fmt.Println("QUERY COMPLETE")
 			}
-			<- semaphore
+//			<- semaphore
 //			select {
 //			case <- semaphore:
 //				//
@@ -654,6 +662,7 @@ func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 //			}
 			wg.Done()
 		}()
+		time.Sleep(queryWait)
 	}
 	wg.Wait()
 	c.Logf("%v queries completed with %v failed client requests\n", numQueries, errors)
