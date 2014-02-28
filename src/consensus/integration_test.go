@@ -79,6 +79,12 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 	err = successorScope.preparePhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+}
+
+// tests the behavior of a prepare phase with a rejected prepare request
+func (s *PrepareIntegrationTest) TestPrepareBallotFailure(c *gocheck.C) {
+
 }
 
 // tests that a prepare phase that receives prepare
@@ -129,5 +135,6 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 	err = successorScope.preparePhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
+	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 }
 
