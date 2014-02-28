@@ -454,7 +454,7 @@ func (s *Scope) prepareShouldProceed(instance *Instance) bool {
 			// execution timed out
 
 			if instance.getStatus() >= INSTANCE_COMMITTED {
-				// unlock and continue if it was
+				// continue if it was
 				return false
 			} else {
 				s.statsInc("prepare.proceed.timeout.count", 1)
