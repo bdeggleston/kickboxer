@@ -164,6 +164,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	n.stats.Inc(fmt.Sprintf("deserialize.%T.count", dstRequest), 1, 1.0)
 
 	if err != nil {
+		n.lock.Unlock()
 		return nil, err
 //		panic(err)
 	}
