@@ -474,11 +474,13 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 		return NewInvalidStatusUpdateError(i, INSTANCE_PREACCEPTED)
 	}
 
-	if inst != nil {
+	if inst != nil && inst != i {
+		inst.lock.RLock()
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
 			i.MaxBallot = inst.MaxBallot
 		}
+		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_PREACCEPTED
 	i.Sequence = i.scope.getNextSeq()
@@ -499,13 +501,17 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 		return NewInvalidStatusUpdateError(i, INSTANCE_ACCEPTED)
 	}
 
-	if inst != nil {
-		i.Dependencies = inst.Dependencies
+	if inst != nil && inst != i {
+		inst.lock.RLock()
+		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
+		copy(i.Dependencies, inst.Dependencies)
+		//		i.Dependencies = inst.Dependencies
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
 			i.MaxBallot = inst.MaxBallot
 		}
+		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_ACCEPTED
 	i.commitTimeout = makeAcceptCommitTimeout()
@@ -527,15 +533,19 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		return NewInvalidStatusUpdateError(i, INSTANCE_COMMITTED)
 	}
 
-	if inst != nil {
+	if inst != nil && inst != i {
+		inst.lock.RLock()
 		// this replica may have missed an accept message
 		// so copy the seq & deps onto the existing instance
-		i.Dependencies = inst.Dependencies
+		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
+		copy(i.Dependencies, inst.Dependencies)
+//		i.Dependencies = inst.Dependencies
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
 			i.MaxBallot = inst.MaxBallot
 		}
+		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_COMMITTED
 	i.executeTimeout = makeExecuteTimeout()
@@ -589,7 +599,7 @@ func instructionDeserialize(buf *bufio.Reader) (*store.Instruction, error) {
 	return instruction, nil
 }
 
-func instanceLimitedSerialize(instance *Instance, buf *bufio.Writer) error {
+func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error {
 	if err := serializer.WriteFieldString(buf, string(instance.InstanceID)); err != nil { return err }
 	if err := serializer.WriteFieldString(buf, string(instance.LeaderID)); err != nil { return err }
 	numSuccessors := uint32(len(instance.Successors))
@@ -674,8 +684,16 @@ func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	return instance, nil
 }
 
+func instanceLimitedSerialize(instance *Instance, buf *bufio.Writer) error {
+	instance.lock.RLock()
+	defer instance.lock.RUnlock()
+	return instanceLimitedSerializeUnsafe(instance, buf)
+}
+
 func instanceSerialize(instance *Instance, buf *bufio.Writer) error {
-	if err := instanceLimitedSerialize(instance, buf); err != nil { return err }
+	instance.lock.RLock()
+	defer instance.lock.RUnlock()
+	if err := instanceLimitedSerializeUnsafe(instance, buf); err != nil { return err }
 	if err := serializer.WriteTime(buf, instance.commitTimeout); err != nil { return err }
 	if err := serializer.WriteTime(buf, instance.executeTimeout); err != nil { return err }
 
