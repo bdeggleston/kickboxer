@@ -224,6 +224,18 @@ func (c *opsCtrl) reactor() {
 		case <- time.After(10 * time.Second):
 			panic("deadlock")
 		}
+		c.stats.Gauge("pending_messages", int64(len(c.msgChan)), 1.0)
+
+		drain: for {
+			select {
+			case msgEvnt, open = <-c.msgChan:
+				go handleMessage(msgEvnt)
+			default:
+				runtime.Gosched()
+				break drain
+			}
+
+		}
 
 		oldMsgBacklog := msgBacklog
 		msgBacklog = make([]opsMsgBacklog, 0)
@@ -271,9 +283,9 @@ func (c *opsCtrl) reactor() {
 //			continue
 //		}
 
-		if i%50 != 0 {
-			continue
-		}
+//		if i%50 != 0 {
+//			continue
+//		}
 
 		// lock all clusters while testing
 		for _, n := range c.nodes {
@@ -422,6 +434,9 @@ func (c *opsCtrl) reactor() {
 								}
 								expected := instances[inst0].Get(iid)
 								actual := instances[i].Get(iid)
+								if expected == nil || actual == nil {
+									continue
+								}
 								exOexpected, err0 := scopes[inst0].getExecutionOrder(expected)
 								exOactual, err1 := scopes[i].getExecutionOrder(actual)
 								if err0 != nil || err1 != nil {
@@ -457,6 +472,8 @@ func (c *opsCtrl) reactor() {
 							if !c.c.Check(NewInstanceIDSet(rInst.Dependencies).Equal(NewInstanceIDSet(localInst.Dependencies)), gocheck.DeepEquals, true) {
 								fmt.Printf("%+v\n", NewInstanceIDSet(rInst.Dependencies))
 								fmt.Printf("%+v\n", NewInstanceIDSet(localInst.Dependencies))
+							} else {
+								fmt.Println("Dependencies match\n")
 							}
 						}
 						os.Exit(-1)
@@ -532,7 +549,7 @@ func (s *MockClusterIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(4)
 
 	var err error
 	s.stats, err = statsd.New("localhost:8125", "integration.test")
