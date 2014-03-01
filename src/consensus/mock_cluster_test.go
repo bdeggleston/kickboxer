@@ -493,7 +493,7 @@ func newCtrl(r *rand.Rand, nodes []*mockNode, c *gocheck.C) *opsCtrl {
 		c: c,
 		random: r,
 		nodes: nodes,
-		msgChan: make(chan opsMsgSendEvent),  // should this be buffered?
+		msgChan: make(chan opsMsgSendEvent, 10000),  // should this be buffered?
 		timeoutChan: make(chan opsTimeoutEvent, 1000),  // should this be buffered?
 	}
 
@@ -644,6 +644,7 @@ func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 		s.stats.Gauge("query", int64(i), 1.0)
 //		semaphore <- true
 		go func() {
+			queryStart := time.Now()
 			_, err := manager.ExecuteQuery(instructions)
 			if err != nil {
 				s.stats.Inc("query.failed", 1, 1.0)
@@ -660,6 +661,9 @@ func (s *MockClusterIntegrationTest) runTest(c *gocheck.C) {
 //			default:
 //				//
 //			}
+			queryEnd := time.Now()
+			delta := queryEnd.Sub(queryStart) / time.Millisecond
+			s.stats.Timing("query.time", int64(delta), 1.0)
 			wg.Done()
 		}()
 		time.Sleep(queryWait)
