@@ -131,11 +131,17 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {
+		if status := instance.getStatus(); status == INSTANCE_EXECUTED {
+			return nil, nil
+		} else if status != INSTANCE_COMMITTED {
+			return nil, fmt.Errorf("instance not committed")
+		}
+
 		instance.lock.Lock()
 		defer instance.lock.Unlock()
-		if instance.Status == INSTANCE_EXECUTED {
+		if status := instance.Status; status == INSTANCE_EXECUTED {
 			return nil, nil
-		} else if instance.Status != INSTANCE_COMMITTED {
+		} else if status != INSTANCE_COMMITTED {
 			return nil, fmt.Errorf("instance not committed")
 		}
 		var val store.Value

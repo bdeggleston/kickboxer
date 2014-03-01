@@ -563,8 +563,8 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
 		response.Instance = instance
-		if instance.getStatus() < INSTANCE_COMMITTED {
-			go func(){
+		go func(){
+			if instance.getStatus() < INSTANCE_COMMITTED {
 				successors := instance.getSuccessors()
 				successorNum := len(successors)
 				for i, nid := range successors {
@@ -611,8 +611,8 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 						return
 					}
 				}
-			}()
-		}
+			}
+		}()
 	}
 	return response, nil
 }

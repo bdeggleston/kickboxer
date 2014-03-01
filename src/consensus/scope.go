@@ -68,7 +68,10 @@ var (
 
 /*
 
-TODO: instrument with statsd for better insight into what's happening during integration test
+TODO: find the source of dependency chain variance between nodes under load
+
+TODO: consider batching up queries into a single instance
+
 TODO: make execute query tolerant of prepare phases updating the status of it's instance
 TODO: implement an order of prepare phase succession, enable other replicas to initiate it
 
@@ -118,14 +121,6 @@ TODO: work out a way to prioritize the completion of existing commands vs the pr
 
 Keep a count of instances in progress, and delay new queries proportionally
 
-TODO: implement instance level locking
-
-Instance level locking would allow multiple instances to be serviced concurrently, even if they belong to
-the same scope, and will be really important if the idea of a scope is ditched altogether. Would need to
-add a method to get or set instances on scope, get instances, and a method of updating both instance
-attributes and scope bookkeeping while both are locked. May need to move some functionality onto the
-instance, and make all instances aware of the local scope (could be handled in the get or set method)
-
 TODO: think about potential race conditions caused by multiple goroutines running executeDependencyChain concurrently
 
 ------ older notes ------
@@ -147,14 +142,6 @@ TODO: think about potential race conditions caused by multiple goroutines runnin
 
 4) Add response expected param to execute instance, so queries that don't expect
 	a return value can return even if it's instance dependencies have not been committed
-
-5) Track metrics for:
-		- number of rejected requests (Ballot)
-		- number of explicit prepares (sent and received)
-		- number of times / length of time waiting on dependencies to commit
-		- quorum failures
-
-6) Add a broadcast mechanism to notify pending executions that an instance has been committed
 
  */
 
