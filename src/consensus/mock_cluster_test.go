@@ -350,13 +350,16 @@ func (c *opsCtrl) reactor() {
 			for x, scope := range scopes {
 				numInst[x] = scope.committed.Len()
 			}
+			completeInst := numInst
 			fmt.Printf("%v <- committed instances\n", numInst)
 
 			numInst = make([]int, len(c.nodes))
 			for x, scope := range scopes {
 				numInst[x] = len(scope.executed)
+				completeInst[x] += numInst[x]
 			}
 			fmt.Printf("%v <- executed instances\n", numInst)
+			fmt.Printf("%v <- completed instances\n", completeInst)
 			c.stats.Gauge("num_goroutines", int64(runtime.NumGoroutine()), 0.5)
 			fmt.Printf("Num Goroutines: %v\n", runtime.NumGoroutine())
 
@@ -429,7 +432,6 @@ func (c *opsCtrl) reactor() {
 							if i == inst0 { continue }
 							for _, iid := range instances[inst0].InstanceIDs() {
 								if inst := instances[i].Get(iid); inst != nil {
-									fmt.Printf("%v, %v not found\n", i, iid)
 									continue
 								}
 								expected := instances[inst0].Get(iid)
@@ -549,7 +551,7 @@ func (s *MockClusterIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(8)
 
 	var err error
 	s.stats, err = statsd.New("localhost:8125", "integration.test")
