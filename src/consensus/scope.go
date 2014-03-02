@@ -68,8 +68,18 @@ var (
 
 /*
 
+Current problems:
+	Prepare phase explosion under load
+	Unbounded dependency size, dependency chain calculation
+	the current hacks around dependency chain calculation are delaying
+		execution of committed instances, because instances that depend on
+		them are not committed, and also prematurely attempting to prepare
+		those instances
+
+
 TODO: find the source of dependency chain variance between nodes under load
 TODO: stop requiring every instance as a dependency, probably depends on the above
+TODO: add a 'passive' flag to executeInstance, that will execute if possible, but not prepare
 TODO: instead of jumping into a prepare, the preparer, or successor should first check if the leader is still 'working' on the query
 
 TODO: consider batching up queries into a single instance
