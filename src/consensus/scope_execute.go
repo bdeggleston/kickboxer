@@ -63,15 +63,44 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 
 	// build a directed graph
 	depGraph := make(map[interface {}][]interface {}, s.instances.Len() + 1)
-	addInstance := func(inst *Instance) {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
-		deps := inst.Dependencies
+	var addInstance func(*Instance, bool) error
+	addInstance = func(inst *Instance, topLevel bool) error {
+		// don't add dependencies twice
+		if _, exists := depGraph[inst.InstanceID]; exists {
+			return nil
+		}
+
+		deps := inst.getDependencies()
+
+		// if the instance is already executed, only
+		// add it to the dep graph if it's connected
+		// to an uncommitted instance
+		if !topLevel && inst.getStatus() == INSTANCE_EXECUTED {
+			connected := false
+			for _, dep := range deps {
+				_, exists := depGraph[dep]
+				notExecuted := s.instances.Get(dep).getStatus() < INSTANCE_EXECUTED
+				connected = connected || exists || notExecuted
+			}
+			if !connected {
+				return nil
+			}
+		}
 		iids := make([]interface {}, len(deps))
 		for i, iid := range deps {
 			iids[i] = iid
 		}
 		depGraph[inst.InstanceID] = iids
+		for _, iid := range deps {
+			inst := s.instances.Get(iid)
+			if inst == nil {
+				return fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+			}
+			if err := addInstance(inst, false); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	// add ALL instances to the dependency graph, there may
@@ -79,8 +108,14 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// of instances down here.
 	// TODO: figure out why that is
 	prepStart := time.Now()
-	for _, inst := range s.instances.Instances() {
-		addInstance(inst)
+	for _, iid := range instance.getDependencies() {
+		inst := s.instances.Get(iid)
+		if inst == nil {
+			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+		}
+		if err := addInstance(inst, true); err != nil {
+			return nil, err
+		}
 	}
 	s.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
@@ -89,7 +124,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	tSorted := tarjan.Connections(depGraph)
 	s.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
 	subSortStart := time.Now()
-	exOrder := make([]InstanceID, 0, len(instance.Dependencies) + 1)
+	exOrder := make([]InstanceID, 0, len(depGraph))
 	for _, set := range tSorted {
 		iids := make([]InstanceID, len(set))
 		for i, iid := range set {

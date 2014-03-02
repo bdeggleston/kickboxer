@@ -345,12 +345,19 @@ func (s *Scope) getCurrentDeps() []InstanceID {
 	defer s.executedLock.RUnlock()
 
 	// grab ALL instances as dependencies for now
-	numDeps := s.inProgress.Len() + s.committed.Len() + len(s.executed)
+//	numDeps := s.inProgress.Len() + s.committed.Len() + len(s.executed)
+	numDeps := s.inProgress.Len() + s.committed.Len()
+	if len(s.executed) > 0 {
+		numDeps++
+	}
 
 	deps := make([]InstanceID, 0, numDeps)
 	deps = append(deps, s.inProgress.InstanceIDs()...)
 	deps = append(deps, s.committed.InstanceIDs()...)
-	deps = append(deps, s.executed...)
+//	deps = append(deps, s.executed...)
+	if len(s.executed) > 0 {
+		deps = append(deps, s.executed[len(s.executed) - 1])
+	}
 
 	return deps
 }

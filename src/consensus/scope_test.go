@@ -70,7 +70,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	expected := NewInstanceIDSet([]InstanceID{})
 	expected.Add(s.scope.inProgress.InstanceIDs()...)
 	expected.Add(s.scope.committed.InstanceIDs()...)
-	expected.Add(s.scope.executed...)
+	expected.Add(s.scope.executed[len(s.scope.executed) - 1])
 
 	// sanity checks
 	c.Assert(s.scope.inProgress.Len(), gocheck.Equals, 4)
