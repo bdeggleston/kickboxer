@@ -479,7 +479,11 @@ var scopePrepareInstance = func(s *Scope, inst *Instance) error {
 
 	//
 	deferred, err := scopeDeferToSuccessor(s, instance)
+	var commitEvent <- chan bool
 	for !deferred || err != nil {
+		if commitEvent == nil {
+			commitEvent = instance.getCommitEvent().getChan()
+		}
 		if err != nil {
 			s.statsInc("prepare.instance.defer.error", 1)
 			return err
@@ -489,7 +493,7 @@ var scopePrepareInstance = func(s *Scope, inst *Instance) error {
 		case <- getTimeoutEvent(time.Duration(SUCCESSOR_CONTACT_INTERVAL)):
 			s.statsInc("prepare.instance.defer.timeout", 1)
 			// interval passed, contact successor again
-		case <- instance.getCommitEvent().getChan():
+		case <- commitEvent:
 			// instance was committed
 			s.statsInc("prepare.instance.defer.commit.wait.broadcast.count", 1)
 			return nil
@@ -591,6 +595,7 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 							logger.Debug("Prepare failed with BallotError, waiting to try again")
 
 							// wait on broadcast event or timeout
+//							waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(successorNum) * uint64(i + 1)
 							waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(successorNum)
 							logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
 							timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
