@@ -69,6 +69,8 @@ var (
 /*
 
 TODO: find the source of dependency chain variance between nodes under load
+TODO: stop requiring every instance as a dependency, probably depends on the above
+TODO: instead of jumping into a prepare, the preparer, or successor should first check if the leader is still 'working' on the query
 
 TODO: consider batching up queries into a single instance
 
