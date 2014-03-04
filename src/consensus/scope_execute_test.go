@@ -263,9 +263,58 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	lastInstance := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
 	actual, err := s.scope.getExecutionOrder(lastInstance)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(len(s.expectedOrder), gocheck.Equals, len(actual))
-	for i := range s.expectedOrder {
-		c.Check(s.expectedOrder[i], gocheck.Equals, actual[i], gocheck.Commentf("iid %v", i))
+	c.Assert(actual, gocheck.DeepEquals, s.expectedOrder)
+}
+
+// tests that the dependency ordering of connected instances is the same, regardless of the 'target' instance
+func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrdering(c *gocheck.C) {
+	s.commitInstances()
+
+	inst := s.scope.makeInstance(s.getInstructions(6))
+	s.scope.preAcceptInstanceUnsafe(inst, false)
+	inst.commit(nil, false)
+	c.Assert(len(inst.Dependencies), gocheck.Equals, 6)
+	s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
+
+	for i, iid := range s.expectedOrder {
+		instance := s.scope.instances.Get(iid)
+		var expected []InstanceID
+		if i > 5 {
+			expected = s.expectedOrder
+		} else if i > 2{
+			expected = s.expectedOrder[:6]
+		} else {
+			expected = s.expectedOrder[:3]
+		}
+		actual, err := s.scope.getExecutionOrder(instance)
+		c.Assert(err, gocheck.IsNil)
+		if c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("iid %v", i)) {
+			c.Logf("iid %v, ok", i)
+		}
+	}
+}
+
+// tests that the dependency ordering is the same, regardless of the 'target' instance
+func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *gocheck.C) {
+	s.scope = NewScope("a", s.manager)
+	instances := make([]*Instance, 50)
+	for i := range instances {
+		instance := s.scope.makeInstance(s.getInstructions(1))
+		s.scope.preAcceptInstance(instance, false)
+		c.Assert(len(instance.Dependencies), gocheck.Equals, i, gocheck.Commentf("instance: %v", i))
+		s.scope.commitInstance(instance, false)
+		instances[i] = instance
+	}
+
+	expected := make([]InstanceID, len(instances))
+	for i, instance := range instances {
+		expected[i] = instance.InstanceID
+	}
+
+	for i, instance := range instances {
+		actual, err := s.scope.getExecutionOrder(instance)
+		c.Assert(err, gocheck.IsNil)
+		c.Assert(actual, gocheck.DeepEquals, expected[:i+1], gocheck.Commentf("instance %v", i))
 	}
 }
 
