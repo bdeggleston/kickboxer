@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -363,55 +364,13 @@ func (c *opsCtrl) reactor() {
 			c.stats.Gauge("num_goroutines", int64(runtime.NumGoroutine()), 0.5)
 			fmt.Printf("Num Goroutines: %v\n", runtime.NumGoroutine())
 
-			exMax := 0
-			exSizeMax := 0
-			for n, scope := range scopes {
-				if len(scope.executed) > exSizeMax {
-					exSizeMax = len(scope.executed)
-					exMax = n
-				}
-			}
-
 			committed := NewInstanceIDSet([]InstanceID{})
 			for _, scp := range scopes {
 				for _, iid := range scp.committed.InstanceIDs() {
 					committed.Add(iid)
 				}
 			}
-//			for iid := range committed {
-//				committed := make([]*Instance, 0)
-//				for _, scp := range scopes {
-//					if instance, ok := scp.committed[iid]; ok {
-//						committed = append(committed, instance)
-//					}
-//				}
-//
-//				if len(committed) > 0 {
-//					refInstance := committed[0]
-//					equal := true
-//					for _, instance := range committed[1:] {
-//						if !c.c.Check(refInstance.Sequence, gocheck.Equals, instance.Sequence) { equal = false }
-//						if !c.c.Check(refInstance.Dependencies, gocheck.DeepEquals, instance.Dependencies) { equal = false }
-//					}
-//					if !equal {
-//						for _, instance := range committed {
-//							fmt.Printf("Commit mismatch: %v %v %+v\n", instance.InstanceID, instance.Sequence, instance.Dependencies)
-//						}
-//						os.Exit(-3)
-//					}
-//				}
-//			}
-			_ = exMax
-//			for n := range c.nodes {
-//				if n == exMax { continue }
-//				expected := scopes[exMax].executed
-//				actual := scopes[n].executed
-//				if !c.c.Check(actual, gocheck.DeepEquals, expected[:len(actual)]) {
-//					fmt.Printf("%+v\n", expected[:len(actual)])
-//					fmt.Printf("%+v\n", actual)
-//					os.Exit(-2)
-//				}
-//			}
+
 			for n, node := range c.nodes {
 				if n == highNode { continue }
 				for i, instruction := range node.cluster.instructions {
@@ -419,6 +378,42 @@ func (c *opsCtrl) reactor() {
 						continue
 					}
 					if !c.c.Check(instruction, gocheck.DeepEquals, instructionsSet[i], gocheck.Commentf("node: %v, idx: %v", n, i)){
+
+						expectedScope := c.nodes[highNode].manager.getScope("a")
+						actualScope := c.nodes[n].manager.getScope("a")
+
+						divergenceIndex := 0
+						for divergenceIndex=0; i<len(actualScope.executed); divergenceIndex++ {
+							if divergenceIndex > len(actualScope.executed)-1 || divergenceIndex > len(expectedScope.executed)-1 {
+								break
+							}
+							if expectedScope.executed[divergenceIndex] != actualScope.executed[divergenceIndex] {
+								break
+							}
+						}
+
+						fmt.Println("expected / actual")
+
+						expectedInstances := make([]*Instance, 0)
+						for _, iid := range expectedScope.executed[divergenceIndex-1:] {
+							expectedInstances = append(expectedInstances, expectedScope.instances.Get(iid))
+						}
+						actualInstances := make([]*Instance, 0)
+						for _, iid := range actualScope.executed[divergenceIndex-1:] {
+							actualInstances = append(actualInstances, expectedScope.instances.Get(iid))
+						}
+
+						var js []byte
+						var err error
+						js, err = json.Marshal(expectedInstances)
+						fmt.Println(string(js))
+						fmt.Println(err)
+//						fmt.Println(err.(*json.InvalidUTF8Error).S, err)
+						js, err = json.Marshal(actualInstances)
+						fmt.Println(string(js))
+						fmt.Println(err)
+//						fmt.Println(err.(*json.InvalidUTF8Error).S, err)
+
 
 						scopes := make([]*Scope, len(c.nodes))
 						instances := make([]*InstanceMap, len(c.nodes))
@@ -428,25 +423,17 @@ func (c *opsCtrl) reactor() {
 							scopes[i] = inode.manager.getScope("a")
 						}
 
+						// confirm that all instance dependencies match
 						for i := range c.nodes {
 							if i == inst0 { continue }
 							for _, iid := range instances[inst0].InstanceIDs() {
-								if inst := instances[i].Get(iid); inst != nil {
-									continue
-								}
 								expected := instances[inst0].Get(iid)
 								actual := instances[i].Get(iid)
 								if expected == nil || actual == nil {
 									continue
 								}
-								exOexpected, err0 := scopes[inst0].getExecutionOrder(expected)
-								exOactual, err1 := scopes[i].getExecutionOrder(actual)
-								if err0 != nil || err1 != nil {
-									fmt.Printf("%v / %v", err0, err1)
-								} else {
-									fmt.Println(exOexpected)
-									fmt.Println(exOactual)
-									c.c.Check(exOactual, gocheck.DeepEquals, exOexpected)
+								if expected.Status != INSTANCE_COMMITTED || actual.Status != INSTANCE_COMMITTED {
+									continue
 								}
 								if !NewInstanceIDSet(expected.Dependencies).Equal(NewInstanceIDSet(actual.Dependencies)) {
 									fmt.Printf("%v / %v mismatch\n", inst0, i)
@@ -471,11 +458,11 @@ func (c *opsCtrl) reactor() {
 							}
 							scope := onode.manager.getScope("a")
 							rInst := scope.instances.Get(localInst.InstanceID)
-							if !c.c.Check(NewInstanceIDSet(rInst.Dependencies).Equal(NewInstanceIDSet(localInst.Dependencies)), gocheck.DeepEquals, true) {
+							if !c.c.Check(NewInstanceIDSet(rInst.Dependencies).Equal(NewInstanceIDSet(localInst.Dependencies)), gocheck.Equals, true) {
 								fmt.Printf("%+v\n", NewInstanceIDSet(rInst.Dependencies))
 								fmt.Printf("%+v\n", NewInstanceIDSet(localInst.Dependencies))
 							} else {
-								fmt.Println("Dependencies match\n")
+								fmt.Println("Dependencies match")
 							}
 						}
 						os.Exit(-1)
