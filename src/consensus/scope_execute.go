@@ -62,28 +62,31 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	defer s.statsTiming("execute.dependencies.order.time", start)
 
 	// build a directed graph
+	targetDeps := instance.getDependencies()
+	targetDepSet := NewInstanceIDSet(targetDeps)
 	depGraph := make(map[interface {}][]interface {}, s.instances.Len() + 1)
-	var addInstance func(*Instance, bool) error
-	addInstance = func(inst *Instance, topLevel bool) error {
-		// don't add dependencies twice
-		if _, exists := depGraph[inst.InstanceID]; exists {
-			return nil
-		}
-
+	var addInstance func(*Instance) error
+	addInstance = func(inst *Instance) error {
 		deps := inst.getDependencies()
 
-		// if the instance is already executed, only
-		// add it to the dep graph if it's connected
-		// to an uncommitted instance
-		if !topLevel && inst.getStatus() == INSTANCE_EXECUTED {
-			connected := false
-			for _, dep := range deps {
-				_, exists := depGraph[dep]
-				notExecuted := s.instances.Get(dep).getStatus() < INSTANCE_EXECUTED
-				connected = connected || exists || notExecuted
-			}
-			if !connected {
-				return nil
+		// if the instance is already executed, and it's not a dependency
+		// of the target execution instance, only add it to the dep graph
+		// if it's connected to an uncommitted instance, since that will
+		// make it part of a strongly connected subgraph of at least one
+		// unexecuted instance, and will therefore affect the execution
+		// ordering
+		if inst.getStatus() == INSTANCE_EXECUTED {
+			if !targetDepSet.Contains(inst.InstanceID) {
+				connected := false
+				for _, dep := range deps {
+					_, exists := depGraph[dep]
+					notExecuted := s.instances.Get(dep).getStatus() < INSTANCE_EXECUTED
+					targetDep := targetDepSet.Contains(dep)
+					connected = connected || exists || notExecuted || targetDep
+				}
+				if !connected {
+					return nil
+				}
 			}
 		}
 		iids := make([]interface {}, len(deps))
@@ -92,11 +95,17 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		}
 		depGraph[inst.InstanceID] = iids
 		for _, iid := range deps {
+			// don't add instances that are already in the graph,
+			// strongly connected instances would create an infinite loop
+			if _, exists := depGraph[iid]; exists {
+				continue
+			}
+
 			inst := s.instances.Get(iid)
 			if inst == nil {
 				return fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 			}
-			if err := addInstance(inst, false); err != nil {
+			if err := addInstance(inst); err != nil {
 				return err
 			}
 		}
@@ -108,14 +117,8 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// of instances down here.
 	// TODO: figure out why that is
 	prepStart := time.Now()
-	for _, iid := range instance.getDependencies() {
-		inst := s.instances.Get(iid)
-		if inst == nil {
-			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
-		}
-		if err := addInstance(inst, true); err != nil {
-			return nil, err
-		}
+	if err := addInstance(instance); err != nil {
+		return nil, err
 	}
 	s.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
@@ -301,7 +304,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 	uncommitted = s.getUncommittedInstances(exOrder)
 
 	for len(uncommitted) > 0 {
-		s.debugInstanceLog(instance, "Execute, %v uncommitted: %+v", len(uncommitted), uncommitted)
+		logger.Info("Execute, %v uncommitted on %v: %+v", len(uncommitted), s.GetLocalID(), uncommitted)
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))
