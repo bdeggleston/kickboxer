@@ -58,6 +58,10 @@ func (i InstanceID) String() string {
 	return i.UUID().String()
 }
 
+func (i InstanceID) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + i.String() + "\""), nil
+}
+
 type InstanceIDSet map[InstanceID]bool
 
 func NewInstanceIDSet(ids []InstanceID) InstanceIDSet {

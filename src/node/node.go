@@ -27,8 +27,12 @@ func (i NodeId) String() string {
 	return i.UUID().String()
 }
 
-func (nid NodeId) IsNil() bool {
-	return nid == NodeId("")
+func (i NodeId) IsNil() bool {
+	return i == NodeId("")
+}
+
+func (i NodeId) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + i.String() + "\""), nil
 }
 
 type NodeError struct {
