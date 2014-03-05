@@ -39,6 +39,13 @@ func (s *Scope) preAcceptInstance(inst *Instance, incrementBallot bool) error {
 		s.statsInc("preaccept.instance.new", 1)
 	}
 
+	// the preaccept lock serializes getting current deps, and adding instances to
+	// the scope. Not doing this can result in split dependency graphs, where 2 instances
+	// depend on a common instance, but neither points to the other. This causes the 2
+	// instances being ordered arbitrarily during execution, often in different orders
+	s.depsLock.Lock()
+	defer s.depsLock.Unlock()
+
 	if err := instance.preaccept(inst, incrementBallot); err != nil {
 		s.statsInc("preaccept.instance.error", 1)
 		return err

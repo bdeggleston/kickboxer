@@ -270,6 +270,8 @@ type Scope struct {
 	maxSeq       uint64
 	maxSeqLock   sync.RWMutex
 
+	depsLock     sync.Mutex
+
 	manager      *Manager
 }
 

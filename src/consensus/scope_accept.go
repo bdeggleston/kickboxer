@@ -50,6 +50,10 @@ func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
 		return err
 	}
 
+	// see preaccept for details on this lock
+	s.depsLock.Lock()
+	defer s.depsLock.Unlock()
+
 	s.inProgress.Add(instance)
 	s.updateSeq(instance.getSeq())
 	if err := s.Persist(); err != nil {

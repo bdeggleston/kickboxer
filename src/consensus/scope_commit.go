@@ -50,6 +50,10 @@ func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
 
 	s.updateSeq(instance.getSeq())
 
+	// see preaccept for details on this lock
+	s.depsLock.Lock()
+	defer s.depsLock.Unlock()
+
 	// update scope bookeeping
 	s.inProgress.Remove(instance)
 	s.instances.Add(instance)
