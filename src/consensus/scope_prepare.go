@@ -136,7 +136,8 @@ var scopeSendPrepare = func(s *Scope, instance *Instance) ([]*PrepareResponse, e
 	}
 
 	// receive responses from at least a quorum of nodes
-	quorumSize := ((len(replicas) + 1) / 2) + 1
+//	quorumSize := ((len(replicas) + 1) / 2) + 1
+	quorumSize := (len(replicas) / 2) + 1
 	numReceived := 1  // this node counts as a response
 	timeoutEvent := getTimeoutEvent(time.Duration(PREPARE_TIMEOUT) * time.Millisecond)
 	var response *PrepareResponse

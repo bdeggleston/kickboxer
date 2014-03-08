@@ -96,7 +96,8 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 	}
 
 	numReceived := 1  // this node counts as a response
-	quorumSize := ((len(replicas) + 1) / 2) + 1
+//	quorumSize := ((len(replicas) + 1) / 2) + 1
+	quorumSize := (len(replicas) / 2) + 1
 	timeoutEvent := getTimeoutEvent(time.Duration(PREACCEPT_TIMEOUT) * time.Millisecond)
 	var response *PreAcceptResponse
 	responses := make([]*PreAcceptResponse, 0, len(replicas))
@@ -212,7 +213,7 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 
 	// TODO: check ballot
 	instanceStart := time.Now()
-	if err := s.preAcceptInstanceUnsafe(request.Instance, false); err != nil {
+	if err := s.preAcceptInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("accept.message.response.error", 1)
 			logger.Warning("Error processing PreAccept message for %v, : %v", request.Instance.InstanceID, err)
