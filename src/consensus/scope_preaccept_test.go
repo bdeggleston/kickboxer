@@ -246,7 +246,8 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 	expected := NewInstanceIDSet(s.instance.Dependencies)
 
 	// setup remote instance seq & deps
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, err := s.instance.Copy()
+	c.Assert(err, gocheck.IsNil)
 	remoteInstance.Dependencies = s.instance.Dependencies[1:]
 	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
 	remoteInstance.Sequence++

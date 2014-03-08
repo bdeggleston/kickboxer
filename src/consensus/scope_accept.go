@@ -95,7 +95,8 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 	// receive the replies
 	numReceived := 1 // this node counts as a response
-	quorumSize := ((len(replicas) + 1) / 2) + 1
+//	quorumSize := ((len(replicas) + 1) / 2) + 1
+	quorumSize := (len(replicas) / 2) + 1
 	timeoutEvent := getTimeoutEvent(time.Duration(ACCEPT_TIMEOUT) * time.Millisecond)
 	var response *AcceptResponse
 	responses := make([]*AcceptResponse, 0, len(replicas))
@@ -189,16 +190,13 @@ func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
 		}
 	}
 
-	if err := s.acceptInstanceUnsafe(request.Instance, false); err != nil {
+	if err := s.acceptInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("accept.message.response.error", 1)
 			return nil, err
 		}
 	}
 
-	if err := s.Persist(); err != nil {
-		return nil, err
-	}
 	logger.Debug("Accept message replied for %v, accepted", request.Instance.InstanceID)
 	return &AcceptResponse{Accepted: true}, nil
 }

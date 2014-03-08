@@ -509,7 +509,7 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 		inst.lock.RLock()
 		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
 		copy(i.Dependencies, inst.Dependencies)
-		//		i.Dependencies = inst.Dependencies
+
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
@@ -543,7 +543,7 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		// so copy the seq & deps onto the existing instance
 		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
 		copy(i.Dependencies, inst.Dependencies)
-//		i.Dependencies = inst.Dependencies
+
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
