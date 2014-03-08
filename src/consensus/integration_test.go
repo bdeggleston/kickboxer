@@ -15,15 +15,154 @@ import (
 )
 
 type baseIntegrationTest struct {
+	baseReplicaTest
+}
+
+func (s *baseIntegrationTest) SetUpTest(c *gocheck.C) {
+	s.baseReplicaTest.SetUpTest(c)
+}
+
+func (s *baseIntegrationTest) makeInstruction(val int) []*store.Instruction {
+	return []*store.Instruction{
+		store.NewInstruction("set", "a", []string{fmt.Sprint(val)}, time.Now()),
+	}
+}
+
+type AcceptIntegrationTest struct {
+	baseIntegrationTest
+}
+
+var _ = gocheck.Suite(&AcceptIntegrationTest{})
+
+// test successful accept cycle
+func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
+	// make a pre-existing instance
+	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	for _, scope := range s.scopes {
+		inst, err := knownInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = scope.preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+	}
+
+	// make an instance known by a subset of replicas
+	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	quorumSize := (len(s.replicas) / 2) + 1
+	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
+	for i:=0; i<quorumSize; i++ {
+		inst, err := remoteInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+	}
+
+	// run a preaccept phase on a new instance
+	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	c.Assert(shouldAccept, gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that the new instance contains the remote instance in it's dependencies
+	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
+
+	// check that the nodes that preaccepted the remoteInstance have added it to
+	// the newInstance deps
+	for i, scope := range s.replicaScopes {
+		inst := scope.instances.Get(newInstance.InstanceID)
+		c.Assert(inst, gocheck.NotNil)
+		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
+		if i < quorumSize {
+			c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+		} else {
+			c.Assert(inst.Dependencies, gocheck.Not(instIdSliceContains), remoteInstance.InstanceID)
+		}
+	}
+
+	// run an accept phase for the new instance
+	err = s.scope.acceptPhase(newInstance)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that all nodes have the remoteInstance in the newInstance deps
+	for _, scope := range s.scopes {
+		inst := scope.instances.Get(newInstance.InstanceID)
+		c.Assert(inst, gocheck.NotNil)
+		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+	}
 
 }
 
-func (t *baseIntegrationTest) SetUpTest(c *gocheck.C) {
+type CommitIntegrationTest struct {
+	baseIntegrationTest
+}
+
+var _ = gocheck.Suite(&CommitIntegrationTest{})
+
+// test that instances have the right dependency graph when they miss
+// an accept message, but receive a commit message with the correct deps
+func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
+	// make a pre-existing instance
+	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	for _, scope := range s.scopes {
+		inst, err := knownInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = scope.preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+	}
+
+	// make an instance known by a subset of replicas
+	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	quorumSize := (len(s.replicas) / 2) + 1
+	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
+	for i:=0; i<quorumSize; i++ {
+		inst, err := remoteInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+	}
+
+	// run a preaccept phase on a new instance
+	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	c.Assert(shouldAccept, gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that the new instance contains the remote instance in it's dependencies
+	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
+
+	// check that the nodes that preaccepted the remoteInstance have added it to
+	// the newInstance deps
+	for i, scope := range s.replicaScopes {
+		inst := scope.instances.Get(newInstance.InstanceID)
+		c.Assert(inst, gocheck.NotNil)
+		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
+		if i < quorumSize {
+			c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+		} else {
+			c.Assert(inst.Dependencies, gocheck.Not(instIdSliceContains), remoteInstance.InstanceID)
+		}
+	}
+
+	// run a commit phase for the new instance
+	err = s.scope.commitPhase(newInstance)
+	c.Assert(err, gocheck.IsNil)
+	runtime.Gosched()
+
+	// check that all nodes have the remoteInstance in the newInstance deps
+	for _, scope := range s.scopes {
+		inst := scope.instances.Get(newInstance.InstanceID)
+		c.Assert(inst, gocheck.NotNil)
+		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+	}
 
 }
+
 
 type PrepareIntegrationTest struct {
-	baseReplicaTest
+	baseIntegrationTest
 }
 
 var _ = gocheck.Suite(&PrepareIntegrationTest{})
@@ -31,10 +170,8 @@ var _ = gocheck.Suite(&PrepareIntegrationTest{})
 // tests that a prepare phase that receives prepare
 // responses with preaccepted instances works as expected
 func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
-	var err error
-
 	// make and accept the instance across the cluster
-	instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(0)}, time.Now())}
+	instructions := s.makeInstruction(0)
 	instance := s.scope.makeInstance(instructions)
 	c.Logf("Leader ID: %v", instance.LeaderID)
 	initialBallot := instance.getBallot()

@@ -160,6 +160,8 @@ func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
 type baseReplicaTest struct {
 	baseScopeTest
 	nodes []*mockNode
+	scopes []*Scope
+	replicaScopes []*Scope
 	leader *mockNode
 	replicas []*mockNode
 	nodeMap map[node.NodeId]*mockNode
@@ -178,6 +180,8 @@ func (s *baseReplicaTest) SetUpSuite(c *gocheck.C) {
 func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	c.Assert(s.numNodes > 2, gocheck.Equals, true)
 	s.nodes = setupReplicaSet(s.numNodes)
+	s.scopes = make([]*Scope, s.numNodes)
+	s.replicaScopes = make([]*Scope, s.numNodes - 1)
 
 	s.nodeMap = make(map[node.NodeId]*mockNode, s.numNodes)
 	for _, n := range s.nodes {
@@ -191,4 +195,10 @@ func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	s.manager.stats = newMockStatter()
 	s.cluster = s.manager.cluster.(*mockCluster)
 	s.scope = s.manager.getScope("a")
+	for i, n := range s.nodes {
+		s.scopes[i] = n.manager.getScope("a")
+	}
+	for i, n := range s.replicas {
+		s.replicaScopes[i] = n.manager.getScope("a")
+	}
 }

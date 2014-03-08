@@ -132,7 +132,7 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 
 	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
-	if err := s.commitInstanceUnsafe(request.Instance, false); err != nil {
+	if err := s.commitInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("commit.message.response.error", 1)
 			return nil, err
