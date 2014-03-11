@@ -132,6 +132,15 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 
 	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
+	// TODO: check ballot
+//	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
+//		if ballot := instance.getBallot(); ballot >= request.Instance.MaxBallot {
+//			s.statsInc("commit.message.response.rejected", 1)
+//			logger.Info("Commit message for %v rejected, %v >= %v", request.Instance.InstanceID, ballot, request.Instance.MaxBallot)
+//			return &CommitResponse{}, nil
+//		}
+//	}
+
 	if err := s.commitInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			s.statsInc("commit.message.response.error", 1)
