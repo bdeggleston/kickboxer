@@ -26,6 +26,15 @@ func (s *InstanceSetTest) TestSetEqual(c *gocheck.C) {
 	c.Assert(set0.Equal(set1), gocheck.Equals, true)
 }
 
+func (s *InstanceSetTest) TestSetNotEqual(c *gocheck.C) {
+	ids := []InstanceID{NewInstanceID(), NewInstanceID()}
+	set0 := NewInstanceIDSet(ids)
+	ids = append(ids, NewInstanceID())
+	set1 := NewInstanceIDSet(ids)
+	c.Assert(set0.Equal(set1), gocheck.Equals, false)
+	c.Assert(set1.Equal(set0), gocheck.Equals, false)
+}
+
 func (s *InstanceSetTest) TestSetUnion(c *gocheck.C) {
 	ids := []InstanceID{NewInstanceID(), NewInstanceID(), NewInstanceID()}
 	set0 := NewInstanceIDSet(ids[:2])
