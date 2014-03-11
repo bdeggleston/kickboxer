@@ -77,6 +77,7 @@ Current problems:
 		those instances
 
 
+TODO: add and test ballot checking to every message handler
 TODO: find the source of dependency chain variance between nodes under load
 TODO: stop requiring every instance as a dependency, probably depends on the above
 TODO: add a 'passive' flag to executeInstance, that will execute if possible, but not prepare
@@ -421,31 +422,31 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 }
 
 func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
-	for _, instance := range instances {
-		if !s.instances.ContainsID(instance.InstanceID) {
-			s.statsInc("scope.missing_instance.count", 1)
-			switch instance.Status {
-			case INSTANCE_PREACCEPTED:
-				s.statsInc("scope.missing_instance.preaccept", 1)
-				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-				if err := s.preAcceptInstanceUnsafe(instance, false); err != nil {
-					return nil
+	s.depsLock.Lock()
+	defer s.depsLock.Unlock()
+	for _, inst := range instances {
+		if instance, existed := s.getOrSetInstance(inst); !existed {
+			func(){
+				instance.lock.Lock()
+				defer instance.lock.Unlock()
+				switch instance.Status {
+				case INSTANCE_PREACCEPTED:
+					s.statsInc("scope.missing_instance.preaccept", 1)
+					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
+					s.inProgress.Add(instance)
+				case INSTANCE_ACCEPTED:
+					s.statsInc("scope.missing_instance.accept", 1)
+					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
+					s.inProgress.Add(instance)
+				case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
+					s.statsInc("scope.missing_instance.commit", 1)
+					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
+					instance.Status = INSTANCE_COMMITTED
+					s.committed.Add(instance)
+				default:
+					panic("!")
 				}
-			case INSTANCE_ACCEPTED:
-				s.statsInc("scope.missing_instance.accept", 1)
-				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-				if err := s.acceptInstanceUnsafe(instance, false); err != nil {
-					return err
-				}
-			case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-				s.statsInc("scope.missing_instance.commit", 1)
-				logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-				if err := s.commitInstanceUnsafe(instance, false); err != nil {
-					return err
-				}
-			default:
-				panic("!")
-			}
+			}()
 		}
 	}
 	return nil
@@ -477,9 +478,9 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 	return nil
 }
 
-// executes a serialized query against the cluster
-// this method designates the node it's called on as the command leader for the given query
-// and therefore, should only be called once per client query
+// executes a serialized query against the cluster this method designates the node
+// it's called on as the command leader for the given query and should only be
+// called once per client query
 func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
 	start := time.Now()
 	defer s.statsTiming("scope.client.query.time", start)
