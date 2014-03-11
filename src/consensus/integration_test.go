@@ -28,6 +28,78 @@ func (s *baseIntegrationTest) makeInstruction(val int) []*store.Instruction {
 	}
 }
 
+type PreAcceptIntegrationTest struct {
+	baseIntegrationTest
+}
+
+var _ = gocheck.Suite(&PreAcceptIntegrationTest{})
+
+func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
+	// make a pre-existing instance
+	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	for _, scope := range s.scopes {
+		inst, err := knownInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = scope.preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+	}
+
+	// run a preaccept phase on a new instance
+	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	c.Assert(shouldAccept, gocheck.Equals, false)
+	c.Assert(err, gocheck.IsNil)
+
+	for _, scope := range s.scopes {
+		instance := scope.getInstance(newInstance.InstanceID)
+		c.Assert(instance, gocheck.NotNil)
+		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
+	}
+}
+
+func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) {
+	// make a pre-existing instance
+	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	for _, scope := range s.scopes {
+		inst, err := knownInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = scope.preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+	}
+
+	// make an instance known by a subset of replicas
+	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	quorumSize := (len(s.replicas) / 2) + 1
+	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
+	for i:=0; i<quorumSize; i++ {
+		inst, err := remoteInstance.Copy()
+		c.Assert(err, gocheck.IsNil)
+		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		c.Assert(err, gocheck.IsNil)
+	}
+
+	// run a preaccept phase on a new instance
+	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	c.Assert(shouldAccept, gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that the new instance contains the remote instance in it's dependencies
+	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
+	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
+
+	// check that the remote instance is in the local node
+	c.Assert(s.scope.instances.Contains(remoteInstance), gocheck.Equals, true)
+
+	for _, scope := range s.scopes {
+		instance := scope.getInstance(newInstance.InstanceID)
+		c.Assert(instance, gocheck.NotNil)
+		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
+	}
+}
+
 type AcceptIntegrationTest struct {
 	baseIntegrationTest
 }
