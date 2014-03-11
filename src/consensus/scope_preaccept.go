@@ -192,9 +192,8 @@ func (s *Scope) preAcceptPhase(instance *Instance) (acceptRequired bool, err err
 	s.statsInc("preaccept.phase.count", 1)
 
 	logger.Debug("PreAccept phase started")
-	acceptRequired, err = scopePreAcceptPhase(s, instance)
-	logger.Debug("Preaccept phase completed: %v %v", acceptRequired, err)
-	return acceptRequired, err
+	defer logger.Debug("Preaccept phase completed: %v %v", acceptRequired, err)
+	return scopePreAcceptPhase(s, instance)
 }
 
 
@@ -212,6 +211,18 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	// TODO: check ballot
+	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
+		if ballot := instance.getBallot(); ballot >= request.Instance.MaxBallot {
+			s.statsInc("preaccept.message.response.rejected", 1)
+			logger.Info("PreAccept message for %v rejected, %v >= %v", request.Instance.InstanceID, ballot, request.Instance.MaxBallot)
+			instCopy, err := instance.Copy()
+			if err != nil {
+				return nil, err
+			}
+			return &PreAcceptResponse{Accepted: false, Instance:instCopy, MaxBallot: instCopy.getBallot()}, nil
+		}
+	}
+
 	instanceStart := time.Now()
 	if err := s.preAcceptInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
