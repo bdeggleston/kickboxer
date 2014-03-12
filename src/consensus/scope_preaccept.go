@@ -140,16 +140,12 @@ func (s *Scope) sendPreAccept(instance *Instance, replicas []node.Node) ([]*PreA
 // merges the attributes from the pre accept responses onto the local instance
 // and returns a bool indicating if any changes were made
 func (s *Scope) mergePreAcceptAttributes(instance *Instance, responses []*PreAcceptResponse) (bool, error) {
-	logger.Debug("Merging preaccept attributes")
+	logger.Debug("Merging preaccept attributes from %v responses", len(responses))
 	changes := false
-	for _, response := range responses {
-		changes = changes || instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
-		if len(response.MissingInstances) > 0 {
-			logger.Debug("Merging preaccept: adding %v missing instances", len(response.MissingInstances))
-			if err := s.addMissingInstancesUnsafe(response.MissingInstances...); err != nil {
-				return changes, err
-			}
-		}
+	for i, response := range responses {
+		mergeChanges := instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+		changes = changes || mergeChanges
+		logger.Debug("Merging preaccept attributes from response %v, changes: %v", i+1, mergeChanges)
 	}
 	if err := s.Persist(); err != nil {
 		return true, err

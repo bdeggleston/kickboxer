@@ -246,34 +246,47 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 	expected := NewInstanceIDSet(s.instance.Dependencies)
 
 	// setup remote instance seq & deps
-	remoteInstance, err := s.instance.Copy()
+	remoteInstance1, err := s.instance.Copy()
 	c.Assert(err, gocheck.IsNil)
-	remoteInstance.Dependencies = s.instance.Dependencies[1:]
-	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
-	remoteInstance.Sequence++
-	expected.Add(remoteInstance.Dependencies...)
+	remoteInstance1.Dependencies = s.instance.Dependencies[1:]
+	remoteInstance1.Dependencies = append(remoteInstance1.Dependencies, NewInstanceID())
+	remoteInstance1.Sequence++
+	expected.Add(remoteInstance1.Dependencies...)
+
+	remoteInstance2, err := s.instance.Copy()
+	c.Assert(err, gocheck.IsNil)
+	remoteInstance2.Dependencies = s.instance.Dependencies[2:]
+	remoteInstance2.Dependencies = append(remoteInstance2.Dependencies, NewInstanceID())
+	remoteInstance2.Dependencies = append(remoteInstance2.Dependencies, NewInstanceID())
+	remoteInstance2.Sequence++
+	expected.Add(remoteInstance2.Dependencies...)
 
 	// sanity checks
 	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
-	c.Assert(len(remoteInstance.Dependencies), gocheck.Equals, 4)
+	c.Assert(len(remoteInstance1.Dependencies), gocheck.Equals, 4)
 	c.Assert(s.instance.Sequence, gocheck.Equals, uint64(3))
-	c.Assert(remoteInstance.Sequence, gocheck.Equals, uint64(4))
+	c.Assert(remoteInstance1.Sequence, gocheck.Equals, uint64(4))
 
 	//
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
 		Accepted:         true,
-		MaxBallot:        remoteInstance.MaxBallot,
-		Instance:         remoteInstance,
+		MaxBallot:        remoteInstance1.MaxBallot,
+		Instance:         remoteInstance1,
+		MissingInstances: []*Instance{},
+	}, &PreAcceptResponse{
+		Accepted:         true,
+		MaxBallot:        remoteInstance2.MaxBallot,
+		Instance:         remoteInstance2,
 		MissingInstances: []*Instance{},
 	}}
+
 	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(changes, gocheck.Equals, true)
-	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 5)
 
 	actual := NewInstanceIDSet(s.instance.Dependencies)
-	c.Check(s.instance.Sequence, gocheck.Equals, uint64(4))
-	c.Check(expected.Equal(actual), gocheck.Equals, true)
+	c.Check(actual, gocheck.DeepEquals, expected)
+	c.Check(s.instance.Sequence, gocheck.Equals, remoteInstance2.Sequence)
 }
 
 func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
