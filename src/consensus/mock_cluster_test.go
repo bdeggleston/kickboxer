@@ -565,7 +565,7 @@ func (s *MockClusterIntegrationTest) SetUpSuite(c *gocheck.C) {
 	if !*_test_integration {
 		c.Skip("-integration not provided")
 	}
-	runtime.GOMAXPROCS(8)
+	runtime.GOMAXPROCS(1)
 
 	var err error
 	s.stats, err = statsd.New("localhost:8125", "integration.test")
