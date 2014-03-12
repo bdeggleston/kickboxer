@@ -139,7 +139,6 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 		logger.Debug("Skipping sent message from partitioned node")
 		return nil, fmt.Errorf("Partition")
 	}
-	n.lock.Lock()
 	start = time.Now()
 	err = message.WriteMessage(buf, srcRequest)
 	n.stats.Timing(
@@ -150,9 +149,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcRequest), 1, 1.0)
 
 	if err != nil {
-		n.lock.Unlock()
 		return nil, err
-//		panic(err)
 	}
 	start = time.Now()
 	dstRequest, err := message.ReadMessage(buf)
@@ -164,12 +161,9 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	n.stats.Inc(fmt.Sprintf("deserialize.%T.count", dstRequest), 1, 1.0)
 
 	if err != nil {
-		n.lock.Unlock()
 		return nil, err
-//		panic(err)
 	}
 	n.sentMessages = append(n.sentMessages, dstRequest)
-	n.lock.Unlock()
 	start = time.Now()
 	srcResponse, err := n.messageHandler(n, dstRequest)
 	n.stats.Timing(
@@ -187,9 +181,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 		)
 		n.stats.Inc(fmt.Sprintf("error.%T.count", srcRequest), 1, 1.0)
 		return nil, err
-//		panic(err)
 	}
-	n.lock.Lock()
 	buf.Reset()
 	start = time.Now()
 	err = message.WriteMessage(buf, srcResponse)
@@ -200,9 +192,7 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	)
 	n.stats.Inc(fmt.Sprintf("serialize.%T.count", srcResponse), 1, 1.0)
 	if err != nil {
-		n.lock.Unlock()
 		return nil, err
-//		panic(err)
 	}
 	logger.Debug("Response size: %v\n", len(buf.Bytes()))
 	start = time.Now()
@@ -214,10 +204,8 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	)
 	n.stats.Inc(fmt.Sprintf("deserialize.%T.count", dstResponse), 1, 1.0)
 
-	n.lock.Unlock()
 	if err != nil {
 		return nil, err
-//		panic(err)
 	}
 	return dstResponse, nil
 }
