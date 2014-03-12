@@ -200,17 +200,14 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 			s.statsInc("execute.instance.noop.count", 1)
 		}
 
-		// see preaccept for details on this lock
-		s.depsLock.Lock()
-		defer s.depsLock.Unlock()
-
 		// update scope bookkeeping
 		instance.Status = INSTANCE_EXECUTED
-		s.committed.Remove(instance)
 		func() {
 			s.executedLock.Lock()
 			defer s.executedLock.Unlock()
+
 			s.executed = append(s.executed, instance.InstanceID)
+			s.committed.Remove(instance)
 		}()
 		if err := s.Persist(); err != nil {
 			return nil, err
