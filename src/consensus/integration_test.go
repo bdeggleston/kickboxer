@@ -56,6 +56,7 @@ func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
+	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) {
@@ -98,6 +99,7 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
+	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 type AcceptIntegrationTest struct {
@@ -162,7 +164,7 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
-
+	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 type CommitIntegrationTest struct {
@@ -229,7 +231,7 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
-
+	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 
