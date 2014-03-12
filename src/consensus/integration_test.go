@@ -94,6 +94,13 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 	// check that the remote instance is in the local node
 	c.Assert(s.scope.instances.Contains(remoteInstance), gocheck.Equals, true)
 
+	// wait until all scopes have committed the instance
+	for _, scope := range s.scopes {
+		if instance := scope.instances.Get(newInstance.InstanceID); instance == nil || instance.getStatus() != INSTANCE_PREACCEPTED {
+			runtime.Gosched()
+		}
+	}
+
 	for _, scope := range s.scopes {
 		instance := scope.getInstance(newInstance.InstanceID)
 		c.Assert(instance, gocheck.NotNil)
@@ -223,7 +230,13 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	// run a commit phase for the new instance
 	err = s.scope.commitPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
-	runtime.Gosched()
+
+	// wait until all scopes have committed the instance
+	for _, scope := range s.scopes {
+		if instance := scope.instances.Get(newInstance.InstanceID); instance == nil || instance.getStatus() != INSTANCE_COMMITTED {
+			runtime.Gosched()
+		}
+	}
 
 	// check that all nodes have the remoteInstance in the newInstance deps
 	for _, scope := range s.scopes {
