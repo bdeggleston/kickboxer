@@ -449,3 +449,37 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	c.Check(response.MissingInstances[0].InstanceID, gocheck.Equals, missingDep)
 }
 
+// tests that new attributes are returned
+func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
+	s.scope.maxSeq = 3
+
+	replicaDeps := s.scope.getCurrentDepsUnsafe()
+	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
+	instance := &Instance{
+		InstanceID:   NewInstanceID(),
+		LeaderID:     node.NewNodeId(),
+		Commands:     getBasicInstruction(),
+		Dependencies: []InstanceID{},
+		Sequence:     s.scope.maxSeq + 1,
+		Status:       INSTANCE_PREACCEPTED,
+	}
+	request := &PreAcceptRequest{
+		Scope:    s.scope.name,
+		Instance: instance,
+	}
+
+	// process the preaccept message
+	response, err := s.scope.HandlePreAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+	c.Check(response.Accepted, gocheck.Equals, true)
+
+	// check dependencies
+	localInstance := s.scope.instances.Get(instance.InstanceID)
+	c.Assert(response.Instance, gocheck.Not(gocheck.Equals), localInstance)
+
+	expectedDeps := NewInstanceIDSet(replicaDeps)
+	actualDeps := NewInstanceIDSet(response.Instance.Dependencies)
+	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
+	c.Check(len(response.MissingInstances), gocheck.Equals, len(replicaDeps))
+}
