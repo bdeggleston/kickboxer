@@ -371,9 +371,9 @@ func (c *opsCtrl) reactor() {
 				}
 			}
 
-			for n, node := range c.nodes {
+			for n, cnode := range c.nodes {
 				if n == highNode { continue }
-				for i, instruction := range node.cluster.instructions {
+				for i, instruction := range cnode.cluster.instructions {
 					if i + 1 > len(instructionsSet) {
 						continue
 					}
@@ -414,6 +414,33 @@ func (c *opsCtrl) reactor() {
 						fmt.Println(err)
 //						fmt.Println(err.(*json.InvalidUTF8Error).S, err)
 
+						var iid_pointer1 *InstanceID
+						var iid_pointer2 *InstanceID
+						for _, scope := range scopes {
+							if len(scope.executed) - 1 < divergenceIndex {
+								continue
+							}
+							iid := scope.executed[divergenceIndex]
+							if iid_pointer1 == nil {
+								iid_pointer1 = &iid
+							} else if iid != *iid_pointer1 {
+								iid_pointer2 = &iid
+							}
+						}
+						inst1Map := make(map[string]*Instance)
+						inst2Map := make(map[string]*Instance)
+
+						for _, scope := range scopes {
+							inst1Map[scope.GetLocalID().String()] = scope.instances.Get(*iid_pointer1)
+							inst2Map[scope.GetLocalID().String()] = scope.instances.Get(*iid_pointer2)
+						}
+						fmt.Println("")
+						js, err = json.Marshal(inst1Map)
+						fmt.Println(string(js))
+						fmt.Println(err)
+						js, err = json.Marshal(inst2Map)
+						fmt.Println(string(js))
+						fmt.Println(err)
 
 						scopes := make([]*Scope, len(c.nodes))
 						instances := make([]*InstanceMap, len(c.nodes))
@@ -448,12 +475,12 @@ func (c *opsCtrl) reactor() {
 							}
 						}
 
-						scope := node.manager.getScope("a")
+						scope := cnode.manager.getScope("a")
 						localInst := scope.instances.Get(scope.executed[len(scope.executed) - 1])
 						//					fmt.Printf("Local:  %+v\n", localInst)
 
 						for _, onode := range c.nodes {
-							if onode.id == node.id {
+							if onode.id == cnode.id {
 								continue
 							}
 							scope := onode.manager.getScope("a")
