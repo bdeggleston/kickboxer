@@ -422,8 +422,6 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 }
 
 func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
-	s.depsLock.Lock()
-	defer s.depsLock.Unlock()
 	for _, inst := range instances {
 		if instance, existed := s.getOrSetInstance(inst); !existed {
 			func(){

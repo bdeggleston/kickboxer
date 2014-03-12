@@ -181,6 +181,23 @@ var scopePreAcceptPhase = func(s *Scope, instance *Instance) (acceptRequired boo
 		return false, err
 	}
 
+	// add missing instances
+	addMissingInstances := func() error {
+		s.depsLock.Lock()
+		defer s.depsLock.Unlock()
+		for _, response := range paResponses {
+			if len(response.MissingInstances) > 0 {
+				if err := s.addMissingInstancesUnsafe(response.MissingInstances...); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if err := addMissingInstances(); err != nil {
+		return false, err
+	}
+
 	return s.mergePreAcceptAttributes(instance, paResponses)
 }
 
