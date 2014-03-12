@@ -323,23 +323,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 	c.Check(expected.Equal(actual), gocheck.Equals, true)
 }
 
-func (s *PreAcceptLeaderTest) TestMergeAttributesMissingInstances(c *gocheck.C) {
-
-	missingInst := makeInstance(node.NewNodeId(), []InstanceID{})
-
-	responses := []*PreAcceptResponse{&PreAcceptResponse{
-		Accepted:         true,
-		MaxBallot:        s.instance.MaxBallot,
-		Instance:         s.instance,
-		MissingInstances: []*Instance{missingInst},
-	}}
-	c.Assert(s.scope.instances.Contains(missingInst), gocheck.Equals, false)
-	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
-	c.Assert(err, gocheck.IsNil)
-	c.Assert(changes, gocheck.Equals, false)
-	c.Assert(s.scope.instances.Contains(missingInst), gocheck.Equals, true)
-}
-
 // tests that the accept messages sent out have the same ballot
 // as the local instance
 func (s *PreAcceptLeaderTest) TestPreAcceptMessageBallotIsUpToDate(c *gocheck.C) {
