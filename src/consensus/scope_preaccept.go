@@ -223,7 +223,6 @@ func (s *Scope) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse, 
 	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
-	// TODO: check ballot
 	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
 		if ballot := instance.getBallot(); ballot >= request.Instance.MaxBallot {
 			s.statsInc("preaccept.message.response.rejected", 1)

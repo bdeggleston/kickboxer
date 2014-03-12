@@ -479,3 +479,27 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
 	c.Check(len(response.MissingInstances), gocheck.Equals, len(replicaDeps))
 }
+
+// tests that new attributes are returned
+func (s *PreAcceptReplicaTest) TestHandleBallotFailure(c *gocheck.C) {
+	instance := s.scope.makeInstance(getBasicInstruction())
+	instance.MaxBallot = 5
+	s.scope.preAcceptInstance(instance, false)
+
+	c.Assert(instance.MaxBallot, gocheck.Equals, uint32(5))
+
+	instanceCopy, err := instance.Copy()
+	c.Assert(err, gocheck.IsNil)
+	instanceCopy.MaxBallot--
+	request := &PreAcceptRequest{
+		Scope:    s.scope.name,
+		Instance: instanceCopy,
+	}
+
+	// process the preaccept message
+	response, err := s.scope.HandlePreAccept(request)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(response, gocheck.NotNil)
+	c.Check(response.Accepted, gocheck.Equals, false)
+
+}
