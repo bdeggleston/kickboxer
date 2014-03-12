@@ -63,7 +63,7 @@ var (
 	// assumed to have failed, and they execute it
 	EXECUTE_TIMEOUT = uint64(500)
 
-	STATS_SAMPLE_RATE = float32(1.0)
+	STATS_SAMPLE_RATE = float32(0.1)
 )
 
 /*
