@@ -28,6 +28,17 @@ func (s *baseIntegrationTest) makeInstruction(val int) []*store.Instruction {
 	}
 }
 
+// waits for all scopes to have the given status for the given instance
+func (s *baseIntegrationTest) waitForStatus(iid InstanceID, status InstanceStatus) {
+	for _, scope := range s.scopes {
+		if instance := scope.instances.Get(iid); instance == nil {
+			runtime.Gosched()
+		} else if instance.getStatus() != INSTANCE_PREACCEPTED {
+			runtime.Gosched()
+		}
+	}
+}
+
 type PreAcceptIntegrationTest struct {
 	baseIntegrationTest
 }
@@ -50,6 +61,8 @@ func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, false)
 	c.Assert(err, gocheck.IsNil)
+
+	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
 
 	for _, scope := range s.scopes {
 		instance := scope.getInstance(newInstance.InstanceID)
@@ -94,12 +107,7 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 	// check that the remote instance is in the local node
 	c.Assert(s.scope.instances.Contains(remoteInstance), gocheck.Equals, true)
 
-	// wait until all scopes have committed the instance
-	for _, scope := range s.scopes {
-		if instance := scope.instances.Get(newInstance.InstanceID); instance == nil || instance.getStatus() != INSTANCE_PREACCEPTED {
-			runtime.Gosched()
-		}
-	}
+	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
 
 	for _, scope := range s.scopes {
 		instance := scope.getInstance(newInstance.InstanceID)
@@ -144,6 +152,8 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
 
+	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
+
 	// check that the new instance contains the remote instance in it's dependencies
 	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
@@ -164,6 +174,8 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	// run an accept phase for the new instance
 	err = s.scope.acceptPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
+
+	s.waitForStatus(newInstance.InstanceID, INSTANCE_ACCEPTED)
 
 	// check that all nodes have the remoteInstance in the newInstance deps
 	for _, scope := range s.scopes {
@@ -231,12 +243,7 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	err = s.scope.commitPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
 
-	// wait until all scopes have committed the instance
-	for _, scope := range s.scopes {
-		if instance := scope.instances.Get(newInstance.InstanceID); instance == nil || instance.getStatus() != INSTANCE_COMMITTED {
-			runtime.Gosched()
-		}
-	}
+	s.waitForStatus(newInstance.InstanceID, INSTANCE_COMMITTED)
 
 	// check that all nodes have the remoteInstance in the newInstance deps
 	for _, scope := range s.scopes {
