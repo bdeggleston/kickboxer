@@ -481,7 +481,7 @@ var scopePrepareInstance = func(s *Scope, inst *Instance) error {
 	//
 	deferred, err := scopeDeferToSuccessor(s, instance)
 	var commitEvent <- chan bool
-	for !deferred || err != nil {
+	for (!deferred || err != nil) && inst.getStatus() < INSTANCE_COMMITTED {
 		if commitEvent == nil {
 			commitEvent = instance.getCommitEvent().getChan()
 		}
