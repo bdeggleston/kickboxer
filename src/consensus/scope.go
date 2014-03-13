@@ -78,8 +78,6 @@ Current problems:
 
 
 TODO: add and test ballot checking to every message handler
-TODO: find the source of dependency chain variance between nodes under load
-TODO: stop requiring every instance as a dependency, probably depends on the above
 TODO: add a 'passive' flag to executeInstance, that will execute if possible, but not prepare
 TODO: instead of jumping into a prepare, the preparer, or successor should first check if the leader is still 'working' on the query
 
