@@ -10,10 +10,6 @@ import (
 )
 
 import (
-	"github.com/looplab/tarjan"
-)
-
-import (
 	"store"
 )
 
@@ -64,7 +60,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// build a directed graph
 	targetDeps := instance.getDependencies()
 	targetDepSet := NewInstanceIDSet(targetDeps)
-	depGraph := make(map[interface {}][]interface {}, s.instances.Len() + 1)
+	depGraph := make(map[InstanceID][]InstanceID, s.instances.Len() + 1)
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
 		deps := inst.getDependencies()
@@ -89,11 +85,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 				}
 			}
 		}
-		iids := make([]interface {}, len(deps))
-		for i, iid := range deps {
-			iids[i] = iid
-		}
-		depGraph[inst.InstanceID] = iids
+		depGraph[inst.InstanceID] = deps
 		for _, iid := range deps {
 			// don't add instances that are already in the graph,
 			// strongly connected instances would create an infinite loop
@@ -124,15 +116,11 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 
 	// sort with tarjan's algorithm
 	sortStart := time.Now()
-	tSorted := tarjan.Connections(depGraph)
+	tSorted := TarjanSort(depGraph)
 	s.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
 	subSortStart := time.Now()
 	exOrder := make([]InstanceID, 0, len(depGraph))
-	for _, set := range tSorted {
-		iids := make([]InstanceID, len(set))
-		for i, iid := range set {
-			iids[i] = iid.(InstanceID)
-		}
+	for _, iids := range tSorted {
 		sorter := &iidSorter{scope:s, iids:iids}
 		sort.Sort(sorter)
 		exOrder = append(exOrder, sorter.iids...)
