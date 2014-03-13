@@ -361,7 +361,7 @@ var scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
 			recvChan := make(chan *PrepareSuccessorResponse)
 			errChan := make(chan bool)
 			go func() {
-				s.statsInc("prepare.successor.messages.send.count", 1)
+				s.statsInc("prepare.successor.message.send.count", 1)
 				msg := &PrepareSuccessorRequest{InstanceID: instance.InstanceID, Scope: s.name}
 				logger.Debug("Prepare Successor: Sending message to node %v for instance %v", replica.GetId(), instance.InstanceID)
 				if response, err := replica.SendMessage(msg); err != nil {
@@ -567,7 +567,11 @@ func (s *Scope) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Prepa
 
 	response := &PrepareSuccessorResponse{}
 	if instance := s.instances.Get(request.InstanceID); instance != nil {
-		response.Instance = instance
+		if instanceCopy, err := instance.Copy(); err != nil {
+			return nil, err
+		} else {
+			response.Instance = instanceCopy
+		}
 		go func(){
 			if instance.getStatus() < INSTANCE_COMMITTED {
 				successors := instance.getSuccessors()
