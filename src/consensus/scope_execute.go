@@ -15,7 +15,7 @@ import (
 
 // sorts the strongly connected subgraph components
 type iidSorter struct {
-	scope *Scope
+	depMap map[InstanceID]*Instance
 	iids []InstanceID
 }
 
@@ -26,8 +26,8 @@ func (i *iidSorter) Len() int {
 // returns true if the item at index x is less than
 // the item and index y
 func (i *iidSorter) Less(x, y int) bool {
-	i0 := i.scope.instances.Get(i.iids[x])
-	i1 := i.scope.instances.Get(i.iids[y])
+	i0 := i.depMap[i.iids[x]]
+	i1 := i.depMap[i.iids[y]]
 
 	// first check the sequence#
 	if i0s, i1s := i0.getSeq(), i1.getSeq(); i0s != i1s {
@@ -60,10 +60,12 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// build a directed graph
 	targetDeps := instance.getDependencies()
 	targetDepSet := NewInstanceIDSet(targetDeps)
-	depGraph := make(map[InstanceID][]InstanceID, s.instances.Len() + 1)
+	depMap := s.instances.GetMap(nil, targetDeps)
+	depGraph := make(map[InstanceID][]InstanceID, s.inProgress.Len() + s.committed.Len() + 1)
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
 		deps := inst.getDependencies()
+		depMap = s.instances.GetMap(depMap, deps)
 
 		// if the instance is already executed, and it's not a dependency
 		// of the target execution instance, only add it to the dep graph
@@ -76,7 +78,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 				connected := false
 				for _, dep := range deps {
 					_, exists := depGraph[dep]
-					notExecuted := s.instances.Get(dep).getStatus() < INSTANCE_EXECUTED
+					notExecuted := depMap[dep].getStatus() < INSTANCE_EXECUTED
 					targetDep := targetDepSet.Contains(dep)
 					connected = connected || exists || notExecuted || targetDep
 				}
@@ -93,7 +95,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 				continue
 			}
 
-			inst := s.instances.Get(iid)
+			inst := depMap[iid]
 			if inst == nil {
 				return fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 			}
@@ -121,7 +123,7 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	subSortStart := time.Now()
 	exOrder := make([]InstanceID, 0, len(depGraph))
 	for _, iids := range tSorted {
-		sorter := &iidSorter{scope:s, iids:iids}
+		sorter := &iidSorter{depMap: depMap, iids:iids}
 		sort.Sort(sorter)
 		exOrder = append(exOrder, sorter.iids...)
 	}

@@ -236,6 +236,23 @@ func (i *InstanceMap) Instances() []*Instance {
 	return arr
 }
 
+// adds the instances of the given instance ids to the given instance map, and returns it
+// if the given map is nil, a new map is allocated and returned
+func (i *InstanceMap) GetMap(imap map[InstanceID]*Instance, iids []InstanceID) map[InstanceID]*Instance {
+	if imap == nil {
+		imap = make(map[InstanceID]*Instance, len(iids))
+	}
+
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+
+	for _, iid := range iids {
+		imap[iid] = i.instMap[iid]
+	}
+
+	return imap
+}
+
 // a serializable set of instructions
 type Instance struct {
 	// the uuid of this instance
@@ -507,8 +524,9 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 
 	if inst != nil && inst != i {
 		inst.lock.RLock()
-		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
-		copy(i.Dependencies, inst.Dependencies)
+		i.Dependencies = inst.Dependencies
+//		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
+//		copy(i.Dependencies, inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
@@ -541,8 +559,9 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		inst.lock.RLock()
 		// this replica may have missed an accept message
 		// so copy the seq & deps onto the existing instance
-		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
-		copy(i.Dependencies, inst.Dependencies)
+		i.Dependencies = inst.Dependencies
+//		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
+//		copy(i.Dependencies, inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
