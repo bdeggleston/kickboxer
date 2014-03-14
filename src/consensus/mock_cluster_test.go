@@ -377,7 +377,8 @@ func (c *opsCtrl) reactor() {
 					if i + 1 > len(instructionsSet) {
 						continue
 					}
-					if !c.c.Check(instruction, gocheck.DeepEquals, instructionsSet[i], gocheck.Commentf("node: %v, idx: %v", n, i)){
+					// much faster than gocheck
+					if instruction.Args[0] != instructionsSet[i].Args[0] {
 
 						expectedScope := c.nodes[highNode].manager.getScope("a")
 						actualScope := c.nodes[n].manager.getScope("a")
