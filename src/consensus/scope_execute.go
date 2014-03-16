@@ -34,13 +34,13 @@ func (i *iidSorter) Less(x, y int) bool {
 		return i0s < i1s
 	} else {
 		// then the embedded timestamp
-		t0, _ := i0.InstanceID.UUID().Time()
-		t1, _ := i1.InstanceID.UUID().Time()
+		t0 := i0.InstanceID.Time()
+		t1 := i1.InstanceID.Time()
 		if t0 != t1 {
 			return t0 < t1
 		} else {
 			// finally the lexicographic comparison
-			return bytes.Compare([]byte(i0.InstanceID), []byte(i1.InstanceID)) == -1
+			return bytes.Compare(i0.InstanceID.Bytes(), i1.InstanceID.Bytes()) == -1
 		}
 	}
 	return false

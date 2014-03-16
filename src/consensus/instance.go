@@ -9,13 +9,10 @@ import (
 )
 
 import (
-	"code.google.com/p/go-uuid/uuid"
-)
-
-import (
 	"node"
 	"serializer"
 	"store"
+	"types"
 )
 
 type InstanceStatus byte
@@ -44,23 +41,17 @@ func (s InstanceStatus) String() string {
 	panic("unreachable")
 }
 
-type InstanceID string
+type InstanceID struct {
+	types.UUID
+}
 
 func NewInstanceID() InstanceID {
-	return InstanceID(uuid.NewUUID())
+	return InstanceID{types.NewUUID1()}
 }
 
-func (i InstanceID) UUID() uuid.UUID {
-	return uuid.UUID(i)
-}
-
-func (i InstanceID) String() string {
-	return i.UUID().String()
-}
-
-func (i InstanceID) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + i.String() + "\""), nil
-}
+//func (i InstanceID) UUID() uuid.UUID {
+//	return uuid.UUID(i)
+//}
 
 type InstanceIDSet map[InstanceID]bool
 
@@ -623,7 +614,9 @@ func instructionDeserialize(buf *bufio.Reader) (*store.Instruction, error) {
 }
 
 func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error {
-	if err := serializer.WriteFieldString(buf, string(instance.InstanceID)); err != nil { return err }
+
+	if err := (&instance.InstanceID).WriteBuffer(buf); err != nil { return err }
+
 	if err := serializer.WriteFieldString(buf, string(instance.LeaderID)); err != nil { return err }
 	numSuccessors := uint32(len(instance.Successors))
 	if err := binary.Write(buf, binary.LittleEndian, &numSuccessors); err != nil { return err }
@@ -637,8 +630,8 @@ func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error
 	}
 	numDeps := uint32(len(instance.Dependencies))
 	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	for _, dep := range instance.Dependencies {
-		if err := serializer.WriteFieldString(buf, string(dep)); err != nil { return err }
+	for i := range instance.Dependencies {
+		if err := (&instance.Dependencies[i]).WriteBuffer(buf); err != nil { return err }
 	}
 
 	if err := binary.Write(buf, binary.LittleEndian, &instance.Sequence); err != nil { return err }
@@ -658,9 +651,7 @@ func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error
 
 func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	instance := &Instance{}
-	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-		instance.InstanceID = InstanceID(val)
-	}
+	if err := (&instance.InstanceID).ReadBuffer(buf); err != nil { return nil, err }
 	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
 		instance.LeaderID = node.NodeId(val)
 	}
@@ -687,9 +678,7 @@ func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	if err := binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return nil, err }
 	instance.Dependencies = make([]InstanceID, numDeps)
 	for i := range instance.Dependencies {
-		if dep, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-			instance.Dependencies[i] = InstanceID(dep)
-		}
+		if err := (&instance.Dependencies[i]).ReadBuffer(buf); err != nil { return nil, err }
 	}
 
 	if err := binary.Read(buf, binary.LittleEndian, &instance.Sequence); err != nil { return nil, err }

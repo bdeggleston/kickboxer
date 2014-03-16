@@ -261,7 +261,7 @@ func (m *PrepareRequest) GetType() uint32 { return MESSAGE_PREPARE_REQUEST }
 func (m *PrepareRequest) Serialize(buf *bufio.Writer) error   {
 	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
-	if err := serializer.WriteFieldString(buf, string(m.InstanceID)); err != nil { return err }
+	if err := (&m.InstanceID).WriteBuffer(buf); err != nil { return err }
 	return nil
 }
 
@@ -270,9 +270,7 @@ func (m *PrepareRequest) Deserialize(buf *bufio.Reader) error {
 		m.Scope = val
 	}
 	if err := binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.InstanceID = InstanceID(val)
-	}
+	if err := (&m.InstanceID).ReadBuffer(buf); err != nil { return err }
 	return nil
 }
 
@@ -328,7 +326,7 @@ func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCC
 
 func (m *PrepareSuccessorRequest) Serialize(buf *bufio.Writer) error   {
 	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
-	if err := serializer.WriteFieldString(buf, string(m.InstanceID)); err != nil { return err }
+	if err := (&m.InstanceID).WriteBuffer(buf); err != nil { return err }
 	return nil
 }
 
@@ -336,9 +334,7 @@ func (m *PrepareSuccessorRequest) Deserialize(buf *bufio.Reader) error {
 	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
 		m.Scope = val
 	}
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.InstanceID = InstanceID(val)
-	}
+	if err := (&m.InstanceID).ReadBuffer(buf); err != nil { return err }
 	return nil
 }
 
@@ -387,8 +383,8 @@ func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
 	numIds := uint32(len(m.InstanceIDs))
 	if err := binary.Write(buf, binary.LittleEndian, &numIds); err != nil { return err }
 
-	for _, iid := range m.InstanceIDs {
-		if err := serializer.WriteFieldString(buf, string(iid)); err != nil { return err }
+	for i := range m.InstanceIDs {
+		if err := (&m.InstanceIDs[i]).WriteBuffer(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -401,9 +397,7 @@ func (m *InstanceRequest) Deserialize(buf *bufio.Reader) error {
 	if err := binary.Read(buf, binary.LittleEndian, &numIds); err != nil { return err }
 	m.InstanceIDs = make([]InstanceID, numIds)
 	for i := range m.InstanceIDs {
-		if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-			m.InstanceIDs[i] = InstanceID(val)
-		}
+		if err := (&m.InstanceIDs[i]).ReadBuffer(buf); err != nil { return err }
 	}
 	return nil
 }
