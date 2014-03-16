@@ -107,6 +107,9 @@ func (s *ConsensusQueryBenchmarks) SetUpTest(c *gocheck.C) {
 	} else {
 		for _, n := range s.nodes {
 			n.manager.stats, _ = statsd.NewNoop()
+			for _, r := range n.cluster.nodes {
+				r.(*mockNode).stats, _ = statsd.NewNoop()
+			}
 		}
 	}
 }
