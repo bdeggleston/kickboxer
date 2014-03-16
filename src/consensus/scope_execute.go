@@ -60,7 +60,8 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// build a directed graph
 	targetDeps := instance.getDependencies()
 	targetDepSet := NewInstanceIDSet(targetDeps)
-	depMap := s.instances.GetMap(nil, targetDeps)
+	depMap := make(map[InstanceID]*Instance, len(targetDeps) * s.inProgress.Len())
+	depMap = s.instances.GetMap(depMap, targetDeps)
 	depGraph := make(map[InstanceID][]InstanceID, s.inProgress.Len() + s.committed.Len() + 1)
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
