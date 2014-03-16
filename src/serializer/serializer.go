@@ -33,7 +33,7 @@ func WriteFieldBytes(buf *bufio.Writer, bytes []byte) error {
 // reads the specified number of bytes out
 // of the reader, performing multiple reads
 // if neccesary
-func readBytes(buf *bufio.Reader, size int) ([]byte, error) {
+func ReadBytes(buf *bufio.Reader, size int) ([]byte, error) {
 	numRead := 0
 	target := make([]byte, size)
 	for numRead < size {
@@ -53,7 +53,7 @@ func ReadFieldBytes(buf *bufio.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	bytesRead, err := readBytes(buf, int(size))
+	bytesRead, err := ReadBytes(buf, int(size))
 	if err != nil {
 		return nil, err
 	}
