@@ -80,3 +80,24 @@ func (u UUID) Time() int64 {
 	return int64(t)
 }
 
+func (u UUID) Bytes() []byte {
+	bs, err := (&u).MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
+func (u UUID) String() string {
+	bs, err := (&u).MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	uu := uuid.UUID(bs)
+
+	return uu.String()
+}
+
+func (u UUID) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + u.String() + "\""), nil
+}
