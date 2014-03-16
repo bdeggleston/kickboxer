@@ -1,11 +1,16 @@
 package types
 
 import (
+	"bufio"
 	"fmt"
 )
 
 import (
 	"code.google.com/p/go-uuid/uuid"
+)
+
+import (
+	"serializer"
 )
 
 // wraps up the google uuid library
@@ -100,4 +105,26 @@ func (u UUID) String() string {
 
 func (u UUID) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + u.String() + "\""), nil
+}
+
+func (u *UUID) WriteBuffer(buf *bufio.Writer) error {
+	if num, err := buf.Write(u.Bytes()); err != nil {
+		return err
+	} else if num != 16 {
+		return fmt.Errorf("Expected 16 bytes written, got %v", num)
+	}
+	return nil
+}
+
+func (u *UUID) ReadBuffer(buf *bufio.Reader) error {
+	bs, err := serializer.ReadBytes(buf, 16)
+	if err != nil {
+		return err
+	}
+
+	if err = u.UnmarshalBinary(bs); err != nil {
+		return err
+	}
+
+	return nil
 }
