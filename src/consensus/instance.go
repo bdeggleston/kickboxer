@@ -516,8 +516,6 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 	if inst != nil && inst != i {
 		inst.lock.RLock()
 		i.Dependencies = inst.Dependencies
-//		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
-//		copy(i.Dependencies, inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
@@ -551,8 +549,6 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		// this replica may have missed an accept message
 		// so copy the seq & deps onto the existing instance
 		i.Dependencies = inst.Dependencies
-//		i.Dependencies = make([]InstanceID, len(inst.Dependencies))
-//		copy(i.Dependencies, inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
@@ -617,11 +613,11 @@ func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error
 
 	if err := (&instance.InstanceID).WriteBuffer(buf); err != nil { return err }
 
-	if err := serializer.WriteFieldString(buf, string(instance.LeaderID)); err != nil { return err }
+	if err := (&instance.LeaderID).WriteBuffer(buf); err != nil { return err }
 	numSuccessors := uint32(len(instance.Successors))
 	if err := binary.Write(buf, binary.LittleEndian, &numSuccessors); err != nil { return err }
-	for _, nid := range instance.Successors {
-		if err := serializer.WriteFieldString(buf, string(nid)); err != nil { return err }
+	for i := range instance.Successors {
+		if err := (&instance.Successors[i]).WriteBuffer(buf); err != nil { return err }
 	}
 	numInstructions := uint32(len(instance.Commands))
 	if err := binary.Write(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
@@ -652,17 +648,13 @@ func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error
 func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	instance := &Instance{}
 	if err := (&instance.InstanceID).ReadBuffer(buf); err != nil { return nil, err }
-	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-		instance.LeaderID = node.NodeId(val)
-	}
+	if err := (&instance.LeaderID).ReadBuffer(buf); err != nil { return nil, err }
 
 	var numSuccessors uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numSuccessors); err != nil { return nil, err }
 	instance.Successors = make([]node.NodeId, numSuccessors)
 	for i := range instance.Successors {
-		if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-			instance.Successors[i] = node.NodeId(val)
-		}
+		if err := (&instance.Successors[i]).ReadBuffer(buf); err != nil { return nil, err }
 	}
 
 	var numInstructions uint32

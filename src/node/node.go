@@ -5,34 +5,17 @@ import (
 )
 
 import (
-	"code.google.com/p/go-uuid/uuid"
-)
-
-import (
 	"message"
 	"store"
+	"types"
 )
 
-type NodeId string
+type NodeId struct {
+	types.UUID
+}
 
 func NewNodeId() NodeId {
-	return NodeId(uuid.NewUUID())
-}
-
-func (i NodeId) UUID() uuid.UUID {
-	return uuid.UUID(i)
-}
-
-func (i NodeId) String() string {
-	return i.UUID().String()
-}
-
-func (i NodeId) IsNil() bool {
-	return i == NodeId("")
-}
-
-func (i NodeId) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + i.String() + "\""), nil
+	return NodeId{types.NewUUID1()}
 }
 
 type NodeError struct {
