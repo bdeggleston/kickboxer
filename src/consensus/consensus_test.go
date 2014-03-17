@@ -33,6 +33,7 @@ var (
 	benchLatency = flag.Int64("bench.latency", 0, "one way message delay in microseconds")
 	benchProfile = flag.Bool("bench.profile", false, "activates performance profiling")
 	benchNumKeys = flag.Int("bench.numkeys", 1, "activates performance profiling")
+	benchMaster = flag.Bool("bench.master", false, "only executes queries against a single node")
 )
 
 type ConsensusQueryBenchmarks struct {
@@ -42,7 +43,7 @@ type ConsensusQueryBenchmarks struct {
 	seedVal int64
 	stats statsd.Statter
 	latency time.Duration
-	keys string
+	keys []string
 }
 
 var _ = gocheck.Suite(&ConsensusQueryBenchmarks{})
@@ -71,8 +72,15 @@ func (s *ConsensusQueryBenchmarks) SetUpSuite(c *gocheck.C) {
 	if *benchNumKeys < 1 {
 		*benchNumKeys = 1
 	}
-	s.keys = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:*benchNumKeys]
 
+	if *benchNumKeys == 1 {
+		s.keys = []string{"a"}
+	} else {
+		s.keys = make([]string, *benchNumKeys)
+		for i:=0; i<*benchNumKeys; i++ {
+			s.keys[i] = fmt.Sprint(i)
+		}
+	}
 }
 
 func (s *ConsensusQueryBenchmarks) SetUpTest(c *gocheck.C) {
@@ -154,12 +162,17 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 
 	query := func(i int) {
 		queryStart := time.Now()
-		manager := s.nodes[s.random.Int() % len(s.nodes)].manager
+		var manager *Manager
+		if *benchMaster {
+			manager = s.nodes[0].manager
+		} else {
+			manager = s.nodes[s.random.Int() % len(s.nodes)].manager
+		}
 		var key string
 		if len(s.keys) > 1 {
-			key = string(s.keys[s.random.Int() % len(s.nodes)])
+			key = s.keys[s.random.Int() % len(s.nodes)]
 		} else {
-			key = string(s.keys[0])
+			key = s.keys[0]
 		}
 		instructions := []*store.Instruction{store.NewInstruction("set", key, []string{fmt.Sprint(i)}, time.Now())}
 		_, err := manager.ExecuteQuery(instructions)
