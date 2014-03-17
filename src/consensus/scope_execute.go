@@ -227,7 +227,7 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 	// execution grace period first, check the leader id, if it's not this
 	// node, go ahead and execute it if it is, wait for the execution timeout
 	imap := make(map[InstanceID]*Instance)
-	imap := s.instances.GetMap(imap, iids)
+	imap = s.instances.GetMap(imap, iids)
 	for _, iid := range iids {
 		val = nil
 		err = nil
