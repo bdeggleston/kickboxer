@@ -1051,7 +1051,6 @@ func (s *HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(response.Instance, gocheck.NotNil)
-	c.Check(response.Instance, gocheck.Equals, s.instance)
 	c.Check(prepareInstanceCalls, gocheck.Equals, 1)
 }
 
@@ -1077,7 +1076,6 @@ func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) 
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(response.Instance, gocheck.NotNil)
-	c.Check(response.Instance, gocheck.Equals, s.instance)
 	c.Check(prepareInstanceCalls, gocheck.Equals, 0)
 }
 
