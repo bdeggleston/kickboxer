@@ -331,7 +331,9 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 
 	// release wait
 	s.instance.broadcastCommitEvent()
-	runtime.Gosched()
+	for i:=0; i<20; i++ {
+		runtime.Gosched()
+	}
 
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 0)

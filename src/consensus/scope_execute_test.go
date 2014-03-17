@@ -236,6 +236,9 @@ func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
 	}
 
 	val, err := s.scope.executeInstance(s.toExecute)
+	for i:=0; i<20; i++ {
+		runtime.Gosched()
+	}
 	c.Assert(val, gocheck.NotNil)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(s.preparePhaseCalls, gocheck.Equals, 1)
