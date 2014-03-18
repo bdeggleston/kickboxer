@@ -133,8 +133,60 @@ func (s *ConsensusQueryBenchmarks) messageHandler(mn *mockNode, msg message.Mess
 	return response, err
 }
 
+// checks that all of the queries were executed in the same order, per key
 func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
+	for _, n := range s.nodes {
+		n.cluster.lock.Lock()
+	}
+	defer func() {
+		for _, n := range s.nodes {
+			n.cluster.lock.Unlock()
+		}
+	}()
+	nodeInstructions := make([]map[string][]*store.Instruction, s.numNodes)
+	for i, n := range s.nodes {
+		imap := make(map[string][]*store.Instruction)
+		for _, instruction := range n.cluster.instructions {
+			instructions := imap[instruction.Key]
+			if instructions == nil {
+				instructions = make([]*store.Instruction, 0, *benchQueries / *benchNumKeys)
+			}
+			instructions = append(instructions, instruction)
+			imap[instruction.Key] = instructions
+		}
+		nodeInstructions[i] = imap
+	}
 
+	for _, key := range s.keys {
+		maxIdx := 0
+		maxNumInstructions := 0
+		for i, imap := range nodeInstructions {
+			if imap[key] == nil {
+				imap[key] = make([]*store.Instruction, 0)
+			}
+			if len(imap[key]) > maxNumInstructions {
+				maxIdx = i
+				maxNumInstructions = len(imap[key])
+			}
+		}
+		mInstructions := nodeInstructions[maxIdx][key]
+		for i, imap := range nodeInstructions {
+			if i == maxIdx {
+				continue
+			}
+			instructions := imap[key]
+			for i:=0; i<len(instructions); i++ {
+				expected := mInstructions[i]
+				actual := instructions[i]
+				c.Check(
+					expected,
+					gocheck.DeepEquals,
+					actual,
+					gocheck.Commentf("%v: %v %v != %v", key, i, expected, actual),
+				)
+			}
+		}
+	}
 }
 
 func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
@@ -170,7 +222,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 		}
 		var key string
 		if len(s.keys) > 1 {
-			key = s.keys[s.random.Int() % len(s.nodes)]
+			key = s.keys[s.random.Int() % len(s.keys)]
 		} else {
 			key = s.keys[0]
 		}
