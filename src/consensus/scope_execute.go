@@ -177,7 +177,7 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 		var err error
 		if !instance.Noop {
 			for _, instruction := range instance.Commands {
-				val, err = m.manager.cluster.ApplyQuery(
+				val, err = m.cluster.ApplyQuery(
 					instruction.Cmd,
 					instruction.Key,
 					instruction.Args,

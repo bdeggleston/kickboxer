@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -465,10 +464,6 @@ func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, 
 	start := time.Now()
 	defer m.statsTiming("manager.client.query.time", start)
 	m.statsInc("manager.client.query.count", 1)
-
-	if !m.manager.checkLocalScopeEligibility(m) {
-		return nil, fmt.Errorf("This node is not eligible to act as the command leader for this instruction")
-	}
 
 	// create epaxos instance, and preaccept locally
 	instance := m.makeInstance(instructions)

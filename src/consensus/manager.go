@@ -87,7 +87,7 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
+func (m *Manager) Query(instructions []*store.Instruction) (store.Value, error) {
 	// check that all the instruction keys are the same
 	if len(instructions) == 0 {
 		return nil, fmt.Errorf("need at least one instruction to execute")
@@ -107,8 +107,7 @@ func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, 
 		// some to be down
 		panic("Forward to eligible replica not implemented yet")
 	} else {
-		scope := m.getScope(key)
-		val, err := scope.ExecuteQuery(instructions)
+		val, err := m.ExecuteQuery(instructions)
 		return val, err
 	}
 

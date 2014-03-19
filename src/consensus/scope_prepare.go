@@ -347,7 +347,7 @@ var scopeDeferToSuccessor = func(m *Manager, instance *Instance) (bool, error) {
 	m.statsInc("prepare.successor.count", 1)
 
 	// make a map of replicas
-	replicas := m.getScopeReplicas(m)
+	replicas := m.getInstanceReplicas(instance)
 	replicaMap := make(map[node.NodeId]node.Node, len(replicas))
 	for _, replica := range replicas {
 		replicaMap[replica.GetId()] = replica
