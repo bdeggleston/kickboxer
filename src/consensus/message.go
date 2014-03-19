@@ -10,11 +10,6 @@ import (
 	"serializer"
 )
 
-type ScopedMessage interface {
-	message.Message
-	GetScope() string
-}
-
 type BallotMessage interface {
 	message.Message
 	GetBallot() uint32
@@ -41,27 +36,17 @@ const (
 )
 
 type PreAcceptRequest struct {
-
-	// the scope name the message
-	// is going to
-	Scope string
-
 	Instance *Instance
 }
 
-func (m *PreAcceptRequest) GetScope() string { return m.Scope }
 func (m *PreAcceptRequest) GetType() uint32 { return MESSAGE_PREACCEPT_REQUEST }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
 	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
 	return nil
 }
 
 func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
 		m.Instance = val
 	}
@@ -128,10 +113,6 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 
 type AcceptRequest struct {
 
-	// the scope name the message
-	// is going to
-	Scope string
-
 	// the instance the remote node is instructed
 	// to accept
 	Instance *Instance
@@ -141,12 +122,9 @@ type AcceptRequest struct {
 	MissingInstances []*Instance
 }
 
-func (m *AcceptRequest) GetScope() string { return m.Scope }
 func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
 
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
-
 	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
 
 	numInst := uint32(len(m.MissingInstances))
@@ -158,9 +136,6 @@ func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
 }
 
 func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
 		m.Instance = val
 	}
@@ -205,28 +180,19 @@ func (m *AcceptResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 type CommitRequest struct {
-	// the scope name the message
-	// is going to
-	Scope string
-
 	// the instance the remote node is instructed
 	// to accept
 	Instance *Instance
 }
 
-func (m *CommitRequest) GetScope() string { return m.Scope }
 func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
 	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
 	return nil
 }
 
 func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
 		m.Instance = val
 	}
@@ -245,30 +211,20 @@ func (m *CommitResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 type PrepareRequest struct {
-	// the scope name the message
-	// is going to
-	Scope string
-
 	Ballot uint32
 
 	InstanceID InstanceID
 }
 
-func (m *PrepareRequest) GetScope() string { return m.Scope }
-
 func (m *PrepareRequest) GetType() uint32 { return MESSAGE_PREPARE_REQUEST }
 
 func (m *PrepareRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	if err := (&m.InstanceID).WriteBuffer(buf); err != nil { return err }
 	return nil
 }
 
 func (m *PrepareRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	if err := binary.Read(buf, binary.LittleEndian, &m.Ballot); err != nil { return err }
 	if err := (&m.InstanceID).ReadBuffer(buf); err != nil { return err }
 	return nil
@@ -316,24 +272,17 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 // requests that the prepare successor
 // initiate a prepare phase
 type PrepareSuccessorRequest struct {
-	Scope string
 	InstanceID InstanceID
 }
-
-func (m *PrepareSuccessorRequest) GetScope() string { return m.Scope }
 
 func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_REQUEST }
 
 func (m *PrepareSuccessorRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
 	if err := (&m.InstanceID).WriteBuffer(buf); err != nil { return err }
 	return nil
 }
 
 func (m *PrepareSuccessorRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	if err := (&m.InstanceID).ReadBuffer(buf); err != nil { return err }
 	return nil
 }
@@ -366,20 +315,12 @@ func (m *PrepareSuccessorResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 type InstanceRequest struct {
-	// the scope name the message
-	// is going to
-	Scope string
-
 	InstanceIDs []InstanceID
 }
-
-func (m *InstanceRequest) GetScope() string { return m.Scope }
 
 func (m *InstanceRequest) GetType() uint32 { return MESSAGE_INSTANCE_REQUEST }
 
 func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
-	if err := serializer.WriteFieldString(buf, m.Scope); err != nil { return err }
-
 	numIds := uint32(len(m.InstanceIDs))
 	if err := binary.Write(buf, binary.LittleEndian, &numIds); err != nil { return err }
 
@@ -390,9 +331,6 @@ func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
 }
 
 func (m *InstanceRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := serializer.ReadFieldString(buf); err != nil { return err } else {
-		m.Scope = val
-	}
 	var numIds uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numIds); err != nil { return err }
 	m.InstanceIDs = make([]InstanceID, numIds)
