@@ -53,20 +53,20 @@ func (i *iidSorter) Swap(x, y int) {
 
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
-func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
+func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	start := time.Now()
-	defer s.statsTiming("execute.dependencies.order.time", start)
+	defer m.statsTiming("execute.dependencies.order.time", start)
 
 	// build a directed graph
 	targetDeps := instance.getDependencies()
 	targetDepSet := NewInstanceIDSet(targetDeps)
-	depMap := make(map[InstanceID]*Instance, len(targetDeps) * s.inProgress.Len())
-	depMap = s.instances.GetMap(depMap, targetDeps)
-	depGraph := make(map[InstanceID][]InstanceID, s.inProgress.Len() + s.committed.Len() + 1)
+	depMap := make(map[InstanceID]*Instance, len(targetDeps) * m.inProgress.Len())
+	depMap = m.instances.GetMap(depMap, targetDeps)
+	depGraph := make(map[InstanceID][]InstanceID, m.inProgress.Len() + m.committed.Len() + 1)
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
 		deps := inst.getDependencies()
-		depMap = s.instances.GetMap(depMap, deps)
+		depMap = m.instances.GetMap(depMap, deps)
 
 		// if the instance is already executed, and it's not a dependency
 		// of the target execution instance, only add it to the dep graph
@@ -115,12 +115,12 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	if err := addInstance(instance); err != nil {
 		return nil, err
 	}
-	s.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
+	m.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
 	// sort with tarjan's algorithm
 	sortStart := time.Now()
 	tSorted := TarjanSort(depGraph)
-	s.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
+	m.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
 	subSortStart := time.Now()
 	exOrder := make([]InstanceID, 0, len(depGraph))
 	for _, iids := range tSorted {
@@ -128,11 +128,11 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		sort.Sort(sorter)
 		exOrder = append(exOrder, sorter.iids...)
 	}
-	s.statsTiming("execute.dependencies.order.sort.sub_graph.time", subSortStart)
-	s.statsTiming("execute.dependencies.order.sort.time", sortStart)
+	m.statsTiming("execute.dependencies.order.sort.sub_graph.time", subSortStart)
+	m.statsTiming("execute.dependencies.order.sort.time", sortStart)
 
 	for _, iid := range exOrder {
-		if s.instances.Get(iid) == nil {
+		if m.instances.Get(iid) == nil {
 			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 		}
 	}
@@ -140,10 +140,10 @@ func (s *Scope) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	return exOrder, nil
 }
 
-func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
+func (m *Manager) getUncommittedInstances(iids []InstanceID) []*Instance {
 	instances := make([]*Instance, 0)
 	for _, iid := range iids {
-		instance := s.instances.Get(iid)
+		instance := m.instances.Get(iid)
 		if instance.getStatus() < INSTANCE_COMMITTED {
 			instances = append(instances, instance)
 		}
@@ -153,10 +153,10 @@ func (s *Scope) getUncommittedInstances(iids []InstanceID) []*Instance {
 }
 
 // executes an instance against the store
-func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
+func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 	start := time.Now()
-	defer s.statsTiming("execute.instance.apply.time", start)
-	s.statsInc("execute.instance.apply.count", 1)
+	defer m.statsTiming("execute.instance.apply.time", start)
+	m.statsInc("execute.instance.apply.count", 1)
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {
@@ -177,7 +177,7 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 		var err error
 		if !instance.Noop {
 			for _, instruction := range instance.Commands {
-				val, err = s.manager.cluster.ApplyQuery(
+				val, err = m.manager.cluster.ApplyQuery(
 					instruction.Cmd,
 					instruction.Key,
 					instruction.Args,
@@ -188,22 +188,22 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 				}
 			}
 		} else {
-			s.statsInc("execute.instance.noop.count", 1)
+			m.statsInc("execute.instance.noop.count", 1)
 		}
 
-		// update scope bookkeeping
+		// update manager bookkeeping
 		instance.Status = INSTANCE_EXECUTED
 		func() {
-			s.executedLock.Lock()
-			defer s.executedLock.Unlock()
+			m.executedLock.Lock()
+			defer m.executedLock.Unlock()
 
-			s.executed = append(s.executed, instance.InstanceID)
-			s.committed.Remove(instance)
+			m.executed = append(m.executed, instance.InstanceID)
+			m.committed.Remove(instance)
 		}()
-		if err := s.Persist(); err != nil {
+		if err := m.Persist(); err != nil {
 			return nil, err
 		}
-		s.statsInc("execute.instance.success.count", 1)
+		m.statsInc("execute.instance.success.count", 1)
 
 		return val, err
 	}
@@ -215,19 +215,19 @@ func (s *Scope) applyInstance(instance *Instance) (store.Value, error) {
 	// wake up any goroutines waiting on this instance
 	instance.broadcastExecuteEvent()
 
-	logger.Debug("Execute: success: %v on %v", instance.InstanceID, s.GetLocalID())
+	logger.Debug("Execute: success: %v on %v", instance.InstanceID, m.GetLocalID())
 	return val, nil
 }
 // executes the dependencies up to the given instance
-func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
+func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
 	var val store.Value
 	var err error
 
 	// don't execute instances 'out from under' client requests. Use the
-	// execution grace period first, check the leader id, if it's not this
+	// execution grace period first, check the leader id, if it'm not this
 	// node, go ahead and execute it if it is, wait for the execution timeout
 	imap := make(map[InstanceID]*Instance)
-	imap = s.instances.GetMap(imap, iids)
+	imap = m.instances.GetMap(imap, iids)
 	for _, iid := range iids {
 		val = nil
 		err = nil
@@ -237,32 +237,32 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 			//
 			if instance.InstanceID == target.InstanceID {
 				// execute
-				val, err = s.applyInstance(instance)
+				val, err = m.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statsInc("execute.local.success.count", 1)
-			} else if instance.LeaderID != s.manager.GetLocalID() {
+				m.statsInc("execute.local.success.count", 1)
+			} else if instance.LeaderID != m.GetLocalID() {
 				// execute
-				val, err = s.applyInstance(instance)
+				val, err = m.applyInstance(instance)
 				if err != nil { return nil, err }
-				s.statsInc("execute.remote.success.count", 1)
+				m.statsInc("execute.remote.success.count", 1)
 			} else {
 				// wait for the execution grace period to end
 				if time.Now().After(instance.executeTimeout) {
-					val, err = s.applyInstance(instance)
+					val, err = m.applyInstance(instance)
 					if err != nil { return nil, err }
-					s.statsInc("execute.local.timeout.count", 1)
+					m.statsInc("execute.local.timeout.count", 1)
 				} else {
 
 					select {
 					case <- instance.getExecuteEvent().getChan():
 						// instance was executed by another goroutine
-						s.statsInc("execute.local.wait.event.count", 1)
+						m.statsInc("execute.local.wait.event.count", 1)
 					case <- instance.getExecuteTimeoutEvent():
 						// execution timed out
-						val, err = s.applyInstance(instance)
+						val, err = m.applyInstance(instance)
 						if err != nil { return nil, err }
-						s.statsInc("execute.local.timeout.count", 1)
-						s.statsInc("execute.local.timeout.wait.count", 1)
+						m.statsInc("execute.local.timeout.count", 1)
+						m.statsInc("execute.local.timeout.wait.count", 1)
 					}
 				}
 			}
@@ -281,24 +281,24 @@ func (s *Scope) executeDependencyChain(iids []InstanceID, target *Instance) (sto
 	return val, nil
 }
 
-var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, error) {
+var scopeExecuteInstance = func(m *Manager, instance *Instance) (store.Value, error) {
 	start := time.Now()
-	defer s.statsTiming("execute.phase.time", start)
-	s.statsInc("execute.phase.count", 1)
+	defer m.statsTiming("execute.phase.time", start)
+	m.statsInc("execute.phase.count", 1)
 
 	logger.Debug("Execute phase started")
 	// get dependency instance ids, sorted in execution order
-	exOrder, err := s.getExecutionOrder(instance)
+	exOrder, err := m.getExecutionOrder(instance)
 	if err != nil {
 		return nil, err
 	}
 
 	// prepare uncommitted instances
 	var uncommitted []*Instance
-	uncommitted = s.getUncommittedInstances(exOrder)
+	uncommitted = m.getUncommittedInstances(exOrder)
 
 	for len(uncommitted) > 0 {
-		logger.Info("Execute, %v uncommitted on %v: %+v", len(uncommitted), s.GetLocalID(), uncommitted)
+		logger.Info("Execute, %v uncommitted on %v: %+v", len(uncommitted), m.GetLocalID(), uncommitted)
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))
@@ -309,16 +309,16 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 			var commitEvent <- chan bool
 			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
 				prepareStart := time.Now()
-				defer s.statsTiming("execute.phase.prepare.time", prepareStart)
-				s.statsInc("execute.phase.prepare.count", 1)
+				defer m.statsTiming("execute.phase.prepare.time", prepareStart)
+				m.statsInc("execute.phase.prepare.count", 1)
 
 				ballotErr = false
-				if err = s.preparePhase(inst); err != nil {
+				if err = m.preparePhase(inst); err != nil {
 					if _, ok := err.(BallotError); ok {
 						// refresh the local instance pointer and
 						// assign the commit event so a goroutine is not
 						// spun up for each attempt
-						inst = s.instances.Get(inst.InstanceID)
+						inst = m.instances.Get(inst.InstanceID)
 						if commitEvent == nil {
 							commitEvent = inst.getCommitEvent().getChan()
 						}
@@ -342,7 +342,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 						}
 
 					} else {
-						s.statsInc("execute.phase.prepare.error", 1)
+						m.statsInc("execute.phase.prepare.error", 1)
 						logger.Warning("Execute prepare failed with error: %v", err)
 						errors <- err
 						break
@@ -371,21 +371,21 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 			// everything's ok, continue
 		}
 
-		logger.Debug("Recalculating dependency chain for %v on %v", instance.InstanceID, s.GetLocalID())
+		logger.Debug("Recalculating dependency chain for %v on %v", instance.InstanceID, m.GetLocalID())
 		// if the prepare phase came across instances
 		// that no other replica was aware of, it would
 		// have run a preaccept phase for it, changing the
 		// dependency chain, so the exOrder and uncommitted
 		// list need to be updated before continuing
-		exOrder, err = s.getExecutionOrder(instance)
+		exOrder, err = m.getExecutionOrder(instance)
 		if err != nil {
 			return nil, err
 		}
-		uncommitted = s.getUncommittedInstances(exOrder)
+		uncommitted = m.getUncommittedInstances(exOrder)
 	}
 
 	logger.Debug("Executing dependency chain")
-	val, err := s.executeDependencyChain(exOrder, instance)
+	val, err := m.executeDependencyChain(exOrder, instance)
 	if err != nil {
 		logger.Error("Execute: executeDependencyChain: %v", err)
 	}
@@ -396,7 +396,7 @@ var scopeExecuteInstance = func(s *Scope, instance *Instance) (store.Value, erro
 // applies an instance to the store
 // first it will resolve all dependencies, then wait for them to commit/reject, or force them
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
-func (s *Scope) executeInstance(instance *Instance) (store.Value, error) {
-	return scopeExecuteInstance(s, instance)
+func (m *Manager) executeInstance(instance *Instance) (store.Value, error) {
+	return scopeExecuteInstance(m, instance)
 }
 
