@@ -252,100 +252,96 @@ func getTimeoutEvent(d time.Duration) <-chan time.Time {
 
 // manages a subset of interdependent
 // consensus operations
-type Scope struct {
-	name         string
-	instances    *InstanceMap
-	inProgress   *InstanceMap
-	committed    *InstanceMap
+//type Scope struct {
+//	name         string
+//	instances    *InstanceMap
+//	inProgress   *InstanceMap
+//	committed    *InstanceMap
+//
+//	executed     []InstanceID
+//	executedLock sync.RWMutex
+//
+//	maxSeq       uint64
+//	maxSeqLock   sync.RWMutex
+//
+//	manager      *Manager
+//}
+//
+//func NewScope(name string, manager *Manager) *Scope {
+//	return &Scope{
+//		name:       name,
+//		instances:  NewInstanceMap(),
+//		inProgress: NewInstanceMap(),
+//		committed:  NewInstanceMap(),
+//		executed:   make([]InstanceID, 0, 16),
+//		manager:    manager,
+//	}
+//}
 
-	executed     []InstanceID
-	executedLock sync.RWMutex
-
-	maxSeq       uint64
-	maxSeqLock   sync.RWMutex
-
-	manager      *Manager
-}
-
-func NewScope(name string, manager *Manager) *Scope {
-	return &Scope{
-		name:       name,
-		instances:  NewInstanceMap(),
-		inProgress: NewInstanceMap(),
-		committed:  NewInstanceMap(),
-		executed:   make([]InstanceID, 0, 16),
-		manager:    manager,
-	}
-}
-
-func (s *Scope) GetLocalID() node.NodeId {
-	return s.manager.GetLocalID()
-}
-
-// persists the scope's state to disk
-func (s *Scope) Persist() error {
-	s.statsInc("scope.persist", 1)
+// persists the manager's state to disk
+func (m *Manager) Persist() error {
+	m.statsInc("manager.persist", 1)
 	return nil
 }
 
-func (s *Scope) statsInc(stat string, delta int64) error {
-	return s.manager.stats.Inc(stat, delta, STATS_SAMPLE_RATE)
+func (m *Manager) statsInc(stat string, delta int64) error {
+	return m.stats.Inc(stat, delta, STATS_SAMPLE_RATE)
 }
 
-func (s *Scope) statsGauge(stat string, delta int64) error {
-	return s.manager.stats.Gauge(stat, delta, STATS_SAMPLE_RATE)
+func (m *Manager) statsGauge(stat string, delta int64) error {
+	return m.stats.Gauge(stat, delta, STATS_SAMPLE_RATE)
 }
 
-func (s *Scope) statsTiming(stat string, start time.Time) error {
+func (m *Manager) statsTiming(stat string, start time.Time) error {
 	end := time.Now()
 	delta := end.Sub(start) / time.Millisecond
-	return s.manager.stats.Timing(stat, int64(delta), STATS_SAMPLE_RATE)
+	return m.stats.Timing(stat, int64(delta), STATS_SAMPLE_RATE)
 }
 
-func (s *Scope) getInstance(iid InstanceID) *Instance {
-	return s.instances.Get(iid)
+func (m *Manager) getInstance(iid InstanceID) *Instance {
+	return m.instances.Get(iid)
 }
 
 // returns the local instance with the same id as the given instance,
 // or sets the given instance locally. Does not handle any of the
 // committed, inprogress, executed logic
-func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
+func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	initialize := func(i *Instance) {
 		i.lock.Lock()
 		defer i.lock.Unlock()
-		i.scope = s
+		i.manager = m
 		if i.Status > INSTANCE_COMMITTED {
 			i.Status = INSTANCE_COMMITTED
 		}
 	}
-	return s.instances.GetOrSet(inst, initialize)
+	return m.instances.GetOrSet(inst, initialize)
 }
 
 // TODO: delete
 // returns the current dependencies for a new instance
 // this method doesn't implement any locking or persistence
-func (s *Scope) getCurrentDepsUnsafe() []InstanceID {
-	return s.getCurrentDeps()
+func (m *Manager) getCurrentDepsUnsafe() []InstanceID {
+	return m.getCurrentDeps()
 
 }
 
-func (s *Scope) getCurrentDeps() []InstanceID {
-	s.executedLock.RLock()
-	defer s.executedLock.RUnlock()
+func (m *Manager) getCurrentDeps() []InstanceID {
+	m.executedLock.RLock()
+	defer m.executedLock.RUnlock()
 
 	// grab ALL instances as dependencies for now
-//	numDeps := s.inProgress.Len() + s.committed.Len() + len(s.executed)
-	numDeps := s.inProgress.Len() + s.committed.Len()
-	if len(s.executed) > 0 {
+//	numDeps := m.inProgress.Len() + m.committed.Len() + len(m.executed)
+	numDeps := m.inProgress.Len() + m.committed.Len()
+	if len(m.executed) > 0 {
 		numDeps++
 	}
 
 	deps := make([]InstanceID, 0, numDeps)
-	deps = append(deps, s.inProgress.InstanceIDs()...)
-	deps = append(deps, s.committed.InstanceIDs()...)
-//	deps = append(deps, s.executed...)
-	if len(s.executed) > 0 {
-		deps = append(deps, s.executed[len(s.executed) - 1])
+	deps = append(deps, m.inProgress.InstanceIDs()...)
+	deps = append(deps, m.committed.InstanceIDs()...)
+//	deps = append(deps, m.executed...)
+	if len(m.executed) > 0 {
+		deps = append(deps, m.executed[len(m.executed) - 1])
 	}
 
 	return deps
@@ -354,34 +350,34 @@ func (s *Scope) getCurrentDeps() []InstanceID {
 // TODO: delete
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
-func (s *Scope) getNextSeqUnsafe() uint64 {
-	return s.getNextSeq()
+func (m *Manager) getNextSeqUnsafe() uint64 {
+	return m.getNextSeq()
 }
 
 // returns the next available sequence number for a new instance
 // this method doesn't implement any locking or persistence
-func (s *Scope) getNextSeq() uint64 {
-	s.maxSeqLock.Lock()
-	defer s.maxSeqLock.Unlock()
-	s.maxSeq++
-	return s.maxSeq
+func (m *Manager) getNextSeq() uint64 {
+	m.maxSeqLock.Lock()
+	defer m.maxSeqLock.Unlock()
+	m.maxSeq++
+	return m.maxSeq
 }
 
-// updates the scope's sequence number, if the given
+// updates the manager's sequence number, if the given
 // number is higher
-func (s *Scope) updateSeq(seq uint64) error {
+func (m *Manager) updateSeq(seq uint64) error {
 	existing := func() uint64 {
-		s.maxSeqLock.RLock()
-		defer s.maxSeqLock.RUnlock()
-		return s.maxSeq
+		m.maxSeqLock.RLock()
+		defer m.maxSeqLock.RUnlock()
+		return m.maxSeq
 	}()
 
 	if existing < seq {
 		func() {
-			s.maxSeqLock.Lock()
-			defer s.maxSeqLock.Unlock()
-			if s.maxSeq < seq {
-				s.maxSeq = seq
+			m.maxSeqLock.Lock()
+			defer m.maxSeqLock.Unlock()
+			if m.maxSeq < seq {
+				m.maxSeq = seq
 			}
 		}()
 	}
@@ -389,14 +385,14 @@ func (s *Scope) updateSeq(seq uint64) error {
 }
 
 // creates a bare epaxos instance from the given instructions
-func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
-	replicas := s.manager.getScopeReplicas(s)
+func (m *Manager) makeInstance(instructions []*store.Instruction) *Instance {
+	replicas := m.cluster.GetNodesForKey(instructions[0].Key)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
-		LeaderID:     s.GetLocalID(),
+		LeaderID:     m.GetLocalID(),
 		Commands:     instructions,
 		Successors:   make([]node.NodeId, len(replicas)),
-		scope:		  s,
+		manager:		  m,
 	}
 
 	// add randomly ordered successors
@@ -407,26 +403,26 @@ func (s *Scope) makeInstance(instructions []*store.Instruction) *Instance {
 	return instance
 }
 
-func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
+func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 	for _, inst := range instances {
-		if instance, existed := s.getOrSetInstance(inst); !existed {
+		if instance, existed := m.getOrSetInstance(inst); !existed {
 			func(){
 				instance.lock.Lock()
 				defer instance.lock.Unlock()
 				switch instance.Status {
 				case INSTANCE_PREACCEPTED:
-					s.statsInc("scope.missing_instance.preaccept", 1)
+					m.statsInc("manager.missing_instance.preaccept", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-					s.inProgress.Add(instance)
+					m.inProgress.Add(instance)
 				case INSTANCE_ACCEPTED:
-					s.statsInc("scope.missing_instance.accept", 1)
+					m.statsInc("manager.missing_instance.accept", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-					s.inProgress.Add(instance)
+					m.inProgress.Add(instance)
 				case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
-					s.statsInc("scope.missing_instance.commit", 1)
+					m.statsInc("manager.missing_instance.commit", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 					instance.Status = INSTANCE_COMMITTED
-					s.committed.Add(instance)
+					m.committed.Add(instance)
 				default:
 					panic("!")
 				}
@@ -436,17 +432,17 @@ func (s *Scope) addMissingInstancesUnsafe(instances ...*Instance) error {
 	return nil
 }
 
-func (s *Scope) addMissingInstances(instances ...*Instance) error {
-	if err := s.addMissingInstancesUnsafe(instances...); err != nil {
+func (m *Manager) addMissingInstances(instances ...*Instance) error {
+	if err := m.addMissingInstancesUnsafe(instances...); err != nil {
 		return err
 	}
-	if err := s.Persist(); err != nil {
+	if err := m.Persist(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses []BallotMessage) error {
+func (m *Manager) updateInstanceBallotFromResponses(instance *Instance, responses []BallotMessage) error {
 	var maxBallot uint32
 	for _, response := range responses {
 		if ballot := response.GetBallot(); ballot > maxBallot {
@@ -455,7 +451,7 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 	}
 
 	if instance.updateBallot(maxBallot) {
-		if err := s.Persist(); err != nil {
+		if err := m.Persist(); err != nil {
 			return err
 		}
 	}
@@ -465,21 +461,21 @@ func (s *Scope) updateInstanceBallotFromResponses(instance *Instance, responses 
 // executes a serialized query against the cluster this method designates the node
 // it's called on as the command leader for the given query. Should only be called
 // once per client query
-func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
+func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
 	start := time.Now()
-	defer s.statsTiming("scope.client.query.time", start)
-	s.statsInc("scope.client.query.count", 1)
+	defer m.statsTiming("manager.client.query.time", start)
+	m.statsInc("manager.client.query.count", 1)
 
-	if !s.manager.checkLocalScopeEligibility(s) {
-		return nil, fmt.Errorf("This node is not eligible to act as the command leader for this scope")
+	if !m.manager.checkLocalScopeEligibility(m) {
+		return nil, fmt.Errorf("This node is not eligible to act as the command leader for this instruction")
 	}
 
 	// create epaxos instance, and preaccept locally
-	instance := s.makeInstance(instructions)
+	instance := m.makeInstance(instructions)
 
 	logger.Debug("Beginning preaccept leader phase for: %v", instance.InstanceID)
 	// run pre-accept
-	acceptRequired, err := s.preAcceptPhase(instance)
+	acceptRequired, err := m.preAcceptPhase(instance)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +487,7 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, er
 		// some of the instance attributes received from the other replicas
 		// were different from what was sent to them. Run the multi-paxos
 		// accept phase
-		if err := s.acceptPhase(instance); err != nil {
+		if err := m.acceptPhase(instance); err != nil {
 			return nil, err
 		}
 		logger.Debug("Accept leader phase completed for: %v", instance.InstanceID)
@@ -501,11 +497,11 @@ func (s *Scope) ExecuteQuery(instructions []*store.Instruction) (store.Value, er
 	// if we've gotten this far, either all the pre accept instance attributes
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
-	if err := s.commitPhase(instance); err != nil {
+	if err := m.commitPhase(instance); err != nil {
 		return nil, err
 	}
 	logger.Debug("Commit leader phase completed for: %v", instance.InstanceID)
 
-	return s.executeInstance(instance)
+	return m.executeInstance(instance)
 }
 
