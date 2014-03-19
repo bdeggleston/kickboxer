@@ -505,7 +505,13 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 
 	// release wait
 	depInst.broadcastExecuteEvent()
-	runtime.Gosched()
+	for i:=0; i<20; i++ {
+		if val == nil {
+			runtime.Gosched()
+		} else {
+			break
+		}
+	}
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
