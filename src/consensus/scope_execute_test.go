@@ -34,10 +34,10 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	// sets up a new instance, and appends it to the expected order needs
 	// to be called in the same order as the expected dependency ordering
 	addInst := func() *Instance {
-		inst := s.scope.makeInstance(s.getInstructions(lastVal))
+		inst := s.manager.makeInstance(s.getInstructions(lastVal))
 		inst.Successors = []node.NodeId{inst.LeaderID}
 		lastVal++
-		s.scope.preAcceptInstanceUnsafe(inst, false)
+		s.manager.preAcceptInstanceUnsafe(inst, false)
 		s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 		s.maxIdx = len(s.expectedOrder) - 1
 		return inst
@@ -70,7 +70,7 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 
 type ExecuteInstanceTest struct {
 	baseExecutionTest
-	oldPreparePhase func(*Scope, *Instance) error
+	oldPreparePhase func(*Manager, *Instance) error
 	oldBallotTimeout uint64
 	preparePhaseCalls int
 
@@ -96,20 +96,20 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 
 	// make all instances 'timed out'
 	for _, iid := range s.expectedOrder {
-		instance := s.scope.instances.Get(iid)
+		instance := s.manager.instances.Get(iid)
 		instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
 	}
-	s.toExecute = s.scope.instances.Get(s.expectedOrder[2])
-	exOrder, err := s.scope.getExecutionOrder(s.toExecute)
+	s.toExecute = s.manager.instances.Get(s.expectedOrder[2])
+	exOrder, err := s.manager.getExecutionOrder(s.toExecute)
 	c.Assert(err, gocheck.IsNil)
 	// commit all but the first instance
 	for _, iid := range exOrder[1:] {
-		instance := s.scope.instances.Get(iid)
-		err := s.scope.commitInstance(instance, false)
+		instance := s.manager.instances.Get(iid)
+		err := s.manager.commitInstance(instance, false)
 		c.Assert(err, gocheck.IsNil)
 	}
-	s.toPrepare = s.scope.instances.Get(exOrder[0])
-	c.Assert(len(s.scope.getUncommittedInstances(exOrder)), gocheck.Equals, 1)
+	s.toPrepare = s.manager.instances.Get(exOrder[0])
+	c.Assert(len(s.manager.getUncommittedInstances(exOrder)), gocheck.Equals, 1)
 }
 
 func (s *ExecuteInstanceTest) TearDownTest(c *gocheck.C) {
@@ -117,10 +117,10 @@ func (s *ExecuteInstanceTest) TearDownTest(c *gocheck.C) {
 }
 
 func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
-	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+	scopePreparePhase = func(manager *Manager, instance *Instance) error {
 		s.preparePhaseCalls++
 		if commit {
-			scope.commitInstance(instance, false)
+			manager.commitInstance(instance, false)
 		}
 		return err
 	}
@@ -130,7 +130,7 @@ func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
 // instance in the instance's dependency graph
 func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
 	s.patchPreparePhase(nil, true)
-	val, err := s.scope.executeInstance(s.toExecute)
+	val, err := s.manager.executeInstance(s.toExecute)
 	c.Assert(val, gocheck.NotNil)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
@@ -148,9 +148,9 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 	BALLOT_FAILURE_WAIT_TIME = uint64(5)
 
 	// die once, succeed on second try
-	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+	scopePreparePhase = func(manager *Manager, instance *Instance) error {
 		if s.preparePhaseCalls > 0 {
-			scope.commitInstance(instance, false)
+			manager.commitInstance(instance, false)
 		} else {
 			s.preparePhaseCalls++
 			return NewBallotError("nope")
@@ -159,7 +159,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 		return nil
 	}
 
-	val, err := s.scope.executeInstance(s.toExecute)
+	val, err := s.manager.executeInstance(s.toExecute)
 	c.Assert(val, gocheck.NotNil)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 2)
@@ -180,12 +180,12 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	s.toExecute.getExecuteEvent()
 	var val store.Value
 	var err error
-	go func() { val, err = s.scope.executeInstance(s.toExecute) }()
+	go func() { val, err = s.manager.executeInstance(s.toExecute) }()
 	runtime.Gosched()
 
 	// 'commit' and notify while prepare waits
 	c.Assert(s.toPrepare.commitEvent, gocheck.NotNil)
-	cerr := s.scope.commitInstance(s.toPrepare, false)
+	cerr := s.manager.commitInstance(s.toPrepare, false)
 	c.Assert(cerr, gocheck.IsNil)
 	s.toPrepare.broadcastCommitEvent()
 
@@ -203,7 +203,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 func (s *ExecuteInstanceTest) TestExplicitPrepareFailure(c *gocheck.C) {
 	s.patchPreparePhase(fmt.Errorf("negative"), false)
 	c.Log("TestExplicitPrepareFailure")
-	val, err := s.scope.executeInstance(s.toExecute)
+	val, err := s.manager.executeInstance(s.toExecute)
 	c.Assert(val, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
@@ -216,7 +216,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareFailure(c *gocheck.C) {
 // failures than the BALLOT_FAILURE_RETRIES value
 func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 	s.patchPreparePhase(NewBallotError("nope"), false)
-	val, err := s.scope.executeInstance(s.toExecute)
+	val, err := s.manager.executeInstance(s.toExecute)
 	c.Assert(val, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, BALLOT_FAILURE_RETRIES)
@@ -228,14 +228,14 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 // tests that if a prepare phase removes an instance from the target
 // instance's dependency graph, it's not executed
 func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
-	scopePreparePhase = func(scope *Scope, instance *Instance) error {
+	scopePreparePhase = func(manager *Manager, instance *Instance) error {
 		instance.Sequence += 5
 		s.preparePhaseCalls++
-		scope.commitInstance(instance, false)
+		manager.commitInstance(instance, false)
 		return nil
 	}
 
-	val, err := s.scope.executeInstance(s.toExecute)
+	val, err := s.manager.executeInstance(s.toExecute)
 	for i:=0; i<20; i++ {
 		runtime.Gosched()
 	}
@@ -256,15 +256,15 @@ var _ = gocheck.Suite(&ExecuteDependencyChainTest{})
 // commits all instances
 func (s *ExecuteDependencyChainTest) commitInstances() {
 	for _, iid := range s.expectedOrder {
-		s.scope.commitInstance(s.scope.instances.Get(iid), false)
+		s.manager.commitInstance(s.manager.instances.Get(iid), false)
 	}
 }
 
 func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
-	lastInstance := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
-	actual, err := s.scope.getExecutionOrder(lastInstance)
+	lastInstance := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
+	actual, err := s.manager.getExecutionOrder(lastInstance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(actual, gocheck.DeepEquals, s.expectedOrder)
 }
@@ -273,14 +273,14 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
-	inst := s.scope.makeInstance(s.getInstructions(6))
-	s.scope.preAcceptInstanceUnsafe(inst, false)
+	inst := s.manager.makeInstance(s.getInstructions(6))
+	s.manager.preAcceptInstanceUnsafe(inst, false)
 	inst.commit(nil, false)
 	c.Assert(len(inst.Dependencies), gocheck.Equals, 6)
 	s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 
 	for i, iid := range s.expectedOrder {
-		instance := s.scope.instances.Get(iid)
+		instance := s.manager.instances.Get(iid)
 		var expected []InstanceID
 		if i > 5 {
 			expected = s.expectedOrder
@@ -289,7 +289,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 		} else {
 			expected = s.expectedOrder[:3]
 		}
-		actual, err := s.scope.getExecutionOrder(instance)
+		actual, err := s.manager.getExecutionOrder(instance)
 		c.Assert(err, gocheck.IsNil)
 		if c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("iid %v", i)) {
 			c.Logf("iid %v, ok", i)
@@ -299,13 +299,13 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 
 // tests that the dependency ordering is the same, regardless of the 'target' instance
 func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *gocheck.C) {
-	s.scope = NewScope("a", s.manager)
+	s.manager = NewManager(s.manager.cluster)
 	instances := make([]*Instance, 50)
 	for i := range instances {
-		instance := s.scope.makeInstance(s.getInstructions(1))
-		s.scope.preAcceptInstance(instance, false)
+		instance := s.manager.makeInstance(s.getInstructions(1))
+		s.manager.preAcceptInstance(instance, false)
 		c.Assert(len(instance.Dependencies), gocheck.Equals, i, gocheck.Commentf("instance: %v", i))
-		s.scope.commitInstance(instance, false)
+		s.manager.commitInstance(instance, false)
 		instances[i] = instance
 	}
 
@@ -315,20 +315,20 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *
 	}
 
 	for i, instance := range instances {
-		actual, err := s.scope.getExecutionOrder(instance)
+		actual, err := s.manager.getExecutionOrder(instance)
 		c.Assert(err, gocheck.IsNil)
 		c.Assert(actual, gocheck.DeepEquals, expected[:i+1], gocheck.Commentf("instance %v", i))
 	}
 }
 
 // getExecutionOrder should return an error if an instance
-// depends on an instance that the scope hasn't seen
+// depends on an instance that the manager hasn't seen
 func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
 	s.commitInstances()
 
-	lastInstance := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
+	lastInstance := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
 	lastInstance.Dependencies = append(lastInstance.Dependencies, NewInstanceID())
-	actual, err := s.scope.getExecutionOrder(lastInstance)
+	actual, err := s.manager.getExecutionOrder(lastInstance)
 	c.Assert(actual, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
 }
@@ -338,25 +338,25 @@ func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
 // have a remote instance id
 func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances.Get(s.expectedOrder[s.maxIdx - 1])
+	targetInst := s.manager.instances.Get(s.expectedOrder[s.maxIdx - 1])
 
 	// set non-target dependency leaders to a remote node
 	remoteID := node.NewNodeId()
 	for i, iid := range s.expectedOrder {
 		if i > (s.maxIdx - 2) { break }
-		instance := s.scope.instances.Get(iid)
+		instance := s.manager.instances.Get(iid)
 		instance.LeaderID = remoteID
 	}
 
-	val, err := s.scope.executeInstance(targetInst)
+	val, err := s.manager.executeInstance(targetInst)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.remote.success.count"], gocheck.Equals, int64(4))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.local.success.count"], gocheck.Equals, int64(1))
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
+	c.Check(s.manager.stats.(*mockStatter).counters["execute.remote.success.count"], gocheck.Equals, int64(4))
+	c.Check(s.manager.stats.(*mockStatter).counters["execute.local.success.count"], gocheck.Equals, int64(1))
+	c.Check(s.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -367,7 +367,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
-		instance := s.scope.instances.Get(s.expectedOrder[i])
+		instance := s.manager.instances.Get(s.expectedOrder[i])
 
 		if i == len(s.expectedOrder) - 1 {
 			// unexecuted instance
@@ -384,11 +384,11 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	s.commitInstances()
-	rejectInst := s.scope.instances.Get(s.expectedOrder[0])
+	rejectInst := s.manager.instances.Get(s.expectedOrder[0])
 	rejectInst.Noop = true
-	targetInst := s.scope.instances.Get(s.expectedOrder[1])
+	targetInst := s.manager.instances.Get(s.expectedOrder[1])
 
-	val, err := s.scope.executeInstance(targetInst)
+	val, err := s.manager.executeInstance(targetInst)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
@@ -402,21 +402,21 @@ func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 // have are past their execution grace period
 func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances.Get(s.expectedOrder[len(s.expectedOrder) - 2])
+	targetInst := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 2])
 
 	for i, iid := range s.expectedOrder {
 		if i > (s.maxIdx - 2) { break }
-		instance := s.scope.instances.Get(iid)
+		instance := s.manager.instances.Get(iid)
 		instance.executeTimeout = time.Now().Add(time.Duration(-1) * time.Second)
 	}
 
-	val, err := s.scope.executeInstance(targetInst)
+	val, err := s.manager.executeInstance(targetInst)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(4))
 	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
 	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
@@ -431,7 +431,7 @@ func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *goche
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
-		instance := s.scope.instances.Get(s.expectedOrder[i])
+		instance := s.manager.instances.Get(s.expectedOrder[i])
 
 		if i == len(s.expectedOrder) - 1 {
 			// unexecuted instance
@@ -452,17 +452,17 @@ func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *goche
 // and continue executing instances
 func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
 	s.commitInstances()
-	depInst := s.scope.instances.Get(s.expectedOrder[0])
+	depInst := s.manager.instances.Get(s.expectedOrder[0])
 	depInst.executeTimeout = time.Now().Add(time.Duration(10) * time.Millisecond)
-	targetInst := s.scope.instances.Get(s.expectedOrder[1])
+	targetInst := s.manager.instances.Get(s.expectedOrder[1])
 
-	val, err := s.scope.executeInstance(targetInst)
+	val, err := s.manager.executeInstance(targetInst)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(1))
 	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(1))
 	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
@@ -473,7 +473,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gochec
 
 	// check all the instances, instructions, etc
 	for i:=0; i<2; i++ {
-		instance := s.scope.instances.Get(s.expectedOrder[i])
+		instance := s.manager.instances.Get(s.expectedOrder[i])
 
 		// executed instances
 		c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -488,20 +488,20 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gochec
 // continue executing instances
 func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
 	s.commitInstances()
-	depInst := s.scope.instances.Get(s.expectedOrder[0])
+	depInst := s.manager.instances.Get(s.expectedOrder[0])
 	depInst.executeTimeout = time.Now().Add(time.Duration(1) * time.Minute)
-	targetInst := s.scope.instances.Get(s.expectedOrder[1])
+	targetInst := s.manager.instances.Get(s.expectedOrder[1])
 
 	var val store.Value
 	var err error
 
 	depInst.getExecuteEvent()
 
-	go func() { val, err = s.scope.executeInstance(targetInst) }()
+	go func() { val, err = s.manager.executeInstance(targetInst) }()
 	runtime.Gosched()  // yield
 
 	// goroutine should be waiting
-	c.Check(s.scope.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(0))
+	c.Check(s.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(0))
 
 	// release wait
 	depInst.broadcastExecuteEvent()
@@ -511,7 +511,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["execute.local.wait.event.count"], gocheck.Equals, int64(1))
 	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(0))
 	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
@@ -532,15 +532,15 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 // tests that instances are not executed twice
 func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 	s.commitInstances()
-	targetInst := s.scope.instances.Get(s.expectedOrder[s.maxIdx])
+	targetInst := s.manager.instances.Get(s.expectedOrder[s.maxIdx])
 
 	// execute all but the target dependency
 	for i:=0; i<s.maxIdx; i++ {
-		instance := s.scope.instances.Get(s.expectedOrder[i])
+		instance := s.manager.instances.Get(s.expectedOrder[i])
 		instance.Status = INSTANCE_EXECUTED
 	}
 
-	val, err := s.scope.executeInstance(targetInst)
+	val, err := s.manager.executeInstance(targetInst)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.NotNil)
@@ -555,9 +555,9 @@ func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 
 // tests that an error is returned if an uncommitted instance id is provided
 func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
-	targetInst := s.scope.instances.Get(s.expectedOrder[0])
+	targetInst := s.manager.instances.Get(s.expectedOrder[0])
 
-	val, err := s.scope.executeDependencyChain(s.expectedOrder, targetInst)
+	val, err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
 
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(val, gocheck.IsNil)
@@ -570,10 +570,10 @@ type ExecuteApplyInstanceTest struct {
 var _ = gocheck.Suite(&ExecuteApplyInstanceTest{})
 
 func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstructions(5))
-	err := s.scope.commitInstance(instance, false)
+	instance := s.manager.makeInstance(s.getInstructions(5))
+	err := s.manager.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
-	val, err := s.scope.applyInstance(instance)
+	val, err := s.manager.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.FitsTypeOf, &intVal{})
 	c.Assert(val.(*intVal).value, gocheck.Equals, 5)
@@ -584,10 +584,10 @@ func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
 
 //
 func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstructions(5))
 	instance.Status = INSTANCE_COMMITTED
 	instance.Noop = true
-	val, err := s.scope.applyInstance(instance)
+	val, err := s.manager.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.IsNil)
 	c.Check(instance.Noop, gocheck.Equals, true)
@@ -598,8 +598,8 @@ func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map
 func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstructions(5))
-	s.scope.commitInstance(instance, false)
+	instance := s.manager.makeInstance(s.getInstructions(5))
+	s.manager.commitInstance(instance, false)
 	instance.getExecuteEvent()
 
 	broadcast := false
@@ -613,7 +613,7 @@ func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 	c.Check(broadcast, gocheck.Equals, false)
 	c.Check(instance.executeEvent, gocheck.NotNil)
 
-	_, err := s.scope.applyInstance(instance)
+	_, err := s.manager.applyInstance(instance)
 	runtime.Gosched() // yield goroutine
 	c.Assert(err, gocheck.IsNil)
 
@@ -623,35 +623,35 @@ func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
 func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
-	s.scope.commitInstance(instance, false)
+	s.manager.commitInstance(instance, false)
 
 	// sanity check
-	c.Check(s.scope.committed, instMapContainsKey, iid)
-	c.Check(s.scope.executed, gocheck.Not(instIdSliceContains), iid)
+	c.Check(s.manager.committed, instMapContainsKey, iid)
+	c.Check(s.manager.executed, gocheck.Not(instIdSliceContains), iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 
-	_, err := s.scope.applyInstance(instance)
+	_, err := s.manager.applyInstance(instance)
 	c.Assert(err, gocheck.IsNil)
 
 	// check expected state
-	c.Check(s.scope.committed, gocheck.Not(instMapContainsKey), iid)
-	c.Check(s.scope.executed, instIdSliceContains, iid)
+	c.Check(s.manager.committed, gocheck.Not(instMapContainsKey), iid)
+	c.Check(s.manager.executed, instIdSliceContains, iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
 
 // tests that apply instance fails if the instance is not committed
 func (s *ExecuteApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
-	instance := s.scope.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstructions(5))
 	iid := instance.InstanceID
-	s.scope.acceptInstance(instance, false)
+	s.manager.acceptInstance(instance, false)
 
 	// sanity check
-	c.Check(s.scope.inProgress, instMapContainsKey, iid)
-	c.Check(s.scope.executed, gocheck.Not(instIdSliceContains), iid)
+	c.Check(s.manager.inProgress, instMapContainsKey, iid)
+	c.Check(s.manager.executed, gocheck.Not(instIdSliceContains), iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 
-	_, err := s.scope.applyInstance(instance)
+	_, err := s.manager.applyInstance(instance)
 	c.Assert(err, gocheck.NotNil)
 }
