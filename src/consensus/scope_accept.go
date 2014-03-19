@@ -20,8 +20,8 @@ func makeAcceptCommitTimeout() time.Time {
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	return s.acceptInstance(inst, incrementBallot)
+func (m *Manager) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
+	return m.acceptInstance(inst, incrementBallot)
 }
 
 // sets the given instance as accepted
@@ -31,29 +31,29 @@ func (s *Scope) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error
 // instance to the scope's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
+func (m *Manager) acceptInstance(inst *Instance, incrementBallot bool) error {
 	start := time.Now()
-	defer s.statsTiming("accept.instance.time", start)
-	s.statsInc("accept.instance.count", 1)
+	defer m.statsTiming("accept.instance.time", start)
+	m.statsInc("accept.instance.count", 1)
 
-	instance, existed := s.getOrSetInstance(inst)
+	instance, existed := m.getOrSetInstance(inst)
 
 	if existed {
 		logger.Debug("Accept: accepting existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("Accept: accepting new instance %v", inst.InstanceID)
-		s.statsInc("accept.instance.new", 1)
+		m.statsInc("accept.instance.new", 1)
 	}
 
 	if err := instance.accept(inst, incrementBallot); err != nil {
-		s.statsInc("accept.instance.error", 1)
+		m.statsInc("accept.instance.error", 1)
 		return err
 	}
 
-	s.inProgress.Add(instance)
-	s.updateSeq(instance.getSeq())
-	if err := s.Persist(); err != nil {
-		s.statsInc("accept.instance.error", 1)
+	m.inProgress.Add(instance)
+	m.updateSeq(instance.getSeq())
+	if err := m.Persist(); err != nil {
+		m.statsInc("accept.instance.error", 1)
 		return err
 	}
 
@@ -61,10 +61,10 @@ func (s *Scope) acceptInstance(inst *Instance, incrementBallot bool) error {
 	return nil
 }
 
-func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
+func (m *Manager) sendAccept(instance *Instance, replicas []node.Node) error {
 	start := time.Now()
-	defer s.statsTiming("accept.message.send.time", start)
-	s.statsInc("accept.message.send.count", 1)
+	defer m.statsTiming("accept.message.send.time", start)
+	m.statsInc("accept.message.send.count", 1)
 
 	// send the message
 	recvChan := make(chan *AcceptResponse, len(replicas))
@@ -73,7 +73,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 		return err
 	}
 	// TODO: send missing instances
-	msg := &AcceptRequest{Scope: s.name, Instance: instanceCopy}
+	msg := &AcceptRequest{Instance: instanceCopy}
 	sendMsg := func(n node.Node) {
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving AcceptResponse: %v", err)
@@ -103,7 +103,7 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 			responses = append(responses, response)
 			numReceived++
 		case <-timeoutEvent:
-			s.statsInc("accept.message.send.timeout", 1)
+			m.statsInc("accept.message.send.timeout", 1)
 			logger.Info("Accept timeout for instance: %v", instance.InstanceID)
 			return NewTimeoutError("Timeout while awaiting accept responses")
 		}
@@ -118,30 +118,30 @@ func (s *Scope) sendAccept(instance *Instance, replicas []node.Node) error {
 
 	// handle rejected accept messages
 	if !accepted {
-		s.statsInc("accept.message.send.rejected", 1)
+		m.statsInc("accept.message.send.rejected", 1)
 		logger.Info("Accept request rejected for instance %v", instance.InstanceID)
 		// update max ballot from responses
 		bmResponses := make([]BallotMessage, len(responses))
 		for i, response := range responses {
 			bmResponses[i] = BallotMessage(response)
 		}
-		s.updateInstanceBallotFromResponses(instance, bmResponses)
+		m.updateInstanceBallotFromResponses(instance, bmResponses)
 		return NewBallotError("Ballot number rejected")
 	}
 	return nil
 }
 
 // assigned to var for testing
-var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
+var scopeAcceptPhase = func(m *Manager, instance *Instance) error {
 	start := time.Now()
-	defer s.statsTiming("accept.phase.time", start)
-	s.statsInc("accept.phase.count", 1)
+	defer m.statsTiming("accept.phase.time", start)
+	m.statsInc("accept.phase.count", 1)
 
 	logger.Debug("Accept phase started")
 
-	replicas := s.manager.getScopeReplicas(s)
+	replicas := m.cluster.GetNodesForKey(instance.Commands[0].Key)
 
-	if err := s.acceptInstance(instance, true); err != nil {
+	if err := m.acceptInstance(instance, true); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return err
 		}
@@ -149,46 +149,46 @@ var scopeAcceptPhase = func(s *Scope, instance *Instance) error {
 
 	// the given instance is out of date if it was new to this
 	// node, switch over to the local instance
-	instance = s.instances.Get(instance.InstanceID)
+	instance = m.instances.Get(instance.InstanceID)
 
-	if err := s.sendAccept(instance, replicas); err != nil {
+	if err := m.sendAccept(instance, replicas); err != nil {
 		return err
 	}
 	logger.Debug("Accept phase completed")
 	return nil
 }
 
-func (s *Scope) acceptPhase(instance *Instance) error {
-	return scopeAcceptPhase(s, instance)
+func (m *Manager) acceptPhase(instance *Instance) error {
+	return scopeAcceptPhase(m, instance)
 }
 
 // handles an accept message from the command leader for an instance
 // this executes the replica accept phase for the given instance
-func (s *Scope) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
-	s.statsInc("accept.message.received.count", 1)
+func (m *Manager) HandleAccept(request *AcceptRequest) (*AcceptResponse, error) {
+	m.statsInc("accept.message.received.count", 1)
 	start := time.Now()
-	defer s.statsTiming("accept.message.response.time", start)
+	defer m.statsTiming("accept.message.response.time", start)
 
 	logger.Debug("Accept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
 	if len(request.MissingInstances) > 0 {
 		logger.Debug("Accept: adding %v missing instances", len(request.MissingInstances))
-		s.addMissingInstancesUnsafe(request.MissingInstances...)
+		m.addMissingInstancesUnsafe(request.MissingInstances...)
 	}
 
 	// should the ballot even matter here? If we're receiving an accept response,
 	// it means that a quorum of preaccept responses were received by a node
-	if instance := s.instances.Get(request.Instance.InstanceID); instance != nil {
+	if instance := m.instances.Get(request.Instance.InstanceID); instance != nil {
 		if ballot := instance.getBallot(); ballot >= request.Instance.MaxBallot {
-			s.statsInc("accept.message.response.rejected", 1)
+			m.statsInc("accept.message.response.rejected", 1)
 			logger.Info("Accept message for %v rejected, %v >= %v", request.Instance.InstanceID, ballot, request.Instance.MaxBallot)
 			return &AcceptResponse{Accepted: false, MaxBallot: ballot}, nil
 		}
 	}
 
-	if err := s.acceptInstance(request.Instance, false); err != nil {
+	if err := m.acceptInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			s.statsInc("accept.message.response.error", 1)
+			m.statsInc("accept.message.response.error", 1)
 			return nil, err
 		}
 	}
