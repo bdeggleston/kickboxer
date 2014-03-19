@@ -19,43 +19,42 @@ func setBreakpoint() {
 	runtime.Breakpoint()
 }
 
-func setupDeps(scope *Scope) {
+func setupDeps(manager *Manager) {
 	seq := uint64(0)
 	for i := 0; i < 4; i++ {
 		seq++
-		instance := scope.makeInstance(getBasicInstruction())
+		instance := manager.makeInstance(getBasicInstruction())
 		instance.Status = INSTANCE_EXECUTED
 		instance.Sequence = seq
-		scope.instances.Add(instance)
-		scope.executed = append(scope.executed, instance.InstanceID)
+		manager.instances.Add(instance)
+		manager.executed = append(manager.executed, instance.InstanceID)
 	}
 	for i := 0; i < 4; i++ {
 		seq++
-		instance := scope.makeInstance(getBasicInstruction())
+		instance := manager.makeInstance(getBasicInstruction())
 		instance.Status = INSTANCE_COMMITTED
 		instance.Sequence = seq
-		scope.instances.Add(instance)
-		scope.committed.Add(instance)
+		manager.instances.Add(instance)
+		manager.committed.Add(instance)
 	}
 	for i := 0; i < 4; i++ {
 		seq++
-		instance := scope.makeInstance(getBasicInstruction())
+		instance := manager.makeInstance(getBasicInstruction())
 		if i > 1 {
 			instance.Status = INSTANCE_ACCEPTED
 		} else {
 			instance.Status = INSTANCE_PREACCEPTED
 		}
 		instance.Sequence = seq
-		scope.instances.Add(instance)
-		scope.inProgress.Add(instance)
+		manager.instances.Add(instance)
+		manager.inProgress.Add(instance)
 	}
 }
 
-func setupScope() *Scope {
+func setupScope() *Manager {
 	manager := NewManager(newMockCluster())
-	scope := NewScope("a", manager)
-	setupDeps(scope)
-	return scope
+	setupDeps(manager)
+	return manager
 }
 
 // returns a set of mock nodes of the given size
@@ -139,7 +138,6 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 type baseScopeTest struct {
 	cluster *mockCluster
 	manager *Manager
-	scope *Scope
 }
 
 func (s *baseScopeTest) getInstructions(values ...int) []*store.Instruction {
@@ -154,14 +152,13 @@ func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
 	s.cluster = newMockCluster()
 	s.manager = NewManager(s.cluster)
 	s.manager.stats = newMockStatter()
-	s.scope = NewScope("a", s.manager)
 }
 
 type baseReplicaTest struct {
 	baseScopeTest
 	nodes []*mockNode
-	scopes []*Scope
-	replicaScopes []*Scope
+	scopes []*Manager
+	replicaScopes []*Manager
 	leader *mockNode
 	replicas []*mockNode
 	nodeMap map[node.NodeId]*mockNode
@@ -180,8 +177,8 @@ func (s *baseReplicaTest) SetUpSuite(c *gocheck.C) {
 func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	c.Assert(s.numNodes > 2, gocheck.Equals, true)
 	s.nodes = setupReplicaSet(s.numNodes)
-	s.scopes = make([]*Scope, s.numNodes)
-	s.replicaScopes = make([]*Scope, s.numNodes - 1)
+	s.scopes = make([]*Manager, s.numNodes)
+	s.replicaScopes = make([]*Manager, s.numNodes - 1)
 
 	s.nodeMap = make(map[node.NodeId]*mockNode, s.numNodes)
 	for _, n := range s.nodes {
@@ -194,11 +191,10 @@ func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 	s.manager = s.leader.manager
 	s.manager.stats = newMockStatter()
 	s.cluster = s.manager.cluster.(*mockCluster)
-	s.scope = s.manager.getScope("a")
 	for i, n := range s.nodes {
-		s.scopes[i] = n.manager.getScope("a")
+		s.scopes[i] = n.manager
 	}
 	for i, n := range s.replicas {
-		s.replicaScopes[i] = n.manager.getScope("a")
+		s.replicaScopes[i] = n.manager
 	}
 }
