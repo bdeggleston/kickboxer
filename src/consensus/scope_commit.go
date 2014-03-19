@@ -16,47 +16,47 @@ func makeExecuteTimeout() time.Time {
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
-// instance to the scope's instance
+// instance to the manager's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error {
-	return s.commitInstance(inst, incrementBallot)
+func (m *Manager) commitInstanceUnsafe(inst *Instance, incrementBallot bool) error {
+	return m.commitInstance(inst, incrementBallot)
 }
 
 // sets the given instance as committed
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
-// instance to the scope's instance
+// instance to the manager's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
-func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
+func (m *Manager) commitInstance(inst *Instance, incrementBallot bool) error {
 	start := time.Now()
-	defer s.statsTiming("commit.instance.time", start)
-	s.statsInc("commit.instance.count", 1)
-	instance, existed := s.getOrSetInstance(inst)
+	defer m.statsTiming("commit.instance.time", start)
+	m.statsInc("commit.instance.count", 1)
+	instance, existed := m.getOrSetInstance(inst)
 
 	if existed {
 		logger.Debug("Commit: committing existing instance %v", inst.InstanceID)
 	} else {
 		logger.Debug("Commit: committing new instance %v", inst.InstanceID)
-		s.statsInc("commit.instance.new", 1)
+		m.statsInc("commit.instance.new", 1)
 	}
 
 	if err := instance.commit(inst, incrementBallot); err != nil {
-		s.statsInc("commit.instance.error", 1)
+		m.statsInc("commit.instance.error", 1)
 		return err
 	}
 
-	s.updateSeq(instance.getSeq())
+	m.updateSeq(instance.getSeq())
 
-	// update scope bookeeping
-	s.instances.Add(instance)
-	s.committed.Add(instance)
-	s.inProgress.Remove(instance)
+	// update manager bookeeping
+	m.instances.Add(instance)
+	m.committed.Add(instance)
+	m.inProgress.Remove(instance)
 
-	if err := s.Persist(); err != nil {
-		s.statsInc("commit.instance.error", 1)
+	if err := m.Persist(); err != nil {
+		m.statsInc("commit.instance.error", 1)
 		return err
 	}
 
@@ -73,16 +73,16 @@ func (s *Scope) commitInstance(inst *Instance, incrementBallot bool) error {
 // a quorum of nodes have agreed on the dependency graph for this instance, they
 // won't be able to do anything else without finding out about it. This method
 // will only return an error if persisting the committed state fails
-func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
+func (m *Manager) sendCommit(instance *Instance, replicas []node.Node) error {
 	start := time.Now()
-	defer s.statsTiming("commit.message.send.time", start)
-	s.statsInc("commit.message.send.count", 1)
+	defer m.statsTiming("commit.message.send.time", start)
+	m.statsInc("commit.message.send.count", 1)
 
 	instanceCopy, err := instance.Copy()
 	if err != nil {
 		return err
 	}
-	msg := &CommitRequest{Scope: s.name, Instance: instanceCopy}
+	msg := &CommitRequest{Instance: instanceCopy}
 	sendCommitMessage := func(n node.Node) { n.SendMessage(msg) }
 	for _, replica := range replicas {
 		go sendCommitMessage(replica)
@@ -90,15 +90,15 @@ func (s *Scope) sendCommit(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
-var scopeCommitPhase = func(s *Scope, instance *Instance) error {
+var scopeCommitPhase = func(m *Manager, instance *Instance) error {
 	start := time.Now()
-	defer s.statsTiming("commit.phase.time", start)
-	s.statsInc("commit.phase.count", 1)
+	defer m.statsTiming("commit.phase.time", start)
+	m.statsInc("commit.phase.count", 1)
 
 	logger.Debug("Commit phase started for %v", instance.InstanceID)
-	replicas := s.manager.getScopeReplicas(s)
+	replicas := m.getInstanceReplicas(instance)
 
-	if err := s.commitInstance(instance, true); err != nil {
+	if err := m.commitInstance(instance, true); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
 			return err
 		}
@@ -106,25 +106,25 @@ var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 
 	// the given instance is out of date if it was new to this
 	// node, switch over to the local instance
-	instance = s.instances.Get(instance.InstanceID)
+	instance = m.instances.Get(instance.InstanceID)
 
-	if err := s.sendCommit(instance, replicas); err != nil {
+	if err := m.sendCommit(instance, replicas); err != nil {
 		return err
 	}
 	logger.Debug("Commit phase completed for %v", instance.InstanceID)
 	return nil
 }
 
-func (s *Scope) commitPhase(instance *Instance) error {
-	return scopeCommitPhase(s, instance)
+func (m *Manager) commitPhase(instance *Instance) error {
+	return scopeCommitPhase(m, instance)
 }
 
 // handles an commit message from the command leader for an instance
 // this executes the replica commit phase for the given instance
-func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
-	s.statsInc("commit.message.received", 1)
+func (m *Manager) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
+	m.statsInc("commit.message.received", 1)
 	start := time.Now()
-	defer s.statsTiming("commit.message.response.time", start)
+	defer m.statsTiming("commit.message.response.time", start)
 
 	logger.Debug("Commit message received, ballot: %v", request.Instance.MaxBallot)
 
@@ -137,9 +137,9 @@ func (s *Scope) HandleCommit(request *CommitRequest) (*CommitResponse, error) {
 //		}
 //	}
 
-	if err := s.commitInstance(request.Instance, false); err != nil {
+	if err := m.commitInstance(request.Instance, false); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
-			s.statsInc("commit.message.response.error", 1)
+			m.statsInc("commit.message.response.error", 1)
 			return nil, err
 		}
 	} else {
