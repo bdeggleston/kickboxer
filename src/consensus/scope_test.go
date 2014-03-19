@@ -46,9 +46,9 @@ var _ = gocheck.Suite(&ScopeTest{})
 // test that instances are created properly
 func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
-	instance := s.scope.makeInstance(instructions)
+	instance := s.manager.makeInstance(instructions)
 	c.Check(instance.MaxBallot, gocheck.Equals, uint32(0))
-	c.Check(instance.LeaderID, gocheck.Equals, s.scope.GetLocalID())
+	c.Check(instance.LeaderID, gocheck.Equals, s.manager.GetLocalID())
 
 	// check successors
 	c.Assert(len(instance.Successors), gocheck.Equals, s.numNodes - 1)
@@ -66,43 +66,43 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 }
 
 func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
-	setupDeps(s.scope)
+	setupDeps(s.manager)
 	expected := NewInstanceIDSet([]InstanceID{})
-	expected.Add(s.scope.inProgress.InstanceIDs()...)
-	expected.Add(s.scope.committed.InstanceIDs()...)
-	expected.Add(s.scope.executed[len(s.scope.executed) - 1])
+	expected.Add(s.manager.inProgress.InstanceIDs()...)
+	expected.Add(s.manager.committed.InstanceIDs()...)
+	expected.Add(s.manager.executed[len(s.manager.executed) - 1])
 
 	// sanity checks
-	c.Assert(s.scope.inProgress.Len(), gocheck.Equals, 4)
-	c.Assert(s.scope.committed.Len(), gocheck.Equals, 4)
-	c.Assert(len(s.scope.executed), gocheck.Equals, 4)
+	c.Assert(s.manager.inProgress.Len(), gocheck.Equals, 4)
+	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
+	c.Assert(len(s.manager.executed), gocheck.Equals, 4)
 
-	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.manager.getCurrentDepsUnsafe())
 
 	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }
 
-// tests that scope doesn't try to add executed instances
+// tests that manager doesn't try to add executed instances
 // if no instances have been executed yet
 func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
-	setupDeps(s.scope)
-	s.scope.executed = []InstanceID{}
-	expected := NewInstanceIDSet(s.scope.inProgress.InstanceIDs())
-	expected.Add(s.scope.committed.InstanceIDs()...)
+	setupDeps(s.manager)
+	s.manager.executed = []InstanceID{}
+	expected := NewInstanceIDSet(s.manager.inProgress.InstanceIDs())
+	expected.Add(s.manager.committed.InstanceIDs()...)
 
 	// sanity checks
-	c.Assert(s.scope.inProgress.Len(), gocheck.Equals, 4)
-	c.Assert(s.scope.committed.Len(), gocheck.Equals, 4)
-	c.Assert(len(s.scope.executed), gocheck.Equals, 0)
+	c.Assert(s.manager.inProgress.Len(), gocheck.Equals, 4)
+	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
+	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
 
-	actual := NewInstanceIDSet(s.scope.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.manager.getCurrentDepsUnsafe())
 
 	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }
 
 func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
-	s.scope.maxSeq = 5
-	nextSeq := s.scope.getNextSeqUnsafe()
+	s.manager.maxSeq = 5
+	nextSeq := s.manager.getNextSeqUnsafe()
 
 	c.Assert(nextSeq, gocheck.Equals, uint64(6))
 }
@@ -111,66 +111,66 @@ func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
 func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
 	var err error
 	getInst := func(status InstanceStatus) *Instance {
-		inst := s.scope.makeInstance(getBasicInstruction())
+		inst := s.manager.makeInstance(getBasicInstruction())
 		inst.Status = status
 		return inst
 	}
 
 	// preaccepted
 	preAccepted := getInst(INSTANCE_PREACCEPTED)
-	c.Assert(s.scope.instances.Contains(preAccepted), gocheck.Equals, false)
-	err = s.scope.addMissingInstances(preAccepted)
+	c.Assert(s.manager.instances.Contains(preAccepted), gocheck.Equals, false)
+	err = s.manager.addMissingInstances(preAccepted)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances.Contains(preAccepted), gocheck.Equals, true)
-	c.Assert(s.scope.inProgress.Contains(preAccepted), gocheck.Equals, true)
+	c.Assert(s.manager.instances.Contains(preAccepted), gocheck.Equals, true)
+	c.Assert(s.manager.inProgress.Contains(preAccepted), gocheck.Equals, true)
 	c.Assert(preAccepted.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
 	// accepted
 	accepted := getInst(INSTANCE_ACCEPTED)
-	c.Assert(s.scope.instances.Contains(accepted), gocheck.Equals, false)
-	err = s.scope.addMissingInstances(accepted)
+	c.Assert(s.manager.instances.Contains(accepted), gocheck.Equals, false)
+	err = s.manager.addMissingInstances(accepted)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances.Contains(accepted), gocheck.Equals, true)
-	c.Assert(s.scope.inProgress.Contains(accepted), gocheck.Equals, true)
+	c.Assert(s.manager.instances.Contains(accepted), gocheck.Equals, true)
+	c.Assert(s.manager.inProgress.Contains(accepted), gocheck.Equals, true)
 	c.Assert(accepted.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 
 	// committed
 	committed := getInst(INSTANCE_COMMITTED)
-	c.Assert(s.scope.instances.Contains(committed), gocheck.Equals, false)
-	err = s.scope.addMissingInstances(committed)
+	c.Assert(s.manager.instances.Contains(committed), gocheck.Equals, false)
+	err = s.manager.addMissingInstances(committed)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances.Contains(committed), gocheck.Equals, true)
-	c.Assert(s.scope.committed.Contains(committed), gocheck.Equals, true)
+	c.Assert(s.manager.instances.Contains(committed), gocheck.Equals, true)
+	c.Assert(s.manager.committed.Contains(committed), gocheck.Equals, true)
 	c.Assert(committed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 
 	// executed
 	executed := getInst(INSTANCE_EXECUTED)
-	c.Assert(s.scope.instances.Contains(executed), gocheck.Equals, false)
-	err = s.scope.addMissingInstances(executed)
+	c.Assert(s.manager.instances.Contains(executed), gocheck.Equals, false)
+	err = s.manager.addMissingInstances(executed)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(s.scope.instances.Contains(executed), gocheck.Equals, true)
-	c.Assert(s.scope.committed.Contains(executed), gocheck.Equals, true)
-	c.Assert(len(s.scope.executed), gocheck.Equals, 0)
+	c.Assert(s.manager.instances.Contains(executed), gocheck.Equals, true)
+	c.Assert(s.manager.committed.Contains(executed), gocheck.Equals, true)
+	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
 	c.Assert(executed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
 //
 func (s *ScopeTest) TestGetOrSetNewInstance(c *gocheck.C) {
-	instance, existed := s.scope.getOrSetInstance(makeInstance(node.NewNodeId(), []InstanceID{}))
-	c.Assert(instance.scope, gocheck.Equals, s.scope)
+	instance, existed := s.manager.getOrSetInstance(makeInstance(node.NewNodeId(), []InstanceID{}))
+	c.Assert(instance.manager, gocheck.Equals, s.manager)
 	c.Assert(existed, gocheck.Equals, false)
 }
 
 func (s *ScopeTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 	getInst := func(status InstanceStatus) *Instance {
-		inst := s.scope.makeInstance(getBasicInstruction())
+		inst := s.manager.makeInstance(getBasicInstruction())
 		inst.Status = status
 		return inst
 	}
 	instance := getInst(INSTANCE_PREACCEPTED)
-	s.scope.instances.Add(instance)
+	s.manager.instances.Add(instance)
 
-	_, existed := s.scope.getOrSetInstance(instance)
+	_, existed := s.manager.getOrSetInstance(instance)
 	c.Assert(existed, gocheck.Equals, true)
 }
 
@@ -178,12 +178,12 @@ func (s *ScopeTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 // new instance has an status of executed
 func (s *ScopeTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
 	getInst := func(status InstanceStatus) *Instance {
-		inst := s.scope.makeInstance(getBasicInstruction())
+		inst := s.manager.makeInstance(getBasicInstruction())
 		inst.Status = status
 		return inst
 	}
 
-	instance, _ := s.scope.getOrSetInstance(getInst(INSTANCE_EXECUTED))
+	instance, _ := s.manager.getOrSetInstance(getInst(INSTANCE_EXECUTED))
 	c.Assert(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
