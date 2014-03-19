@@ -22,6 +22,16 @@ type Manager struct {
 	lock     sync.RWMutex
 	cluster  cluster.Cluster
 	stats    statsd.Statter
+
+	instances    *InstanceMap
+	inProgress   *InstanceMap
+	committed    *InstanceMap
+
+	executed     []InstanceID
+	executedLock sync.RWMutex
+
+	maxSeq       uint64
+	maxSeqLock   sync.RWMutex
 }
 
 func NewManager(cluster cluster.Cluster) *Manager {
@@ -30,6 +40,10 @@ func NewManager(cluster cluster.Cluster) *Manager {
 		scopeMap: make(map[string]*Scope),
 		cluster:  cluster,
 		stats:    stats,
+		instances:  NewInstanceMap(),
+		inProgress: NewInstanceMap(),
+		committed:  NewInstanceMap(),
+		executed:   make([]InstanceID, 0, 16),
 	}
 }
 
