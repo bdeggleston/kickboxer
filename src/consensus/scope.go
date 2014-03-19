@@ -385,14 +385,14 @@ func (m *Manager) updateSeq(seq uint64) error {
 
 // creates a bare epaxos instance from the given instructions
 func (m *Manager) makeInstance(instructions []*store.Instruction) *Instance {
-	replicas := m.cluster.GetNodesForKey(instructions[0].Key)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     m.GetLocalID(),
 		Commands:     instructions,
-		Successors:   make([]node.NodeId, len(replicas)),
-		manager:		  m,
+		manager:	  m,
 	}
+	replicas := m.getInstanceReplicas(instance)
+	instance.Successors = make([]node.NodeId, len(replicas))
 
 	// add randomly ordered successors
 	for i, j := range rand.Perm(len(replicas)) {
