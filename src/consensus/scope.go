@@ -212,11 +212,6 @@ Variable datacenter consistency:
 			table replication: Have tables that are not replicated across datacenters.
  */
 
-func makeConditional() *sync.Cond {
-	lock := &sync.Mutex{}
-	return sync.NewCond(lock)
-}
-
 // wraps the conditional struct
 // and handles all of the locking
 type event struct {
