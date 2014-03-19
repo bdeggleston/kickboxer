@@ -7,7 +7,6 @@ import (
 
 import (
 	"message"
-	"serializer"
 )
 
 type BallotMessage interface {
