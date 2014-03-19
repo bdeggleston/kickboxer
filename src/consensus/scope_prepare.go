@@ -119,7 +119,7 @@ var scopeSendPrepare = func(m *Manager, instance *Instance) ([]*PrepareResponse,
 
 	recvChan := make(chan *PrepareResponse, len(replicas))
 	sendMsg := func(n node.Node) {
-		logger.Debug("Sending prepare request to node %v with ballot", n.GetId(), msg.Ballot)
+		logger.Debug("Sending prepare request to node %v with ballot %v", n.GetId(), msg.Ballot)
 		if response, err := n.SendMessage(msg); err != nil {
 			logger.Warning("Error receiving PrepareResponse: %v", err)
 		} else {

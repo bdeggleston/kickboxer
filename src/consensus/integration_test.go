@@ -359,7 +359,9 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 	}
 	err = s.manager.preparePhase(instance)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
+	// ballot +3: prepare, acceptm and commit messages
+	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 3)
+	c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_COMMITTED)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 }
 
