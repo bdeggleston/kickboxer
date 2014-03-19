@@ -17,8 +17,8 @@ import (
 type basePrepareTest struct {
 	baseScopeTest
 
-	oldScopePreparePhase func(*Scope, *Instance) error
-	oldScopePrepareApply func(*Scope, *Instance, []*PrepareResponse) error
+	oldScopePreparePhase func(*Manager, *Instance) error
+	oldScopePrepareApply func(*Manager, *Instance, []*PrepareResponse) error
 
 	instance *Instance
 
@@ -32,7 +32,7 @@ func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 	s.oldScopePreparePhase = scopePreparePhase
 	s.oldScopePrepareApply = scopePrepareApply
 
-	s.instance = s.scope.makeInstance(getBasicInstruction())
+	s.instance = s.manager.makeInstance(getBasicInstruction())
 
 	s.preAcceptCalls = 0
 	s.acceptCalls = 0
@@ -40,21 +40,21 @@ func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 }
 
 func (s *basePrepareTest) patchPreAccept(r bool, e error) {
-	scopePreAcceptPhase = func(_ *Scope, _ *Instance) (bool, error) {
+	scopePreAcceptPhase = func(_ *Manager, _ *Instance) (bool, error) {
 		s.preAcceptCalls++
 		return r, e
 	}
 }
 
 func (s *basePrepareTest) patchAccept(e error) {
-	scopeAcceptPhase = func(_ *Scope, _ *Instance) (error) {
+	scopeAcceptPhase = func(_ *Manager, _ *Instance) (error) {
 		s.acceptCalls++
 		return e
 	}
 }
 
 func (s *basePrepareTest) patchCommit(e error) {
-	scopeCommitPhase = func(_ *Scope, _ *Instance) (error) {
+	scopeCommitPhase = func(_ *Manager, _ *Instance) (error) {
 		s.commitCalls++
 		return e
 	}
@@ -72,7 +72,7 @@ type PrepareLeaderTest struct {
 
 	instance *Instance
 	oldPrepareTimeout uint64
-	oldDeferToSuccessor func(s *Scope, instance *Instance) (bool, error)
+	oldDeferToSuccessor func(s *Manager, instance *Instance) (bool, error)
 }
 
 var _ = gocheck.Suite(&PrepareLeaderTest{})
@@ -82,7 +82,7 @@ func (s *PrepareLeaderTest) SetUpSuite(c *gocheck.C) {
 	s.oldPrepareTimeout = PREPARE_TIMEOUT
 	PREPARE_TIMEOUT = 50
 	s.oldDeferToSuccessor = scopeDeferToSuccessor
-	scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
+	scopeDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
 		return true, nil
 	}
 }
@@ -94,7 +94,7 @@ func (s *PrepareLeaderTest) TearDownSuite(c *gocheck.C) {
 
 func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
-	s.instance = s.scope.makeInstance(getBasicInstruction())
+	s.instance = s.manager.makeInstance(getBasicInstruction())
 }
 
 // tests that the local ballot is incremented before the
@@ -117,7 +117,7 @@ func (s *PrepareLeaderTest) TestSendSuccess(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := scopeSendPrepare(s.scope, s.instance)
+	responses, err := scopeSendPrepare(s.manager, s.instance)
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
@@ -145,7 +145,7 @@ func (s *PrepareLeaderTest) TestQuorumFailure(c *gocheck.C) {
 		}
 	}
 
-	responses, err := scopeSendPrepare(s.scope, s.instance)
+	responses, err := scopeSendPrepare(s.manager, s.instance)
 	runtime.Gosched()
 	c.Assert(responses, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
@@ -170,10 +170,10 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := scopeSendPrepare(s.scope, s.instance)
+	responses, err := scopeSendPrepare(s.manager, s.instance)
 	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(6))
 	runtime.Gosched()
-	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
+	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -213,7 +213,7 @@ func (s *PrepareAnalyzeResponsesTest) TestSuccessCase(c *gocheck.C) {
 	addResponse(uint32(5), INSTANCE_ACCEPTED)
 	addResponse(uint32(5), INSTANCE_COMMITTED)
 
-	instance := s.scope.analyzePrepareResponses(responses)
+	instance := s.manager.analyzePrepareResponses(responses)
 	c.Assert(instance, gocheck.NotNil)
 	c.Check(instance.MaxBallot, gocheck.Equals, uint32(5))
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -228,14 +228,14 @@ func (s *PrepareAnalyzeResponsesTest) TestMixedNilResponses(c *gocheck.C) {
 // tests the prepare phase method
 type PreparePhaseTest struct {
 	basePrepareTest
-	oldDeferToSuccessor func(s *Scope, instance *Instance) (bool, error)
+	oldDeferToSuccessor func(s *Manager, instance *Instance) (bool, error)
 }
 
 var _ = gocheck.Suite(&PreparePhaseTest{})
 
 func (s *PreparePhaseTest) SetUpSuite(c *gocheck.C) {
 	s.oldDeferToSuccessor = scopeDeferToSuccessor
-	scopeDeferToSuccessor = func(s *Scope, instance *Instance) (bool, error) {
+	scopeDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
 		return true, nil
 	}
 }
@@ -248,18 +248,18 @@ func (s *PreparePhaseTest) TearDownSuite(c *gocheck.C) {
 // if the instance has been committed
 func (s *PreparePhaseTest) TestInstanceCommittedAbort(c *gocheck.C) {
 	var err error
-	err = s.scope.commitInstance(s.instance, false)
+	err = s.manager.commitInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	prepareCalls := 0
-	scopePreparePhase = func(s *Scope, i *Instance) error {
+	scopePreparePhase = func(s *Manager, i *Instance) error {
 		prepareCalls++
 		return nil
 	}
 	// sanity check
 	c.Assert(prepareCalls, gocheck.Equals, 0)
 
-	err = s.scope.preparePhase(s.instance)
+	err = s.manager.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 0)
 }
@@ -267,21 +267,21 @@ func (s *PreparePhaseTest) TestInstanceCommittedAbort(c *gocheck.C) {
 // tests that the prepare phase immediately starts if the
 // given instance is past it's commit grace period
 func (s *PreparePhaseTest) TestCommitExpiredTimeout(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance, false)
+	s.manager.preAcceptInstance(s.instance, false)
 	s.instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
 
 	prepareCalls := 0
-	scopePreparePhase = func(s *Scope, i *Instance) error {
+	scopePreparePhase = func(s *Manager, i *Instance) error {
 		prepareCalls++
 		return nil
 	}
 	// sanity check
 	c.Assert(prepareCalls, gocheck.Equals, 0)
 
-	err := s.scope.preparePhase(s.instance)
+	err := s.manager.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["prepare.proceed.timeout.count"], gocheck.Equals, int64(2))
 	c.Check(stats.counters["prepare.proceed.timeout.wait.count"], gocheck.Equals, int64(0))
 }
@@ -289,21 +289,21 @@ func (s *PreparePhaseTest) TestCommitExpiredTimeout(c *gocheck.C) {
 // tests that the prepare phase starts after the commit grace
 // period if another goroutine does not commit it first
 func (s *PreparePhaseTest) TestCommitTimeout(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance, false)
+	s.manager.preAcceptInstance(s.instance, false)
 	s.instance.commitTimeout = time.Now().Add(time.Duration(2) * time.Millisecond)
 
 	prepareCalls := 0
-	scopePreparePhase = func(s *Scope, i *Instance) error {
+	scopePreparePhase = func(s *Manager, i *Instance) error {
 		prepareCalls++
 		return nil
 	}
 	// sanity check
 	c.Assert(prepareCalls, gocheck.Equals, 0)
 
-	err := s.scope.preparePhase(s.instance)
+	err := s.manager.preparePhase(s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 1)
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["prepare.proceed.timeout.count"], gocheck.Equals, int64(2))
 	c.Check(stats.counters["prepare.proceed.timeout.wait.count"], gocheck.Equals, int64(1))
 }
@@ -312,13 +312,13 @@ func (s *PreparePhaseTest) TestCommitTimeout(c *gocheck.C) {
 // cond if it's within the commit grace period, and will abort
 // the prepare if another goroutine commits the instance first
 func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance, false)
+	s.manager.preAcceptInstance(s.instance, false)
 	s.instance.commitTimeout = time.Now().Add(time.Duration(10) * time.Second)
 
 	s.instance.getCommitEvent()
 
 	prepareCalls := 0
-	scopePreparePhase = func(s *Scope, i *Instance) error {
+	scopePreparePhase = func(s *Manager, i *Instance) error {
 		prepareCalls++
 		return nil
 	}
@@ -326,7 +326,7 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 	c.Assert(prepareCalls, gocheck.Equals, 0)
 
 	var err error
-	go func() { err = s.scope.preparePhase(s.instance) }()
+	go func() { err = s.manager.preparePhase(s.instance) }()
 	runtime.Gosched()
 
 	// release wait
@@ -337,7 +337,7 @@ func (s *PreparePhaseTest) TestCommitNotify(c *gocheck.C) {
 
 	c.Assert(err, gocheck.IsNil)
 	c.Check(prepareCalls, gocheck.Equals, 0)
-	stats := s.scope.manager.stats.(*mockStatter)
+	stats := s.manager.stats.(*mockStatter)
 	c.Check(stats.counters["prepare.proceed.timeout.count"], gocheck.Equals, int64(0))
 	c.Check(stats.counters["prepare.proceed.commit.wait.broadcast.count"], gocheck.Equals, int64(1))
 }
@@ -362,7 +362,7 @@ func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
 	}
-	err := scopePrepareCheckResponses(s.scope, s.instance, responses)
+	err := scopePrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 }
 
@@ -377,7 +377,7 @@ func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
 
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
-	err := scopePrepareCheckResponses(s.scope, s.instance, responses)
+	err := scopePrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 }
@@ -387,7 +387,7 @@ func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
 // local instance should be update with it's status and attributes
 func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
 	var err error
-	err = s.scope.preAcceptInstance(s.instance, false)
+	err = s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
@@ -402,7 +402,7 @@ func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
 
-	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
+	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -418,7 +418,7 @@ func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
 // local instance should be update with it's status and attributes
 func (s *PrepareCheckResponsesTest) TestCommitStatusUpdate(c *gocheck.C) {
 	var err error
-	err = s.scope.acceptInstance(s.instance, false)
+	err = s.manager.acceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
@@ -433,7 +433,7 @@ func (s *PrepareCheckResponsesTest) TestCommitStatusUpdate(c *gocheck.C) {
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
 
-	err = scopePrepareCheckResponses(s.scope, s.instance, responses)
+	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -465,7 +465,7 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -491,7 +491,7 @@ func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -514,7 +514,7 @@ func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
 	// patch methods
 	s.patchPreAccept(false, fmt.Errorf("Nope"))
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 1)
@@ -536,7 +536,7 @@ func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -559,7 +559,7 @@ func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
 	// patch methods
 	s.patchAccept(fmt.Errorf("Nope"))
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -580,7 +580,7 @@ func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -603,7 +603,7 @@ func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -624,7 +624,7 @@ func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -647,7 +647,7 @@ func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 	// patch methods
 	s.patchCommit(fmt.Errorf("Nope"))
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 
 	c.Check(s.preAcceptCalls, gocheck.Equals, 0)
@@ -659,7 +659,7 @@ func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
 // responses return higher ballot numbers
 func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	var err error
-	err = s.scope.preAcceptInstance(s.instance, false)
+	err = s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
@@ -675,7 +675,7 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err = scopePrepareApply(s.scope, s.instance, responses)
+	err = scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -699,7 +699,7 @@ func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
 	s.patchAccept(nil)
 	s.patchCommit(nil)
 
-	err := scopePrepareApply(s.scope, s.instance, responses)
+	err := scopePrepareApply(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.instance.Noop, gocheck.Equals, true)
@@ -719,22 +719,21 @@ var _ = gocheck.Suite(&PrepareReplicaTest{})
 
 func (s *PrepareReplicaTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
-	s.instance = s.scope.makeInstance(getBasicInstruction())
+	s.instance = s.manager.makeInstance(getBasicInstruction())
 }
 
 // tests that a prepare request with an incremented ballot
 // number is accepted
 func (s *PrepareReplicaTest) TestSuccessCase(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance, false)
+	s.manager.preAcceptInstance(s.instance, false)
 	s.instance.MaxBallot = 5
 
 	request := &PrepareRequest{
-		Scope: s.scope.name,
 		Ballot: s.instance.MaxBallot + 1,
 		InstanceID: s.instance.InstanceID,
 	}
 
-	response, err := s.scope.HandlePrepare(request)
+	response, err := s.manager.HandlePrepare(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 
@@ -746,16 +745,15 @@ func (s *PrepareReplicaTest) TestSuccessCase(c *gocheck.C) {
 // tests that a prepare request with an unincremented ballot
 // number is not accepted
 func (s *PrepareReplicaTest) TestBallotFailure(c *gocheck.C) {
-	s.scope.preAcceptInstance(s.instance, false)
+	s.manager.preAcceptInstance(s.instance, false)
 	s.instance.MaxBallot = 5
 
 	request := &PrepareRequest{
-		Scope: s.scope.name,
 		Ballot: s.instance.MaxBallot,
 		InstanceID: s.instance.InstanceID,
 	}
 
-	response, err := s.scope.HandlePrepare(request)
+	response, err := s.manager.HandlePrepare(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 
@@ -768,12 +766,11 @@ func (s *PrepareReplicaTest) TestBallotFailure(c *gocheck.C) {
 // accepted, and a nil instance is returned
 func (s *PrepareReplicaTest) TestUnknownInstance(c *gocheck.C) {
 	request := &PrepareRequest{
-		Scope: s.scope.name,
 		Ballot: uint32(4),
 		InstanceID: NewInstanceID(),
 	}
 
-	response, err := s.scope.HandlePrepare(request)
+	response, err := s.manager.HandlePrepare(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 
@@ -797,8 +794,8 @@ var _ = gocheck.Suite(&SuccessorPreparePhaseTest{})
 
 func (s *SuccessorPreparePhaseTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
-	s.instance = s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.preAcceptInstance(s.instance, false)
+	s.instance = s.manager.makeInstance(getBasicInstruction())
+	err := s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 	for _, replica := range s.replicas {
 		if replica.id == s.instance.Successors[0] {
@@ -817,7 +814,6 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
 	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
 		request := m.(*PrepareSuccessorRequest)
 		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
-		c.Assert(request.Scope, gocheck.Equals, s.scope.name)
 		s1Calls++
 		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
 	}
@@ -826,7 +822,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
 		s2Calls++
 		return nil, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -845,11 +841,10 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
 	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
 		request := m.(*PrepareSuccessorRequest)
 		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
-		c.Assert(request.Scope, gocheck.Equals, s.scope.name)
 		s2Calls++
 		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -874,7 +869,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
 	var err error
 	var returned bool
 	go func() {
-		proceed, err = scopeDeferToSuccessor(s.scope, s.instance)
+		proceed, err = scopeDeferToSuccessor(s.manager, s.instance)
 		returned = true
 	}()
 	runtime.Gosched()
@@ -902,7 +897,7 @@ func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
 		s2Calls++
 		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -921,7 +916,7 @@ func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) 
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
@@ -940,7 +935,7 @@ func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C)
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -958,7 +953,7 @@ func (s *SuccessorPreparePhaseTest) TestExecutedSuccessorResponse(c *gocheck.C) 
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -967,7 +962,7 @@ func (s *SuccessorPreparePhaseTest) TestExecutedSuccessorResponse(c *gocheck.C) 
 // tests that a node will run the prepare phase itself if the preceding
 // successors do not respond
 func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
-	s.instance.Successors[0] = s.scope.GetLocalID()
+	s.instance.Successors[0] = s.manager.GetLocalID()
 
 	s2Calls := 0
 	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
@@ -975,7 +970,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 		return nil, fmt.Errorf("nope")
 	}
 
-	proceed, err := scopeDeferToSuccessor(s.scope, s.instance)
+	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s2Calls, gocheck.Equals, 0)
@@ -993,7 +988,7 @@ func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
 		SUCCESSOR_CONTACT_INTERVAL = oldSuccessorContactInterval
 	}()
 	SUCCESSOR_CONTACT_INTERVAL = 10
-	scopeDeferToSuccessor = func(scope *Scope, instance *Instance) (bool, error) {
+	scopeDeferToSuccessor = func(manager *Manager, instance *Instance) (bool, error) {
 		defer func() {deferCalls++}()
 		if deferCalls == 0 {
 			return false, nil
@@ -1005,7 +1000,7 @@ func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
 	}
 	s.instance.commitTimeout = time.Now()
 
-	err := scopePrepareInstance(s.scope, s.instance)
+	err := scopePrepareInstance(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(deferCalls, gocheck.Equals, 2)
 }
@@ -1013,7 +1008,7 @@ func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
 type HandlePrepareSuccessorRequestTest struct {
 	baseReplicaTest
 	instance *Instance
-	oldScopePrepareInstance func(s *Scope, instance *Instance) error
+	oldScopePrepareInstance func(s *Manager, instance *Instance) error
 }
 
 var _ = gocheck.Suite(&HandlePrepareSuccessorRequestTest{})
@@ -1025,8 +1020,8 @@ func (s *HandlePrepareSuccessorRequestTest) SetUpSuite(c *gocheck.C) {
 
 func (s *HandlePrepareSuccessorRequestTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
-	s.instance = s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.preAcceptInstance(s.instance, false)
+	s.instance = s.manager.makeInstance(getBasicInstruction())
+	err := s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 }
 
@@ -1038,17 +1033,16 @@ func (s *HandlePrepareSuccessorRequestTest) TearDownSuite(c *gocheck.C) {
 // if the instance has not been committed
 func (s *HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C) {
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+	scopePrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}
 
 	request := &PrepareSuccessorRequest{
-		Scope: s.scope.name,
 		InstanceID: s.instance.InstanceID,
 	}
 
-	response, err := s.scope.HandlePrepareSuccessor(request)
+	response, err := s.manager.HandlePrepareSuccessor(request)
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
@@ -1059,21 +1053,20 @@ func (s *HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C
 // tests that the prepare phase method is not called
 // if the instance has been committed
 func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) {
-	err := s.scope.commitInstance(s.instance, false)
+	err := s.manager.commitInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+	scopePrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}
 
 	request := &PrepareSuccessorRequest{
-		Scope: s.scope.name,
 		InstanceID: s.instance.InstanceID,
 	}
 
-	response, err := s.scope.HandlePrepareSuccessor(request)
+	response, err := s.manager.HandlePrepareSuccessor(request)
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
@@ -1085,17 +1078,16 @@ func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) 
 // know about the instance
 func (s *HandlePrepareSuccessorRequestTest) TestUnknownInstance(c *gocheck.C) {
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Scope, instance *Instance) error {
+	scopePrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}
 
 	request := &PrepareSuccessorRequest{
-		Scope: s.scope.name,
 		InstanceID: NewInstanceID(),
 	}
 
-	response, err := s.scope.HandlePrepareSuccessor(request)
+	response, err := s.manager.HandlePrepareSuccessor(request)
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
