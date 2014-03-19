@@ -261,6 +261,24 @@ type PrepareIntegrationTest struct {
 
 var _ = gocheck.Suite(&PrepareIntegrationTest{})
 
+func (s *PrepareIntegrationTest) waitOnStatus(iid InstanceID, status InstanceStatus) {
+	for i:=0;i<20;i++ {
+		stop := false
+		for _, n := range s.nodes {
+			manager := n.manager
+			if manager.instances.Get(iid).getStatus() == status {
+				stop = true
+				break
+			} else {
+				runtime.Gosched()
+			}
+		}
+		if stop {
+			break
+		}
+	}
+}
+
 // tests that a prepare phase that receives prepare
 // responses with preaccepted instances works as expected
 func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
@@ -281,7 +299,7 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 
 	// check that all the replicas got the message
 	for _, replica := range s.replicas {
-		replicaInstance := s.manager.instances.Get(instance.InstanceID)
+		replicaInstance := replica.manager.instances.Get(instance.InstanceID)
 		c.Logf("replica %v ballot: %v", replica.id, replicaInstance.getBallot())
 		c.Assert(replicaInstance, gocheck.NotNil)
 		c.Assert(replicaInstance, gocheck.Not(gocheck.Equals), instance)
@@ -305,8 +323,11 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 		c.Logf("replica %v ballot: %v", n.id, replicaInstance.getBallot())
 	}
 	err = s.manager.preparePhase(instance)
+	s.waitForStatus(instance.InstanceID, INSTANCE_COMMITTED)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
+	// ballot +3: prepare, preaccept, and commit messages
+	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 3)
+	c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_COMMITTED)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 }
 
@@ -358,6 +379,7 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 		c.Logf("replica %v ballot: %v", n.id, replicaInstance.getBallot())
 	}
 	err = s.manager.preparePhase(instance)
+	s.waitForStatus(instance.InstanceID, INSTANCE_COMMITTED)
 	c.Assert(err, gocheck.IsNil)
 	// ballot +3: prepare, acceptm and commit messages
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 3)
