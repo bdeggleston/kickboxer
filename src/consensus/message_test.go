@@ -21,7 +21,6 @@ func (s *ConsensusMessageTest) TestPreAcceptRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &PreAcceptRequest{
-		Scope: "abc",
 		Instance: makeInstance(node.NewNodeId(), makeDependencies(3)),
 	}
 
@@ -58,7 +57,6 @@ func (s *ConsensusMessageTest) TestAcceptRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &AcceptRequest{
-		Scope: "abc",
 		Instance: makeInstance(node.NewNodeId(), makeDependencies(3)),
 		MissingInstances: []*Instance{
 			makeInstance(node.NewNodeId(), makeDependencies(3)),
@@ -94,7 +92,6 @@ func (s *ConsensusMessageTest) TestCommitRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &CommitRequest{
-		Scope: "abc",
 		Instance: makeInstance(node.NewNodeId(), makeDependencies(3)),
 	}
 
@@ -123,7 +120,6 @@ func (s *ConsensusMessageTest) TestPrepareRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &PrepareRequest{
-		Scope: "def",
 		Ballot: uint32(52),
 		InstanceID: NewInstanceID(),
 	}
@@ -172,7 +168,6 @@ func (s *ConsensusMessageTest) TestPrepareSuccessorRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &PrepareSuccessorRequest{
-		Scope:      "123",
 		InstanceID: NewInstanceID(),
 	}
 
@@ -218,7 +213,6 @@ func (s *ConsensusMessageTest) TestInstanceRequest(c *gocheck.C) {
 	var err error
 	buf := &bytes.Buffer{}
 	src := &InstanceRequest{
-		Scope: "abc",
 		InstanceIDs: makeDependencies(4),
 	}
 
