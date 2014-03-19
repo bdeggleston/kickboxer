@@ -18,7 +18,6 @@ import (
 
 // replica level manager for consensus operations
 type Manager struct {
-	scopeMap map[string]*Scope
 	lock     sync.RWMutex
 	cluster  cluster.Cluster
 	stats    statsd.Statter
@@ -37,7 +36,6 @@ type Manager struct {
 func NewManager(cluster cluster.Cluster) *Manager {
 	stats, _ := statsd.NewNoop()
 	return &Manager{
-		scopeMap: make(map[string]*Scope),
 		cluster:  cluster,
 		stats:    stats,
 		instances:  NewInstanceMap(),
@@ -54,26 +52,9 @@ func (m *Manager) setStatter(s statsd.Statter) {
 	m.stats = s
 }
 
-func (m *Manager) getScope(key string) *Scope {
-	// get
-	m.lock.RLock()
-	instance, exists := m.scopeMap[key]
-	m.lock.RUnlock()
-
-	// or create
-	if !exists {
-		m.lock.Lock()
-		instance = NewScope(key, m)
-		m.scopeMap[key] = instance
-		m.lock.Unlock()
-	}
-
-	return instance
-}
-
 // returns the replicas for the scope's key, at the given  consistency level
-func (m *Manager) getScopeNodes(s *Scope) []node.Node {
-	return m.cluster.GetNodesForKey(s.name)
+func (m *Manager) getInstanceNodes(instance *Instance) []node.Node {
+	return m.cluster.GetNodesForKey(instance.Commands[0].Key)
 }
 
 func (m *Manager) checkLocalKeyEligibility(key string) bool {
@@ -87,13 +68,13 @@ func (m *Manager) checkLocalKeyEligibility(key string) bool {
 	return false
 }
 
-func (m *Manager) checkLocalScopeEligibility(s *Scope) bool {
-	return m.checkLocalKeyEligibility(s.name)
+func (m *Manager) checkLocalInstanceEligibility(instance *Instance) bool {
+	return m.checkLocalKeyEligibility(instance.Commands[0].Key)
 }
 
-// returns the replicas for the given scope's key, excluding the local node
-func (m *Manager) getScopeReplicas(s *Scope) []node.Node {
-	nodes := m.getScopeNodes(s)
+// returns the replicas for the given instance's key, excluding the local node
+func (m *Manager) getInstanceReplicas(instance *Instance) []node.Node {
+	nodes := m.cluster.GetNodesForKey(instance.Commands[0].Key)
 	replicas := make([]node.Node, 0, len(nodes))
 	for _, n := range nodes {
 		if n.GetId() == m.GetLocalID() { continue }
@@ -135,25 +116,19 @@ func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, 
 }
 
 func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
-	if scopedRequest, ok := msg.(ScopedMessage); ok {
-		scope := m.getScope(scopedRequest.GetScope())
-		switch request := scopedRequest.(type) {
-		case *PreAcceptRequest:
-			return scope.HandlePreAccept(request)
-		case *AcceptRequest:
-			return scope.HandleAccept(request)
-		case *CommitRequest:
-			return scope.HandleCommit(request)
-		case *PrepareRequest:
-			return scope.HandlePrepare(request)
-		case *PrepareSuccessorRequest:
-			return scope.HandlePrepareSuccessor(request)
-		default:
-			return nil, fmt.Errorf("Unhandled scoped request type: %T", scopedRequest)
-
-		}
-	} else {
-		return nil, fmt.Errorf("Only scoped messages are handled")
+	switch request := msg.(type) {
+	case *PreAcceptRequest:
+		return m.HandlePreAccept(request)
+	case *AcceptRequest:
+		return m.HandleAccept(request)
+	case *CommitRequest:
+		return m.HandleCommit(request)
+	case *PrepareRequest:
+		return m.HandlePrepare(request)
+	case *PrepareSuccessorRequest:
+		return m.HandlePrepareSuccessor(request)
+	default:
+		return nil, fmt.Errorf("Unhandled scoped request type: %T", request)
 	}
 	panic("unreachable")
 }
