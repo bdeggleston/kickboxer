@@ -47,7 +47,7 @@ var _ = gocheck.Suite(&PreAcceptIntegrationTest{})
 
 func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
-	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
 	for _, scope := range s.scopes {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
@@ -58,7 +58,7 @@ func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 
 	// run a preaccept phase on a new instance
 	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
-	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, false)
 	c.Assert(err, gocheck.IsNil)
 
@@ -69,12 +69,12 @@ func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
-	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
+	c.Assert(s.manager.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
-	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
 	for _, scope := range s.scopes {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
@@ -96,7 +96,7 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 
 	// run a preaccept phase on a new instance
 	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
-	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
 
@@ -105,7 +105,7 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
 
 	// check that the remote instance is in the local node
-	c.Assert(s.scope.instances.Contains(remoteInstance), gocheck.Equals, true)
+	c.Assert(s.manager.instances.Contains(remoteInstance), gocheck.Equals, true)
 
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
 
@@ -114,7 +114,7 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
-	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
+	c.Assert(s.manager.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 type AcceptIntegrationTest struct {
@@ -126,7 +126,7 @@ var _ = gocheck.Suite(&AcceptIntegrationTest{})
 // test successful accept cycle
 func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
-	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
 	for _, scope := range s.scopes {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
@@ -148,7 +148,7 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 
 	// run a preaccept phase on a new instance
 	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
-	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
 
@@ -172,7 +172,7 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	}
 
 	// run an accept phase for the new instance
-	err = s.scope.acceptPhase(newInstance)
+	err = s.manager.acceptPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
 
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_ACCEPTED)
@@ -183,7 +183,7 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
-	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
+	c.Assert(s.manager.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 type CommitIntegrationTest struct {
@@ -196,7 +196,7 @@ var _ = gocheck.Suite(&CommitIntegrationTest{})
 // an accept message, but receive a commit message with the correct deps
 func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
-	knownInstance := s.scope.makeInstance(s.makeInstruction(0))
+	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
 	for _, scope := range s.scopes {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
@@ -218,7 +218,7 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 
 	// run a preaccept phase on a new instance
 	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
-	shouldAccept, err := s.scope.preAcceptPhase(newInstance)
+	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
 
@@ -240,7 +240,7 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	}
 
 	// run a commit phase for the new instance
-	err = s.scope.commitPhase(newInstance)
+	err = s.manager.commitPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
 
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_COMMITTED)
@@ -251,7 +251,7 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
-	c.Assert(s.scope.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
+	c.Assert(s.manager.instances.Get(newInstance.InstanceID), gocheck.Equals, newInstance)
 }
 
 
@@ -266,10 +266,10 @@ var _ = gocheck.Suite(&PrepareIntegrationTest{})
 func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 	// make and accept the instance across the cluster
 	instructions := s.makeInstruction(0)
-	instance := s.scope.makeInstance(instructions)
+	instance := s.manager.makeInstance(instructions)
 	c.Logf("Leader ID: %v", instance.LeaderID)
 	initialBallot := instance.getBallot()
-	shouldAccept, err := s.scope.preAcceptPhase(instance)
+	shouldAccept, err := s.manager.preAcceptPhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(shouldAccept, gocheck.Equals, false)
 	runtime.Gosched()
@@ -281,8 +281,7 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 
 	// check that all the replicas got the message
 	for _, replica := range s.replicas {
-		scope := replica.manager.getScope(s.scope.name)
-		replicaInstance := scope.instances.Get(instance.InstanceID)
+		replicaInstance := s.manager.instances.Get(instance.InstanceID)
 		c.Logf("replica %v ballot: %v", replica.id, replicaInstance.getBallot())
 		c.Assert(replicaInstance, gocheck.NotNil)
 		c.Assert(replicaInstance, gocheck.Not(gocheck.Equals), instance)
@@ -292,25 +291,23 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 
 	// set all commit timeouts to now
 	for _, n := range s.nodes {
-		inst := n.manager.getScope(s.scope.name).getInstance(instance.InstanceID)
+		inst := n.manager.getInstance(instance.InstanceID)
 		inst.commitTimeout = time.Now()
 	}
 
 	successor := s.nodeMap[instance.Successors[0]]
-	successorScope := successor.manager.getScope(s.scope.name)
 
 	// run prepare
 	c.Logf("\n\nStarting Prepare")
 	c.Logf("Successor is: %v", successor.id)
 	for _, n := range s.nodes {
-		scope := n.manager.getScope(s.scope.name)
-		replicaInstance := scope.instances.Get(instance.InstanceID)
+		replicaInstance := s.manager.instances.Get(instance.InstanceID)
 		c.Logf("replica %v ballot: %v", n.id, replicaInstance.getBallot())
 	}
-	err = successorScope.preparePhase(instance)
+	err = s.manager.preparePhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
-	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 }
 
 // tests the behavior of a prepare phase with a rejected prepare request
@@ -325,9 +322,9 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 
 	// make and accept the instance across the cluster
 	instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(0)}, time.Now())}
-	instance := s.scope.makeInstance(instructions)
+	instance := s.manager.makeInstance(instructions)
 	initialBallot := instance.getBallot()
-	err = s.scope.acceptPhase(instance)
+	err = s.manager.acceptPhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	runtime.Gosched()
 
@@ -338,8 +335,7 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 
 	// check that all the replicas got the message
 	for _, replica := range s.replicas {
-		scope := replica.manager.getScope(s.scope.name)
-		replicaInstance := scope.instances.Get(instance.InstanceID)
+		replicaInstance := s.manager.instances.Get(instance.InstanceID)
 		c.Logf("replica %v ballot: %v", replica.id, replicaInstance.getBallot())
 		c.Assert(replicaInstance, gocheck.NotNil)
 		c.Assert(replicaInstance.getBallot(), gocheck.Equals, localBallot1)
@@ -348,24 +344,22 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 
 	// set all commit timeouts to now
 	for _, n := range s.nodes {
-		inst := n.manager.getScope(s.scope.name).getInstance(instance.InstanceID)
+		inst := n.manager.getInstance(instance.InstanceID)
 		inst.commitTimeout = time.Now()
 	}
 
 	successor := s.nodeMap[instance.Successors[0]]
-	successorScope := successor.manager.getScope(s.scope.name)
 
 	// run prepare
 	c.Logf("\n\nStarting Prepare")
 	c.Logf("Successor is: %v", successor.id)
 	for _, n := range s.nodes {
-		scope := n.manager.getScope(s.scope.name)
-		replicaInstance := scope.instances.Get(instance.InstanceID)
+		replicaInstance := s.manager.instances.Get(instance.InstanceID)
 		c.Logf("replica %v ballot: %v", n.id, replicaInstance.getBallot())
 	}
-	err = successorScope.preparePhase(instance)
+	err = s.manager.preparePhase(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 2)
-	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 }
 
