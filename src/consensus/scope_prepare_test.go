@@ -874,8 +874,12 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
 	}()
 	runtime.Gosched()
 	s.instance.broadcastCommitEvent()
-	for !returned {
-		runtime.Gosched()
+	for i:=0; i<20; i++ {
+		if !returned {
+			runtime.Gosched()
+		} else {
+			break
+		}
 	}
 
 	c.Assert(err, gocheck.IsNil)
