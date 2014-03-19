@@ -309,8 +309,8 @@ type Instance struct {
 	commitEvent *event
 	executeEvent *event
 
-	// the instance's parent scope
-	scope *Scope
+	// the instance's parent manager
+	manager *Manager
 }
 
 func (i *Instance) getCommitEvent() *event {
@@ -441,7 +441,7 @@ func (i *Instance) Copy() (*Instance, error) {
 		DependencyMatch: i.DependencyMatch,
 		commitTimeout: i.commitTimeout,
 		executeTimeout: i.executeTimeout,
-		scope: i.scope,
+		manager: i.manager,
 	}
 	copy(newInst.Successors, i.Successors)
 	copy(newInst.Dependencies, i.Dependencies)
@@ -495,8 +495,8 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_PREACCEPTED
-	i.Sequence = i.scope.getNextSeq()
-	i.Dependencies = i.scope.getCurrentDeps()
+	i.Sequence = i.manager.getNextSeq()
+	i.Dependencies = i.manager.getCurrentDeps()
 	i.commitTimeout = makePreAcceptCommitTimeout()
 	if incrementBallot {
 		i.MaxBallot++
