@@ -321,11 +321,6 @@ func (s *Scope) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	return s.instances.GetOrSet(inst, initialize)
 }
 
-func (s *Scope) debugInstanceLog(instance *Instance, format string, args ...interface {}) {
-	message := fmt.Sprintf(format, args...)
-	logger.Debug("%v for instance %v on node: %v", message, instance.InstanceID, s.GetLocalID())
-}
-
 // TODO: delete
 // returns the current dependencies for a new instance
 // this method doesn't implement any locking or persistence

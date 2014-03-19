@@ -95,7 +95,7 @@ var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 	defer s.statsTiming("commit.phase.time", start)
 	s.statsInc("commit.phase.count", 1)
 
-	s.debugInstanceLog(instance, "Commit phase started")
+	logger.Debug("Commit phase started for %v", instance.InstanceID)
 	replicas := s.manager.getScopeReplicas(s)
 
 	if err := s.commitInstance(instance, true); err != nil {
@@ -111,7 +111,7 @@ var scopeCommitPhase = func(s *Scope, instance *Instance) error {
 	if err := s.sendCommit(instance, replicas); err != nil {
 		return err
 	}
-	s.debugInstanceLog(instance, "Commit phase completed")
+	logger.Debug("Commit phase completed for %v", instance.InstanceID)
 	return nil
 }
 
