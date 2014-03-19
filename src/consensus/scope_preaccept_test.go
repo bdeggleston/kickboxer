@@ -21,32 +21,32 @@ type PreAcceptInstanceTest struct {
 var _ = gocheck.Suite(&PreAcceptInstanceTest{})
 
 func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	originalBallot := instance.MaxBallot
 
 	// sanity check
-	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, false)
-	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, false)
-	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
-	seq := s.scope.maxSeq
-	err := s.scope.preAcceptInstance(instance, false)
+	seq := s.manager.maxSeq
+	err := s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
 	c.Check(instance.Sequence, gocheck.Equals, seq + 1)
 	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot)
-	c.Check(s.scope.maxSeq, gocheck.Equals, seq + 1)
+	c.Check(s.manager.maxSeq, gocheck.Equals, seq + 1)
 }
 
 func (s *PreAcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	originalBallot := instance.MaxBallot
 
-	err := s.scope.preAcceptInstance(instance, true)
+	err := s.manager.preAcceptInstance(instance, true)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot + 1)
@@ -54,17 +54,17 @@ func (s *PreAcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
 
 func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	var err error
-	instance := s.scope.makeInstance(getBasicInstruction())
-	err = s.scope.acceptInstance(instance, false)
+	instance := s.manager.makeInstance(getBasicInstruction())
+	err = s.manager.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 
 	// sanity check
-	c.Assert(s.scope.instances.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.scope.inProgress.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.scope.committed.Contains(instance), gocheck.Equals, false)
+	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, true)
+	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
-	err = s.scope.preAcceptInstance(instance, false)
+	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
@@ -75,49 +75,49 @@ func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 // which is possible if there's an explicit
 // prepare, it should copy some attributes,
 // (noop), and not overwrite any existing
-// instances references in the scope's containers
+// instances references in the manager's containers
 func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 	var err error
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.preAcceptInstance(instance, false)
+	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	err = s.scope.preAcceptInstance(repeat, false)
+	err = s.manager.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
- 	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Equals, instance)
-	c.Assert(s.scope.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
-	c.Assert(s.scope.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
+ 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
+	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
+	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when
 // preaccepting new instances
 func (s *PreAcceptInstanceTest) TestNewNoopPreaccept(c *gocheck.C) {
 	var err error
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	instance.Noop = true
 
-	err = s.scope.preAcceptInstance(instance, false)
+	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	c.Assert(s.scope.instances.Get(instance.InstanceID).Noop, gocheck.Equals, true)
+	c.Assert(s.manager.instances.Get(instance.InstanceID).Noop, gocheck.Equals, true)
 }
 
 // tests that the noop flag is recognized when
 // preaccepting previously seen instances
 func (s *PreAcceptInstanceTest) TestOldNoopPreaccept(c *gocheck.C) {
 	var err error
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	repeat := copyInstance(instance)
 
-	err = s.scope.preAcceptInstance(instance, false)
+	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.Noop, gocheck.Equals, false)
 
 	repeat.Noop = true
-	err = s.scope.preAcceptInstance(repeat, false)
+	err = s.manager.preAcceptInstance(repeat, false)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(instance.Noop, gocheck.Equals, true)
 }
@@ -130,8 +130,8 @@ type PreAcceptLeaderTest struct {
 func (s *PreAcceptLeaderTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 
-	s.instance = s.scope.makeInstance(getBasicInstruction())
-	err := s.scope.preAcceptInstance(s.instance, false)
+	s.instance = s.manager.makeInstance(getBasicInstruction())
+	err := s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 }
 
@@ -154,7 +154,7 @@ func (s *PreAcceptLeaderTest) TestSendSuccessCase(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	responses, err := s.manager.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
 	c.Assert(err, gocheck.IsNil)
 	c.Log(len(s.replicas))
 	c.Log(len(responses))
@@ -195,7 +195,7 @@ func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
 		}
 	}
 
-	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	responses, err := s.manager.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, TimeoutError{})
 	c.Assert(responses, gocheck.IsNil)
@@ -231,7 +231,7 @@ func (s *PreAcceptLeaderTest) TestSendBallotFailure(c *gocheck.C) {
 		}
 	}
 
-	responses, err := s.scope.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
+	responses, err := s.manager.sendPreAccept(s.instance, transformMockNodeArray(s.replicas))
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 	c.Assert(responses, gocheck.IsNil)
@@ -280,7 +280,7 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 		MissingInstances: []*Instance{},
 	}}
 
-	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
+	changes, err := s.manager.mergePreAcceptAttributes(s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(changes, gocheck.Equals, true)
 
@@ -312,7 +312,7 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 		Instance:         remoteInstance,
 		MissingInstances: []*Instance{},
 	}}
-	changes, err := s.scope.mergePreAcceptAttributes(s.instance, responses)
+	changes, err := s.manager.mergePreAcceptAttributes(s.instance, responses)
 
 	c.Assert(err, gocheck.IsNil)
 	c.Check(changes, gocheck.Equals, false)
@@ -347,7 +347,7 @@ func (s *PreAcceptLeaderTest) TestPreAcceptMessageBallotIsUpToDate(c *gocheck.C)
 	c.Assert(err, gocheck.IsNil)
 
 	expectedBallot := duplicateInstance.MaxBallot + 1
-	_, err = s.scope.preAcceptPhase(duplicateInstance)
+	_, err = s.manager.preAcceptPhase(duplicateInstance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(sentBallot, gocheck.Equals, expectedBallot)
 }
@@ -360,35 +360,34 @@ var _ = gocheck.Suite(&PreAcceptReplicaTest{})
 
 func (s *PreAcceptReplicaTest) SetUpTest(c *gocheck.C) {
 	s.baseScopeTest.SetUpTest(c)
-	setupDeps(s.scope)
+	setupDeps(s.manager)
 }
 
 // tests that the dependency match flag is set
 // if the seq and deps matched
 func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
-	s.scope.maxSeq = 3
+	s.manager.maxSeq = 3
 
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Commands:     getBasicInstruction(),
-		Dependencies: s.scope.getCurrentDepsUnsafe(),
-		Sequence:     s.scope.maxSeq + 1,
+		Dependencies: s.manager.getCurrentDepsUnsafe(),
+		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope:    s.scope.name,
 		Instance: instance,
 	}
 
 	// process the preaccept message
-	response, err := s.scope.HandlePreAccept(request)
+	response, err := s.manager.HandlePreAccept(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 	c.Check(response.Accepted, gocheck.Equals, true)
 
 	// check dependencies
-	localInstance := s.scope.instances.Get(instance.InstanceID)
+	localInstance := s.manager.instances.Get(instance.InstanceID)
 	expectedDeps := NewInstanceIDSet(instance.Dependencies)
 	actualDeps := NewInstanceIDSet(localInstance.Dependencies)
 
@@ -401,10 +400,10 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 // tests that the replica updates the sequence and
 // dependencies if it disagrees with the leader
 func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
-	s.scope.maxSeq = 3
+	s.manager.maxSeq = 3
 
-	replicaDeps := s.scope.getCurrentDepsUnsafe()
-	leaderDeps := s.scope.getCurrentDepsUnsafe()
+	replicaDeps := s.manager.getCurrentDepsUnsafe()
+	leaderDeps := s.manager.getCurrentDepsUnsafe()
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
@@ -417,14 +416,13 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope:    s.scope.name,
 		Instance: instance,
 	}
 
-	s.scope.instances.Add(&Instance{InstanceID: missingDep})
+	s.manager.instances.Add(&Instance{InstanceID: missingDep})
 
 	// process the preaccept message
-	response, err := s.scope.HandlePreAccept(request)
+	response, err := s.manager.HandlePreAccept(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 	c.Check(response.Accepted, gocheck.Equals, true)
@@ -447,31 +445,30 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 
 // tests that new attributes are returned
 func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
-	s.scope.maxSeq = 3
+	s.manager.maxSeq = 3
 
-	replicaDeps := s.scope.getCurrentDepsUnsafe()
+	replicaDeps := s.manager.getCurrentDepsUnsafe()
 	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Commands:     getBasicInstruction(),
 		Dependencies: []InstanceID{},
-		Sequence:     s.scope.maxSeq + 1,
+		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	request := &PreAcceptRequest{
-		Scope:    s.scope.name,
 		Instance: instance,
 	}
 
 	// process the preaccept message
-	response, err := s.scope.HandlePreAccept(request)
+	response, err := s.manager.HandlePreAccept(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 	c.Check(response.Accepted, gocheck.Equals, true)
 
 	// check dependencies
-	localInstance := s.scope.instances.Get(instance.InstanceID)
+	localInstance := s.manager.instances.Get(instance.InstanceID)
 	c.Assert(response.Instance, gocheck.Not(gocheck.Equals), localInstance)
 
 	expectedDeps := NewInstanceIDSet(replicaDeps)
@@ -482,9 +479,9 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 
 // tests that new attributes are returned
 func (s *PreAcceptReplicaTest) TestHandleBallotFailure(c *gocheck.C) {
-	instance := s.scope.makeInstance(getBasicInstruction())
+	instance := s.manager.makeInstance(getBasicInstruction())
 	instance.MaxBallot = 5
-	s.scope.preAcceptInstance(instance, false)
+	s.manager.preAcceptInstance(instance, false)
 
 	c.Assert(instance.MaxBallot, gocheck.Equals, uint32(5))
 
@@ -492,12 +489,11 @@ func (s *PreAcceptReplicaTest) TestHandleBallotFailure(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	instanceCopy.MaxBallot--
 	request := &PreAcceptRequest{
-		Scope:    s.scope.name,
 		Instance: instanceCopy,
 	}
 
 	// process the preaccept message
-	response, err := s.scope.HandlePreAccept(request)
+	response, err := s.manager.HandlePreAccept(request)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(response, gocheck.NotNil)
 	c.Check(response.Accepted, gocheck.Equals, false)
