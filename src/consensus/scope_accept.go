@@ -139,7 +139,7 @@ var scopeAcceptPhase = func(m *Manager, instance *Instance) error {
 
 	logger.Debug("Accept phase started")
 
-	replicas := m.cluster.GetNodesForKey(instance.Commands[0].Key)
+	replicas := m.getInstanceReplicas(instance)
 
 	if err := m.acceptInstance(instance, true); err != nil {
 		if _, ok := err.(InvalidStatusUpdateError); !ok {
