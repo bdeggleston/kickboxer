@@ -82,39 +82,47 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 }
 
 func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
-	setupDeps(s.manager)
-	instructions := getBasicInstruction()
-	expected := NewInstanceIDSet([]InstanceID{})
-	expected.Add(s.manager.inProgress.InstanceIDs()...)
-	expected.Add(s.manager.committed.InstanceIDs()...)
+	instanceByKey := make(map[string]InstanceIDSet)
+	newInstruction := func(key string) []*store.Instruction {
+		return []*store.Instruction{store.NewInstruction("set", key, []string{"b", "c"}, time.Now())}
+	}
+	newInstance := func(key string, committed bool) *Instance {
+		instructions := newInstruction(key)
+		instance := s.manager.makeInstance(instructions)
 
-	// sanity checks
-	c.Assert(s.manager.inProgress.Len(), gocheck.Equals, 4)
-	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
-	c.Assert(len(s.manager.executed), gocheck.Equals, 4)
+		if instanceByKey[key] == nil {
+			instanceByKey[key] = NewInstanceIDSet([]InstanceID{})
+		}
+		instanceByKey[key].Add(instance.InstanceID)
 
-	actual := NewInstanceIDSet(s.manager.getInstructionDeps(instructions))
+		if committed {
+			s.manager.committed.Add(instance)
+		} else {
+			s.manager.inProgress.Add(instance)
+		}
+		return instance
+	}
 
-	c.Assert(actual, gocheck.DeepEquals, expected)
-}
+	newInstance("a", false)
+	newInstance("a", false)
+	newInstance("a", true)
+	newInstance("a", true)
+	newInstance("b", false)
+	newInstance("b", true)
+	newInstance("b", true)
+	newInstance("c", true)
 
-// tests that manager doesn't try to add executed instances
-// if no instances have been executed yet
-func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
-	setupDeps(s.manager)
-	instructions := getBasicInstruction()
-	s.manager.executed = []InstanceID{}
-	expected := NewInstanceIDSet(s.manager.inProgress.InstanceIDs())
-	expected.Add(s.manager.committed.InstanceIDs()...)
+	// sanity check
+	c.Assert(len(instanceByKey["a"].List()), gocheck.Equals, 4)
+	c.Assert(len(instanceByKey["b"].List()), gocheck.Equals, 3)
+	c.Assert(len(instanceByKey["c"].List()), gocheck.Equals, 1)
 
-	// sanity checks
-	c.Assert(s.manager.inProgress.Len(), gocheck.Equals, 4)
-	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
-	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
+	aDeps := NewInstanceIDSet(s.manager.getInstructionDeps(newInstruction("a")))
+	c.Check(aDeps, gocheck.DeepEquals, instanceByKey["a"])
+	c.Check(aDeps, gocheck.DeepEquals, instanceByKey["a"])
 
-	actual := NewInstanceIDSet(s.manager.getInstructionDeps(instructions))
-
-	c.Assert(expected.Equal(actual), gocheck.Equals, true)
+	bDeps := NewInstanceIDSet(s.manager.getInstructionDeps(newInstruction("b")))
+	c.Check(bDeps, gocheck.DeepEquals, instanceByKey["b"])
 }
 
 func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
