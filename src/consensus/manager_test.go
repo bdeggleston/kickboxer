@@ -83,6 +83,7 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 
 func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	setupDeps(s.manager)
+	instructions := getBasicInstruction()
 	expected := NewInstanceIDSet([]InstanceID{})
 	expected.Add(s.manager.inProgress.InstanceIDs()...)
 	expected.Add(s.manager.committed.InstanceIDs()...)
@@ -92,7 +93,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.manager.executed), gocheck.Equals, 4)
 
-	actual := NewInstanceIDSet(s.manager.getCurrentDeps())
+	actual := NewInstanceIDSet(s.manager.getInstructionDeps(instructions))
 
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
@@ -101,6 +102,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 // if no instances have been executed yet
 func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
 	setupDeps(s.manager)
+	instructions := getBasicInstruction()
 	s.manager.executed = []InstanceID{}
 	expected := NewInstanceIDSet(s.manager.inProgress.InstanceIDs())
 	expected.Add(s.manager.committed.InstanceIDs()...)
@@ -110,7 +112,7 @@ func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
 	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
 
-	actual := NewInstanceIDSet(s.manager.getCurrentDeps())
+	actual := NewInstanceIDSet(s.manager.getInstructionDeps(instructions))
 
 	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }

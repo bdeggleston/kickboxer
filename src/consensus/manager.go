@@ -411,15 +411,24 @@ func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	return m.instances.GetOrSet(inst, initialize)
 }
 
-func (m *Manager) getCurrentDeps() []InstanceID {
-	// grab ALL instances as dependencies for now
-	//	numDeps := m.inProgress.Len() + m.committed.Len() + len(m.executed)
+func (m *Manager) getInstructionDeps(instructions []*store.Instruction) []InstanceID {
 	numDeps := m.inProgress.Len() + m.committed.Len()
 	deps := make([]InstanceID, 0, numDeps)
-	deps = append(deps, m.inProgress.InstanceIDs()...)
-	deps = append(deps, m.committed.InstanceIDs()...)
-
+	for _, instance := range m.inProgress.Instances() {
+		if m.cluster.CheckInterference(instructions, instance.Commands) {
+			deps = append(deps, instance.InstanceID)
+		}
+	}
+	for _, instance := range m.committed.Instances() {
+		if m.cluster.CheckInterference(instructions, instance.Commands) {
+			deps = append(deps, instance.InstanceID)
+		}
+	}
 	return deps
+}
+
+func (m *Manager) getInstanceDeps(instance *Instance) []InstanceID {
+	return m.getInstructionDeps(instance.Commands)
 }
 
 // TODO: delete

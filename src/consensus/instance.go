@@ -398,6 +398,7 @@ func (i *Instance) getSuccessors() []node.NodeId {
 }
 
 func (i *Instance) getDependencies() []InstanceID {
+	// TODO: don't return a copy
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	result := make([]InstanceID, len(i.Dependencies))
@@ -496,7 +497,7 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 	}
 	i.Status = INSTANCE_PREACCEPTED
 	i.Sequence = i.manager.getNextSeq()
-	i.Dependencies = i.manager.getCurrentDeps()
+	i.Dependencies = i.manager.getInstanceDeps(i)
 	i.commitTimeout = makePreAcceptCommitTimeout()
 	if incrementBallot {
 		i.MaxBallot++

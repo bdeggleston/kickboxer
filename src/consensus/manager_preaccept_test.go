@@ -368,11 +368,12 @@ func (s *PreAcceptReplicaTest) SetUpTest(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
+	instructions := getBasicInstruction()
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Commands:     getBasicInstruction(),
-		Dependencies: s.manager.getCurrentDeps(),
+		Commands:     instructions,
+		Dependencies: s.manager.getInstructionDeps(instructions),
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
@@ -402,15 +403,16 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
-	replicaDeps := s.manager.getCurrentDeps()
-	leaderDeps := s.manager.getCurrentDeps()
+	instructions := getBasicInstruction()
+	replicaDeps := s.manager.getInstructionDeps(instructions)
+	leaderDeps := s.manager.getInstructionDeps(instructions)
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Commands:     getBasicInstruction(),
+		Commands:     instructions,
 		Dependencies: leaderDeps,
 		Sequence:     3,
 		Status:       INSTANCE_PREACCEPTED,
@@ -447,8 +449,6 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
-	replicaDeps := s.manager.getCurrentDeps()
-	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
@@ -457,6 +457,8 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
+	replicaDeps := s.manager.getInstanceDeps(instance)
+	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	request := &PreAcceptRequest{
 		Instance: instance,
 	}
