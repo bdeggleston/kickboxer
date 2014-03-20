@@ -28,10 +28,10 @@ func (s *baseIntegrationTest) makeInstruction(val int) []*store.Instruction {
 	}
 }
 
-// waits for all scopes to have the given status for the given instance
+// waits for all managers to have the given status for the given instance
 func (s *baseIntegrationTest) waitForStatus(iid InstanceID, status InstanceStatus) {
-	for _, scope := range s.scopes {
-		if instance := scope.instances.Get(iid); instance == nil {
+	for _, manager := range s.managers {
+		if instance := manager.instances.Get(iid); instance == nil {
 			runtime.Gosched()
 		} else if instance.getStatus() != INSTANCE_PREACCEPTED {
 			runtime.Gosched()
@@ -48,24 +48,24 @@ var _ = gocheck.Suite(&PreAcceptIntegrationTest{})
 func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
 	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
-	for _, scope := range s.scopes {
+	for _, manager := range s.managers {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = scope.preAcceptInstance(inst, false)
+		err = manager.preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
-		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+		c.Assert(manager.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
 	}
 
 	// run a preaccept phase on a new instance
-	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	newInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(2))
 	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, false)
 	c.Assert(err, gocheck.IsNil)
 
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
 
-	for _, scope := range s.scopes {
-		instance := scope.getInstance(newInstance.InstanceID)
+	for _, manager := range s.managers {
+		instance := manager.getInstance(newInstance.InstanceID)
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
@@ -75,27 +75,27 @@ func (s *PreAcceptIntegrationTest) TestSuccessCase(c *gocheck.C) {
 func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
 	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
-	for _, scope := range s.scopes {
+	for _, manager := range s.managers {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = scope.preAcceptInstance(inst, false)
+		err = manager.preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
-		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+		c.Assert(manager.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
 	}
 
 	// make an instance known by a subset of replicas
-	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	remoteInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(1))
 	quorumSize := (len(s.replicas) / 2) + 1
 	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
 	for i:=0; i<quorumSize; i++ {
 		inst, err := remoteInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		err = s.replicaManagers[i].preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
 	}
 
 	// run a preaccept phase on a new instance
-	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	newInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(2))
 	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
@@ -109,8 +109,8 @@ func (s *PreAcceptIntegrationTest) TestMissingInstanceSuccessCase(c *gocheck.C) 
 
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_PREACCEPTED)
 
-	for _, scope := range s.scopes {
-		instance := scope.getInstance(newInstance.InstanceID)
+	for _, manager := range s.managers {
+		instance := manager.getInstance(newInstance.InstanceID)
 		c.Assert(instance, gocheck.NotNil)
 		c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_PREACCEPTED)
 	}
@@ -127,27 +127,27 @@ var _ = gocheck.Suite(&AcceptIntegrationTest{})
 func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
 	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
-	for _, scope := range s.scopes {
+	for _, manager := range s.managers {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = scope.preAcceptInstance(inst, false)
+		err = manager.preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
-		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+		c.Assert(manager.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
 	}
 
 	// make an instance known by a subset of replicas
-	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	remoteInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(1))
 	quorumSize := (len(s.replicas) / 2) + 1
 	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
 	for i:=0; i<quorumSize; i++ {
 		inst, err := remoteInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		err = s.replicaManagers[i].preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
 	}
 
 	// run a preaccept phase on a new instance
-	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	newInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(2))
 	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
@@ -160,8 +160,8 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 
 	// check that the nodes that preaccepted the remoteInstance have added it to
 	// the newInstance deps
-	for i, scope := range s.replicaScopes {
-		inst := scope.instances.Get(newInstance.InstanceID)
+	for i, manager := range s.replicaManagers {
+		inst := manager.instances.Get(newInstance.InstanceID)
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
 		if i < quorumSize {
@@ -178,8 +178,8 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_ACCEPTED)
 
 	// check that all nodes have the remoteInstance in the newInstance deps
-	for _, scope := range s.scopes {
-		inst := scope.instances.Get(newInstance.InstanceID)
+	for _, manager := range s.managers {
+		inst := manager.instances.Get(newInstance.InstanceID)
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
@@ -197,27 +197,27 @@ var _ = gocheck.Suite(&CommitIntegrationTest{})
 func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	// make a pre-existing instance
 	knownInstance := s.manager.makeInstance(s.makeInstruction(0))
-	for _, scope := range s.scopes {
+	for _, manager := range s.managers {
 		inst, err := knownInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = scope.preAcceptInstance(inst, false)
+		err = manager.preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
-		c.Assert(scope.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
+		c.Assert(manager.instances.Get(knownInstance.InstanceID), gocheck.NotNil)
 	}
 
 	// make an instance known by a subset of replicas
-	remoteInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(1))
+	remoteInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(1))
 	quorumSize := (len(s.replicas) / 2) + 1
 	c.Assert(quorumSize < len(s.replicas), gocheck.Equals, true)
 	for i:=0; i<quorumSize; i++ {
 		inst, err := remoteInstance.Copy()
 		c.Assert(err, gocheck.IsNil)
-		err = s.replicaScopes[i].preAcceptInstance(inst, false)
+		err = s.replicaManagers[i].preAcceptInstance(inst, false)
 		c.Assert(err, gocheck.IsNil)
 	}
 
 	// run a preaccept phase on a new instance
-	newInstance := s.replicaScopes[0].makeInstance(s.makeInstruction(2))
+	newInstance := s.replicaManagers[0].makeInstance(s.makeInstruction(2))
 	shouldAccept, err := s.manager.preAcceptPhase(newInstance)
 	c.Assert(shouldAccept, gocheck.Equals, true)
 	c.Assert(err, gocheck.IsNil)
@@ -228,8 +228,8 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 
 	// check that the nodes that preaccepted the remoteInstance have added it to
 	// the newInstance deps
-	for i, scope := range s.replicaScopes {
-		inst := scope.instances.Get(newInstance.InstanceID)
+	for i, manager := range s.replicaManagers {
+		inst := manager.instances.Get(newInstance.InstanceID)
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
 		if i < quorumSize {
@@ -246,8 +246,8 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	s.waitForStatus(newInstance.InstanceID, INSTANCE_COMMITTED)
 
 	// check that all nodes have the remoteInstance in the newInstance deps
-	for _, scope := range s.scopes {
-		inst := scope.instances.Get(newInstance.InstanceID)
+	for _, manager := range s.managers {
+		inst := manager.instances.Get(newInstance.InstanceID)
 		c.Assert(inst, gocheck.NotNil)
 		c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	}
