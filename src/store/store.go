@@ -96,6 +96,10 @@ type Store interface {
 	// determines if the given command returns a value
 	ReturnsValue(cmd string) bool
 
+	// TODO: rework epaxos to interact with the store directly
+	// determines if 2 sets of commands interfere with each other
+	CheckInterference(i0, i1 []*Instruction) bool
+
 	// ----------- data import / export -----------
 
 	// serializes a value
