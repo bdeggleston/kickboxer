@@ -369,7 +369,7 @@ func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
 // not been previously seen by this replica
 func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
 	leaderID := node.NewNodeId()
-	leaderInstance := makeInstance(leaderID, s.manager.getCurrentDepsUnsafe())
+	leaderInstance := makeInstance(leaderID, s.manager.getCurrentDeps())
 	leaderInstance.Sequence += 5
 
 	request := &AcceptRequest{

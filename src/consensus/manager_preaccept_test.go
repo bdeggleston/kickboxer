@@ -372,7 +372,7 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Commands:     getBasicInstruction(),
-		Dependencies: s.manager.getCurrentDepsUnsafe(),
+		Dependencies: s.manager.getCurrentDeps(),
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
@@ -402,8 +402,8 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
-	replicaDeps := s.manager.getCurrentDepsUnsafe()
-	leaderDeps := s.manager.getCurrentDepsUnsafe()
+	replicaDeps := s.manager.getCurrentDeps()
+	leaderDeps := s.manager.getCurrentDeps()
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
@@ -447,7 +447,7 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
-	replicaDeps := s.manager.getCurrentDepsUnsafe()
+	replicaDeps := s.manager.getCurrentDeps()
 	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),

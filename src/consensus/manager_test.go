@@ -92,7 +92,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.manager.executed), gocheck.Equals, 4)
 
-	actual := NewInstanceIDSet(s.manager.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.manager.getCurrentDeps())
 
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
@@ -110,7 +110,7 @@ func (s *ScopeTest) TestGetDepsNoExecutions(c *gocheck.C) {
 	c.Assert(s.manager.committed.Len(), gocheck.Equals, 4)
 	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
 
-	actual := NewInstanceIDSet(s.manager.getCurrentDepsUnsafe())
+	actual := NewInstanceIDSet(s.manager.getCurrentDeps())
 
 	c.Assert(expected.Equal(actual), gocheck.Equals, true)
 }

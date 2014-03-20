@@ -411,25 +411,10 @@ func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	return m.instances.GetOrSet(inst, initialize)
 }
 
-// TODO: delete
-// returns the current dependencies for a new instance
-// this method doesn't implement any locking or persistence
-func (m *Manager) getCurrentDepsUnsafe() []InstanceID {
-	return m.getCurrentDeps()
-
-}
-
 func (m *Manager) getCurrentDeps() []InstanceID {
-	m.executedLock.RLock()
-	defer m.executedLock.RUnlock()
-
 	// grab ALL instances as dependencies for now
 	//	numDeps := m.inProgress.Len() + m.committed.Len() + len(m.executed)
 	numDeps := m.inProgress.Len() + m.committed.Len()
-	if len(m.executed) > 0 {
-		numDeps++
-	}
-
 	deps := make([]InstanceID, 0, numDeps)
 	deps = append(deps, m.inProgress.InstanceIDs()...)
 	deps = append(deps, m.committed.InstanceIDs()...)

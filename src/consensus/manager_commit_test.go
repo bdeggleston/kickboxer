@@ -279,7 +279,7 @@ func (s *CommitReplicaTest) TestHandleSuccess(c *gocheck.C) {
 // not previously seen
 func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
 	leaderID := node.NewNodeId()
-	leaderInstance := makeInstance(leaderID, s.manager.getCurrentDepsUnsafe())
+	leaderInstance := makeInstance(leaderID, s.manager.getCurrentDeps())
 	leaderInstance.Sequence += 5
 
 	request := &CommitRequest{
