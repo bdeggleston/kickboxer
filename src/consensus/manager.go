@@ -367,7 +367,7 @@ func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
 	case *PrepareSuccessorRequest:
 		return m.HandlePrepareSuccessor(request)
 	default:
-		return nil, fmt.Errorf("Unhandled scoped request type: %T", request)
+		return nil, fmt.Errorf("Unhandled request type: %T", request)
 	}
 	panic("unreachable")
 }

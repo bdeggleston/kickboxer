@@ -91,7 +91,7 @@ func (s *ExecuteInstanceTest) TearDownSuite(c *gocheck.C) {
 
 func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 	s.baseExecutionTest.SetUpTest(c)
-	s.oldPreparePhase = scopePreparePhase
+	s.oldPreparePhase = managerPreparePhase
 	s.preparePhaseCalls = 0
 
 	// make all instances 'timed out'
@@ -113,11 +113,11 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 }
 
 func (s *ExecuteInstanceTest) TearDownTest(c *gocheck.C) {
-	scopePreparePhase = s.oldPreparePhase
+	managerPreparePhase = s.oldPreparePhase
 }
 
 func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
-	scopePreparePhase = func(manager *Manager, instance *Instance) error {
+	managerPreparePhase = func(manager *Manager, instance *Instance) error {
 		s.preparePhaseCalls++
 		if commit {
 			manager.commitInstance(instance, false)
@@ -148,7 +148,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 	BALLOT_FAILURE_WAIT_TIME = uint64(5)
 
 	// die once, succeed on second try
-	scopePreparePhase = func(manager *Manager, instance *Instance) error {
+	managerPreparePhase = func(manager *Manager, instance *Instance) error {
 		if s.preparePhaseCalls > 0 {
 			manager.commitInstance(instance, false)
 		} else {
@@ -228,7 +228,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 // tests that if a prepare phase removes an instance from the target
 // instance's dependency graph, it's not executed
 func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
-	scopePreparePhase = func(manager *Manager, instance *Instance) error {
+	managerPreparePhase = func(manager *Manager, instance *Instance) error {
 		instance.Sequence += 5
 		s.preparePhaseCalls++
 		manager.commitInstance(instance, false)

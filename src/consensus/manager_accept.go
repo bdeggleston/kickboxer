@@ -132,7 +132,7 @@ func (m *Manager) sendAccept(instance *Instance, replicas []node.Node) error {
 }
 
 // assigned to var for testing
-var scopeAcceptPhase = func(m *Manager, instance *Instance) error {
+var managerAcceptPhase = func(m *Manager, instance *Instance) error {
 	start := time.Now()
 	defer m.statsTiming("accept.phase.time", start)
 	m.statsInc("accept.phase.count", 1)
@@ -159,7 +159,7 @@ var scopeAcceptPhase = func(m *Manager, instance *Instance) error {
 }
 
 func (m *Manager) acceptPhase(instance *Instance) error {
-	return scopeAcceptPhase(m, instance)
+	return managerAcceptPhase(m, instance)
 }
 
 // handles an accept message from the command leader for an instance

@@ -230,7 +230,7 @@ var scopePrepareCheckResponses = func(m *Manager, instance *Instance, responses 
 }
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
-var scopePrepareApply = func(m *Manager, instance *Instance, responses []*PrepareResponse) error {
+var managerPrepareApply = func(m *Manager, instance *Instance, responses []*PrepareResponse) error {
 	if err := scopePrepareCheckResponses(m, instance, responses); err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ var scopePrepareApply = func(m *Manager, instance *Instance, responses []*Prepar
 	return nil
 }
 
-var scopePreparePhase = func(m *Manager, instance *Instance) error {
+var managerPreparePhase = func(m *Manager, instance *Instance) error {
 	start := time.Now()
 	defer m.statsTiming("prepare.phase.time", start)
 	m.statsInc("prepare.phase.count", 1)
@@ -330,7 +330,7 @@ var scopePreparePhase = func(m *Manager, instance *Instance) error {
 	responses, err := scopeSendPrepare(m, instance)
 	if err != nil { return err }
 
-	err = scopePrepareApply(m, instance, responses)
+	err = managerPrepareApply(m, instance, responses)
 	if err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ var scopePrepareInstance = func(m *Manager, inst *Instance) error {
 	}
 
 	logger.Debug("Prepare phase started")
-	err = scopePreparePhase(m, instance)
+	err = managerPreparePhase(m, instance)
 	logger.Debug("Prepare phase completed")
 	return err
 }
