@@ -17,6 +17,7 @@ import (
 	"message"
 	"node"
 	"store"
+	cluster "clusterproto"
 )
 
 type intVal struct {
@@ -48,6 +49,8 @@ type mockCluster struct {
 	instructions []*store.Instruction
 	values map[string]*intVal
 }
+
+var _  cluster.Cluster = &mockCluster{}
 
 func newMockCluster() *mockCluster {
 	return &mockCluster{
@@ -104,13 +107,15 @@ type mockNode struct {
 	stats			statsd.Statter
 }
 
+var _ node.Node = &mockNode{}
+
 func newMockNode() *mockNode {
-	cluster := newMockCluster()
+	clstr := newMockCluster()
 	return &mockNode{
-		id:             cluster.GetID(),
+		id:             clstr.GetID(),
 		queries:        []*store.Instruction{},
-		cluster:        cluster,
-		manager:        NewManager(cluster),
+		cluster:        clstr,
+		manager:        NewManager(clstr),
 		messageHandler: mockNodeDefaultMessageHandler,
 		sentMessages:   make([]message.Message, 0),
 		stats:			newMockStatter(),
@@ -227,6 +232,8 @@ type mockStatter struct {
 	timers map[string]int64
 	guages map[string]int64
 }
+
+var _ statsd.Statter = &mockStatter{}
 
 func newMockStatter() *mockStatter {
 	return &mockStatter{
