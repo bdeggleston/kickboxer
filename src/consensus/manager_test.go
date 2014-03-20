@@ -86,7 +86,6 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	expected := NewInstanceIDSet([]InstanceID{})
 	expected.Add(s.manager.inProgress.InstanceIDs()...)
 	expected.Add(s.manager.committed.InstanceIDs()...)
-	expected.Add(s.manager.executed[len(s.manager.executed) - 1])
 
 	// sanity checks
 	c.Assert(s.manager.inProgress.Len(), gocheck.Equals, 4)
@@ -95,7 +94,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 
 	actual := NewInstanceIDSet(s.manager.getCurrentDepsUnsafe())
 
-	c.Assert(expected.Equal(actual), gocheck.Equals, true)
+	c.Assert(actual, gocheck.DeepEquals, expected)
 }
 
 // tests that manager doesn't try to add executed instances

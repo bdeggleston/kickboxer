@@ -433,10 +433,6 @@ func (m *Manager) getCurrentDeps() []InstanceID {
 	deps := make([]InstanceID, 0, numDeps)
 	deps = append(deps, m.inProgress.InstanceIDs()...)
 	deps = append(deps, m.committed.InstanceIDs()...)
-	//	deps = append(deps, m.executed...)
-	if len(m.executed) > 0 {
-		deps = append(deps, m.executed[len(m.executed) - 1])
-	}
 
 	return deps
 }
