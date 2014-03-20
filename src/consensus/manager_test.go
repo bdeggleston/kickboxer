@@ -18,19 +18,19 @@ import (
 
 var _test_loglevel = flag.String("test.loglevel", "", "the loglevel to run tests with")
 
-func TestGetScope(t *testing.T) {
+func TestGetManager(t *testing.T) {
 
 }
 
-func TestCheckScopeEligibility(t *testing.T) {
+func TestCheckManagerEligibility(t *testing.T) {
 
 }
 
-func TestGetScopeNodes(t *testing.T) {
+func TestGetManagerNodes(t *testing.T) {
 
 }
 
-func TestGetScopeReplicas(t *testing.T) {
+func TestGetManagerReplicas(t *testing.T) {
 
 }
 
@@ -53,14 +53,14 @@ func Test(t *testing.T) {
 	gocheck.TestingT(t)
 }
 
-type ScopeTest struct {
+type ManagerTest struct {
 	baseReplicaTest
 }
 
-var _ = gocheck.Suite(&ScopeTest{})
+var _ = gocheck.Suite(&ManagerTest{})
 
 // test that instances are created properly
-func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
+func (s *ManagerTest) TestInstanceCreation(c *gocheck.C) {
 	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
 	instance := s.manager.makeInstance(instructions)
 	c.Check(instance.MaxBallot, gocheck.Equals, uint32(0))
@@ -81,7 +81,7 @@ func (s *ScopeTest) TestInstanceCreation(c *gocheck.C) {
 	c.Check(actual, gocheck.DeepEquals, expected)
 }
 
-func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
+func (s *ManagerTest) TestGetCurrentDeps(c *gocheck.C) {
 	instanceByKey := make(map[string]InstanceIDSet)
 	newInstruction := func(key string) []*store.Instruction {
 		return []*store.Instruction{store.NewInstruction("set", key, []string{"b", "c"}, time.Now())}
@@ -125,7 +125,7 @@ func (s *ScopeTest) TestGetCurrentDeps(c *gocheck.C) {
 	c.Check(bDeps, gocheck.DeepEquals, instanceByKey["b"])
 }
 
-func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
+func (s *ManagerTest) TestGetNextSeq(c *gocheck.C) {
 	s.manager.maxSeq = 5
 	nextSeq := s.manager.getNextSeqUnsafe()
 
@@ -133,7 +133,7 @@ func (s *ScopeTest) TestGetNextSeq(c *gocheck.C) {
 }
 
 // tests that the addMissingInstance method works properly
-func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
+func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	var err error
 	getInst := func(status InstanceStatus) *Instance {
 		inst := s.manager.makeInstance(getBasicInstruction())
@@ -180,13 +180,13 @@ func (s *ScopeTest) TestAddMissingInstance(c *gocheck.C) {
 }
 
 //
-func (s *ScopeTest) TestGetOrSetNewInstance(c *gocheck.C) {
+func (s *ManagerTest) TestGetOrSetNewInstance(c *gocheck.C) {
 	instance, existed := s.manager.getOrSetInstance(makeInstance(node.NewNodeId(), []InstanceID{}))
 	c.Assert(instance.manager, gocheck.Equals, s.manager)
 	c.Assert(existed, gocheck.Equals, false)
 }
 
-func (s *ScopeTest) TestGetOrSetExistingInstance(c *gocheck.C) {
+func (s *ManagerTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 	getInst := func(status InstanceStatus) *Instance {
 		inst := s.manager.makeInstance(getBasicInstruction())
 		inst.Status = status
@@ -201,7 +201,7 @@ func (s *ScopeTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 
 // tests that get or set sets new instances to committed if the
 // new instance has an status of executed
-func (s *ScopeTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
+func (s *ManagerTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
 	getInst := func(status InstanceStatus) *Instance {
 		inst := s.manager.makeInstance(getBasicInstruction())
 		inst.Status = status
@@ -212,24 +212,24 @@ func (s *ScopeTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
 	c.Assert(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
-type ScopeExecuteQueryTest struct {
-	baseScopeTest
+type ManagerExecuteQueryTest struct {
+	baseManagerTest
 }
 
-var _ = gocheck.Suite(&ScopeExecuteQueryTest{})
+var _ = gocheck.Suite(&ManagerExecuteQueryTest{})
 
-func (s *ScopeExecuteQueryTest) TestPreAcceptSuccess(c *gocheck.C) {
-
-}
-
-func (s *ScopeExecuteQueryTest) TestPreAcceptBallotFailure(c *gocheck.C) {
+func (s *ManagerExecuteQueryTest) TestPreAcceptSuccess(c *gocheck.C) {
 
 }
 
-func (s *ScopeExecuteQueryTest) TestAcceptSuccess(c *gocheck.C) {
+func (s *ManagerExecuteQueryTest) TestPreAcceptBallotFailure(c *gocheck.C) {
 
 }
 
-func (s *ScopeExecuteQueryTest) TestAcceptBallotFailure(c *gocheck.C) {
+func (s *ManagerExecuteQueryTest) TestAcceptSuccess(c *gocheck.C) {
+
+}
+
+func (s *ManagerExecuteQueryTest) TestAcceptBallotFailure(c *gocheck.C) {
 
 }

@@ -15,7 +15,7 @@ import (
 )
 
 type basePrepareTest struct {
-	baseScopeTest
+	baseManagerTest
 
 	oldManagerAcceptPhase func(*Manager, *Instance) error
 	oldManagerPreparePhase func(*Manager, *Instance) error
@@ -29,7 +29,7 @@ type basePrepareTest struct {
 }
 
 func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
-	s.baseScopeTest.SetUpTest(c)
+	s.baseManagerTest.SetUpTest(c)
 	s.oldManagerAcceptPhase = managerAcceptPhase
 	s.oldManagerPreparePhase = managerPreparePhase
 	s.oldManagerPrepareApply = managerPrepareApply
@@ -84,15 +84,15 @@ func (s *PrepareLeaderTest) SetUpSuite(c *gocheck.C) {
 	s.baseReplicaTest.SetUpSuite(c)
 	s.oldPrepareTimeout = PREPARE_TIMEOUT
 	PREPARE_TIMEOUT = 50
-	s.oldDeferToSuccessor = scopeDeferToSuccessor
-	scopeDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
+	s.oldDeferToSuccessor = managerDeferToSuccessor
+	managerDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
 		return true, nil
 	}
 }
 
 func (s *PrepareLeaderTest) TearDownSuite(c *gocheck.C) {
 	PREPARE_TIMEOUT = s.oldPrepareTimeout
-	scopeDeferToSuccessor = s.oldDeferToSuccessor
+	managerDeferToSuccessor = s.oldDeferToSuccessor
 }
 
 func (s *PrepareLeaderTest) SetUpTest(c *gocheck.C) {
@@ -120,7 +120,7 @@ func (s *PrepareLeaderTest) TestSendSuccess(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := scopeSendPrepare(s.manager, s.instance)
+	responses, err := managerSendPrepare(s.manager, s.instance)
 	runtime.Gosched()
 	c.Assert(err, gocheck.IsNil)
 
@@ -148,7 +148,7 @@ func (s *PrepareLeaderTest) TestQuorumFailure(c *gocheck.C) {
 		}
 	}
 
-	responses, err := scopeSendPrepare(s.manager, s.instance)
+	responses, err := managerSendPrepare(s.manager, s.instance)
 	runtime.Gosched()
 	c.Assert(responses, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
@@ -173,10 +173,10 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	responses, err := scopeSendPrepare(s.manager, s.instance)
+	responses, err := managerSendPrepare(s.manager, s.instance)
 	c.Check(s.instance.MaxBallot, gocheck.Equals, uint32(6))
 	runtime.Gosched()
-	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
+	err = managerPrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -237,14 +237,14 @@ type PreparePhaseTest struct {
 var _ = gocheck.Suite(&PreparePhaseTest{})
 
 func (s *PreparePhaseTest) SetUpSuite(c *gocheck.C) {
-	s.oldDeferToSuccessor = scopeDeferToSuccessor
-	scopeDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
+	s.oldDeferToSuccessor = managerDeferToSuccessor
+	managerDeferToSuccessor = func(s *Manager, instance *Instance) (bool, error) {
 		return true, nil
 	}
 }
 
 func (s *PreparePhaseTest) TearDownSuite(c *gocheck.C) {
-	scopeDeferToSuccessor = s.oldDeferToSuccessor
+	managerDeferToSuccessor = s.oldDeferToSuccessor
 }
 
 // tests that the preparePhase doesn't actually do anything
@@ -365,7 +365,7 @@ func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
 	}
-	err := scopePrepareCheckResponses(s.manager, s.instance, responses)
+	err := managerPrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.IsNil)
 }
 
@@ -380,7 +380,7 @@ func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
 
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
-	err := scopePrepareCheckResponses(s.manager, s.instance, responses)
+	err := managerPrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 }
@@ -405,7 +405,7 @@ func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
 
-	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
+	err = managerPrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -436,7 +436,7 @@ func (s *PrepareCheckResponsesTest) TestCommitStatusUpdate(c *gocheck.C) {
 	// sanity check
 	c.Assert(s.instance.MaxBallot, gocheck.Not(gocheck.Equals), remoteInstance.MaxBallot)
 
-	err = scopePrepareCheckResponses(s.manager, s.instance, responses)
+	err = managerPrepareCheckResponses(s.manager, s.instance, responses)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(err, gocheck.FitsTypeOf, BallotError{})
 
@@ -713,7 +713,7 @@ func (s *PreparePhase2Test) TestUnknownInstance(c *gocheck.C) {
 
 // tests the handle prepare message method
 type PrepareReplicaTest struct {
-	baseScopeTest
+	baseManagerTest
 
 	instance *Instance
 }
@@ -721,7 +721,7 @@ type PrepareReplicaTest struct {
 var _ = gocheck.Suite(&PrepareReplicaTest{})
 
 func (s *PrepareReplicaTest) SetUpTest(c *gocheck.C) {
-	s.baseScopeTest.SetUpTest(c)
+	s.baseManagerTest.SetUpTest(c)
 	s.instance = s.manager.makeInstance(getBasicInstruction())
 }
 
@@ -825,7 +825,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
 		s2Calls++
 		return nil, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -847,7 +847,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
 		s2Calls++
 		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -872,7 +872,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
 	var err error
 	var returned bool
 	go func() {
-		proceed, err = scopeDeferToSuccessor(s.manager, s.instance)
+		proceed, err = managerDeferToSuccessor(s.manager, s.instance)
 		returned = true
 	}()
 	runtime.Gosched()
@@ -904,7 +904,7 @@ func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
 		s2Calls++
 		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
 	}
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s1Calls, gocheck.Equals, 1)
@@ -923,7 +923,7 @@ func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) 
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, false)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
@@ -942,7 +942,7 @@ func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C)
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -960,7 +960,7 @@ func (s *SuccessorPreparePhaseTest) TestExecutedSuccessorResponse(c *gocheck.C) 
 	// sanity check
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s.instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
@@ -977,7 +977,7 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 		return nil, fmt.Errorf("nope")
 	}
 
-	proceed, err := scopeDeferToSuccessor(s.manager, s.instance)
+	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
 	c.Check(s2Calls, gocheck.Equals, 0)
@@ -989,13 +989,13 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorSelf(c *gocheck.C) {
 func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
 	deferCalls := 0
 	oldSuccessorContactInterval := SUCCESSOR_CONTACT_INTERVAL
-	oldDeferToSuccessor := scopeDeferToSuccessor
+	oldDeferToSuccessor := managerDeferToSuccessor
 	defer func() {
-		scopeDeferToSuccessor = oldDeferToSuccessor
+		managerDeferToSuccessor = oldDeferToSuccessor
 		SUCCESSOR_CONTACT_INTERVAL = oldSuccessorContactInterval
 	}()
 	SUCCESSOR_CONTACT_INTERVAL = 10
-	scopeDeferToSuccessor = func(manager *Manager, instance *Instance) (bool, error) {
+	managerDeferToSuccessor = func(manager *Manager, instance *Instance) (bool, error) {
 		defer func() {deferCalls++}()
 		if deferCalls == 0 {
 			return false, nil
@@ -1007,7 +1007,7 @@ func (s *SuccessorPreparePhaseTest) TestDeferInfiniteLoop(c *gocheck.C) {
 	}
 	s.instance.commitTimeout = time.Now()
 
-	err := scopePrepareInstance(s.manager, s.instance)
+	err := managerPrepareInstance(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(deferCalls, gocheck.Equals, 2)
 }
@@ -1022,7 +1022,7 @@ var _ = gocheck.Suite(&HandlePrepareSuccessorRequestTest{})
 
 func (s *HandlePrepareSuccessorRequestTest) SetUpSuite(c *gocheck.C) {
 	s.baseReplicaTest.SetUpSuite(c)
-	s.oldManagerPrepareInstance = scopePrepareInstance
+	s.oldManagerPrepareInstance = managerPrepareInstance
 }
 
 func (s *HandlePrepareSuccessorRequestTest) SetUpTest(c *gocheck.C) {
@@ -1033,14 +1033,14 @@ func (s *HandlePrepareSuccessorRequestTest) SetUpTest(c *gocheck.C) {
 }
 
 func (s *HandlePrepareSuccessorRequestTest) TearDownSuite(c *gocheck.C) {
-	scopePrepareInstance = s.oldManagerPrepareInstance
+	managerPrepareInstance = s.oldManagerPrepareInstance
 }
 
 // tests that the prepare phase method is called asynchronously
 // if the instance has not been committed
 func (s *HandlePrepareSuccessorRequestTest) TestUncommittedInstance(c *gocheck.C) {
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Manager, instance *Instance) error {
+	managerPrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}
@@ -1064,7 +1064,7 @@ func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) 
 	c.Assert(err, gocheck.IsNil)
 
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Manager, instance *Instance) error {
+	managerPrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}
@@ -1085,7 +1085,7 @@ func (s *HandlePrepareSuccessorRequestTest) TestCommittedInstance(c *gocheck.C) 
 // know about the instance
 func (s *HandlePrepareSuccessorRequestTest) TestUnknownInstance(c *gocheck.C) {
 	prepareInstanceCalls := 0
-	scopePrepareInstance = func(s *Manager, instance *Instance) error {
+	managerPrepareInstance = func(s *Manager, instance *Instance) error {
 		prepareInstanceCalls++
 		return nil
 	}

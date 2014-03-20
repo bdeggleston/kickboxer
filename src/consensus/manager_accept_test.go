@@ -15,7 +15,7 @@ import (
 )
 
 type AcceptInstanceTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&AcceptInstanceTest{})
@@ -295,14 +295,14 @@ func (s *AcceptLeaderTest) TestAcceptMessageBallotIsUpToDate(c *gocheck.C) {
 /** replica **/
 
 type AcceptReplicaTest struct {
-	baseScopeTest
+	baseManagerTest
 	instance *Instance
 }
 
 var _ = gocheck.Suite(&AcceptReplicaTest{})
 
 func (s *AcceptReplicaTest) SetUpTest(c *gocheck.C) {
-	s.baseScopeTest.SetUpTest(c)
+	s.baseManagerTest.SetUpTest(c)
 	s.instance = s.manager.makeInstance(getBasicInstruction())
 }
 

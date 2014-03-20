@@ -16,7 +16,7 @@ import (
 )
 
 type CommitInstanceTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&CommitInstanceTest{})
@@ -249,7 +249,7 @@ func (s *CommitLeaderTest) TestCommitMessageBallotIsUpToDate(c *gocheck.C) {
 
 
 type CommitReplicaTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&CommitReplicaTest{})

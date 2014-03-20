@@ -19,7 +19,7 @@ import (
 )
 
 type baseExecutionTest struct {
-	baseScopeTest
+	baseManagerTest
 	expectedOrder []InstanceID
 	maxIdx int
 }
@@ -27,7 +27,7 @@ type baseExecutionTest struct {
 // makes a set of interdependent instances, and sets
 // their expected ordering
 func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
-	s.baseScopeTest.SetUpTest(c)
+	s.baseManagerTest.SetUpTest(c)
 	s.expectedOrder  = make([]InstanceID, 0)
 	lastVal := 0
 
@@ -570,7 +570,7 @@ func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
 }
 
 type ExecuteApplyInstanceTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&ExecuteApplyInstanceTest{})

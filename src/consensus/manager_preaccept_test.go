@@ -15,7 +15,7 @@ import (
 )
 
 type PreAcceptInstanceTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&PreAcceptInstanceTest{})
@@ -353,13 +353,13 @@ func (s *PreAcceptLeaderTest) TestPreAcceptMessageBallotIsUpToDate(c *gocheck.C)
 }
 
 type PreAcceptReplicaTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&PreAcceptReplicaTest{})
 
 func (s *PreAcceptReplicaTest) SetUpTest(c *gocheck.C) {
-	s.baseScopeTest.SetUpTest(c)
+	s.baseManagerTest.SetUpTest(c)
 	setupDeps(s.manager)
 }
 

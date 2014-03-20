@@ -8,7 +8,7 @@ import (
 )
 
 type LeaderTest struct {
-	baseScopeTest
+	baseManagerTest
 }
 
 var _ = gocheck.Suite(&LeaderTest{})

@@ -142,16 +142,16 @@ TODO: think about potential race conditions caused by multiple goroutines runnin
 
 ------ older notes ------
 
-1) The scope needs to know the consistency level, and have a means of querying the cluster
+1) The manager needs to know the consistency level, and have a means of querying the cluster
 	for the proper replicas each time it needs to send a message to the replicas. If a replica
 	is added to, or removed from, the cluster mid transaction, the transaction will be executing
 	against an out of date set of replicas.
 
-2) scope state persistence. Maybe add system state mutation method to store?
+2) manager state persistence. Maybe add system state mutation method to store?
 	A triply nested hash table should do the trick for most applications.
 		ex:
 			consensus:
-				<consensus_state> [scope_id][instance_id] = serialized_instance
+				<consensus_state> [manager_id][instance_id] = serialized_instance
 			cluster state:
 				<cluster_state> [node_id][node_property] = node_metadata
 
@@ -182,7 +182,7 @@ Explicit Prepare:
 Cluster Changes:
 	Joining nodes. When a node joins the cluster, it needs to get a snapshot of the data
 	for a key, the id of the last executed instance, as well as the instance set for that
-	key's consensus scope. That should allow it to start participating in the consensus
+	key's consensus manager. That should allow it to start participating in the consensus
 	process without any inconsistencies. Nodes should probably forward consensus state to
 	the joining node while it's in the process of joining, since it probably wouldn't make
 	sense to have a half joined node start participating in consensus for some of it's keys,
@@ -201,7 +201,7 @@ Variable datacenter consistency:
 			home dc: assign keys a 'home' datacenter. Probably the first dc to touch the key,
 				unless explicity assigned. Queries performed in the home dc only run consensus
 				in the local dcs, and remote dc nodes forward their queries to the home dc. The
-				home dc could be moved automatically based on query frequency. Reassigning a scope's
+				home dc could be moved automatically based on query frequency. Reassigning a manager's
 				home would be an inter dc consensus operation.
 				Local consensus reads can be performed against the local cluster, with the understanding
 				that local consensus is not as consistent as inter dc consensus, and local consensus
@@ -292,7 +292,7 @@ func (m *Manager) setStatter(s statsd.Statter) {
 	m.stats = s
 }
 
-// returns the replicas for the scope's key, at the given  consistency level
+// returns the replicas for the manager's key, at the given  consistency level
 func (m *Manager) getInstanceNodes(instance *Instance) []node.Node {
 	return m.cluster.GetNodesForKey(instance.Commands[0].Key)
 }

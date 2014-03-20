@@ -135,12 +135,12 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 	return instance
 }
 
-type baseScopeTest struct {
+type baseManagerTest struct {
 	cluster *mockCluster
 	manager *Manager
 }
 
-func (s *baseScopeTest) getInstructions(values ...int) []*store.Instruction {
+func (s *baseManagerTest) getInstructions(values ...int) []*store.Instruction {
 	instructions := make([]*store.Instruction, len(values))
 	for i, val := range values {
 		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
@@ -148,14 +148,14 @@ func (s *baseScopeTest) getInstructions(values ...int) []*store.Instruction {
 	return instructions
 }
 
-func (s *baseScopeTest) SetUpTest(c *gocheck.C) {
+func (s *baseManagerTest) SetUpTest(c *gocheck.C) {
 	s.cluster = newMockCluster()
 	s.manager = NewManager(s.cluster)
 	s.manager.stats = newMockStatter()
 }
 
 type baseReplicaTest struct {
-	baseScopeTest
+	baseManagerTest
 	nodes []*mockNode
 	managers []*Manager
 	replicaManagers []*Manager

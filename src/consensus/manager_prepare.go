@@ -104,7 +104,7 @@ func (m *Manager) applyPrepareResponses(responses []*PrepareResponse, localInsta
 	return nil, nil
 }
 
-var scopeSendPrepare = func(m *Manager, instance *Instance) ([]*PrepareResponse, error) {
+var managerSendPrepare = func(m *Manager, instance *Instance) ([]*PrepareResponse, error) {
 	start := time.Now()
 	defer m.statsTiming("prepare.message.send.time", start)
 	m.statsInc("prepare.message.send.count", 1)
@@ -173,7 +173,7 @@ var scopeSendPrepare = func(m *Manager, instance *Instance) ([]*PrepareResponse,
 // performs an initial check of the responses
 // if any of the responses have been rejected, the local ballot will be updated,
 // as well as it's status if there are any responses with a higher status
-var scopePrepareCheckResponses = func(m *Manager, instance *Instance, responses []*PrepareResponse) error {
+var managerPrepareCheckResponses = func(m *Manager, instance *Instance, responses []*PrepareResponse) error {
 	accepted := true
 	var maxBallot uint32
 	var maxStatus InstanceStatus
@@ -231,7 +231,7 @@ var scopePrepareCheckResponses = func(m *Manager, instance *Instance, responses 
 
 // uses the remote instance to start a preaccept phase, an accept phase, or a commit phase
 var managerPrepareApply = func(m *Manager, instance *Instance, responses []*PrepareResponse) error {
-	if err := scopePrepareCheckResponses(m, instance, responses); err != nil {
+	if err := managerPrepareCheckResponses(m, instance, responses); err != nil {
 		return err
 	}
 
@@ -327,7 +327,7 @@ var managerPreparePhase = func(m *Manager, instance *Instance) error {
 		return nil
 	}
 
-	responses, err := scopeSendPrepare(m, instance)
+	responses, err := managerSendPrepare(m, instance)
 	if err != nil { return err }
 
 	err = managerPrepareApply(m, instance, responses)
@@ -341,7 +341,7 @@ var managerPreparePhase = func(m *Manager, instance *Instance) error {
 // TODO: test alone
 // attempts to defer the prepare phase to successor nodes
 // returns a bool indicating if the prepare should proceed locally
-var scopeDeferToSuccessor = func(m *Manager, instance *Instance) (bool, error) {
+var managerDeferToSuccessor = func(m *Manager, instance *Instance) (bool, error) {
 	start := time.Now()
 	defer m.statsTiming("prepare.successor.time", start)
 	m.statsInc("prepare.successor.count", 1)
@@ -466,7 +466,7 @@ func (m *Manager) prepareShouldProceed(instance *Instance) bool {
 	return true
 }
 
-var scopePrepareInstance = func(m *Manager, inst *Instance) error {
+var managerPrepareInstance = func(m *Manager, inst *Instance) error {
 	start := time.Now()
 	defer m.statsTiming("prepare.instance.time", start)
 	m.statsInc("prepare.instance.count", 1)
@@ -479,7 +479,7 @@ var scopePrepareInstance = func(m *Manager, inst *Instance) error {
 	}
 
 	//
-	deferred, err := scopeDeferToSuccessor(m, instance)
+	deferred, err := managerDeferToSuccessor(m, instance)
 	var commitEvent <- chan bool
 	for (!deferred || err != nil) && inst.getStatus() < INSTANCE_COMMITTED {
 		if commitEvent == nil {
@@ -499,7 +499,7 @@ var scopePrepareInstance = func(m *Manager, inst *Instance) error {
 			m.statsInc("prepare.instance.defer.commit.wait.broadcast.count", 1)
 			return nil
 		}
-		deferred, err = scopeDeferToSuccessor(m, instance)
+		deferred, err = managerDeferToSuccessor(m, instance)
 	}
 
 	// double check we should proceed
@@ -517,7 +517,7 @@ var scopePrepareInstance = func(m *Manager, inst *Instance) error {
 // runs explicit prepare phase on instances where a command leader failure is suspected
 // during execution,
 func (m *Manager) preparePhase(instance *Instance) error {
-	return scopePrepareInstance(m, instance)
+	return managerPrepareInstance(m, instance)
 }
 
 // handles a prepare message from an instance attempting to take
