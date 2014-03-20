@@ -281,7 +281,7 @@ func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) (s
 	return val, nil
 }
 
-var scopeExecuteInstance = func(m *Manager, instance *Instance) (store.Value, error) {
+var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, error) {
 	start := time.Now()
 	defer m.statsTiming("execute.phase.time", start)
 	m.statsInc("execute.phase.count", 1)
@@ -397,6 +397,6 @@ var scopeExecuteInstance = func(m *Manager, instance *Instance) (store.Value, er
 // first it will resolve all dependencies, then wait for them to commit/reject, or force them
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
 func (m *Manager) executeInstance(instance *Instance) (store.Value, error) {
-	return scopeExecuteInstance(m, instance)
+	return managerExecuteInstance(m, instance)
 }
 

@@ -90,7 +90,7 @@ func (m *Manager) sendCommit(instance *Instance, replicas []node.Node) error {
 	return nil
 }
 
-var scopeCommitPhase = func(m *Manager, instance *Instance) error {
+var managerCommitPhase = func(m *Manager, instance *Instance) error {
 	start := time.Now()
 	defer m.statsTiming("commit.phase.time", start)
 	m.statsInc("commit.phase.count", 1)
@@ -116,7 +116,7 @@ var scopeCommitPhase = func(m *Manager, instance *Instance) error {
 }
 
 func (m *Manager) commitPhase(instance *Instance) error {
-	return scopeCommitPhase(m, instance)
+	return managerCommitPhase(m, instance)
 }
 
 // handles an commit message from the command leader for an instance

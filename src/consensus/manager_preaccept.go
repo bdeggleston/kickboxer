@@ -148,7 +148,7 @@ func (m *Manager) mergePreAcceptAttributes(instance *Instance, responses []*PreA
 }
 
 // assigned to var for testing
-var scopePreAcceptPhase = func(m *Manager, instance *Instance) (acceptRequired bool, err error) {
+var managerPreAcceptPhase = func(m *Manager, instance *Instance) (acceptRequired bool, err error) {
 	replicas := m.getInstanceReplicas(instance)
 
 	if err := m.preAcceptInstance(instance, true); err != nil {
@@ -199,7 +199,7 @@ func (m *Manager) preAcceptPhase(instance *Instance) (acceptRequired bool, err e
 
 	logger.Debug("PreAccept phase started")
 	defer logger.Debug("Preaccept phase completed: %v %v", acceptRequired, err)
-	return scopePreAcceptPhase(m, instance)
+	return managerPreAcceptPhase(m, instance)
 }
 
 

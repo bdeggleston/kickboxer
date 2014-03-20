@@ -51,7 +51,7 @@ func setupDeps(manager *Manager) {
 	}
 }
 
-func setupScope() *Manager {
+func setupManager() *Manager {
 	manager := NewManager(newMockCluster())
 	setupDeps(manager)
 	return manager

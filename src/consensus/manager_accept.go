@@ -17,7 +17,7 @@ func makeAcceptCommitTimeout() time.Time {
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
-// instance to the scope's instance
+// instance to the manager's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (m *Manager) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) error {
@@ -28,7 +28,7 @@ func (m *Manager) acceptInstanceUnsafe(inst *Instance, incrementBallot bool) err
 // in the case of handling messages from leaders to replicas
 // the message instance should be passed in. It will either
 // update the existing instance in place, or add the message
-// instance to the scope's instance
+// instance to the manager's instance
 // returns a bool indicating that the instance was actually
 // accepted (and not skipped), and an error, if applicable
 func (m *Manager) acceptInstance(inst *Instance, incrementBallot bool) error {

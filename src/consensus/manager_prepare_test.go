@@ -42,7 +42,7 @@ func (s *basePrepareTest) SetUpTest(c *gocheck.C) {
 }
 
 func (s *basePrepareTest) patchPreAccept(r bool, e error) {
-	scopePreAcceptPhase = func(_ *Manager, _ *Instance) (bool, error) {
+	managerPreAcceptPhase = func(_ *Manager, _ *Instance) (bool, error) {
 		s.preAcceptCalls++
 		return r, e
 	}
@@ -56,7 +56,7 @@ func (s *basePrepareTest) patchAccept(e error) {
 }
 
 func (s *basePrepareTest) patchCommit(e error) {
-	scopeCommitPhase = func(_ *Manager, _ *Instance) (error) {
+	managerCommitPhase = func(_ *Manager, _ *Instance) (error) {
 		s.commitCalls++
 		return e
 	}

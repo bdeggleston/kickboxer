@@ -302,11 +302,11 @@ func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
 // be asynchronously executed against the store
 func (s *CommitReplicaTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
 	c.Skip("no longer executing on commit")
-	oldExecute := scopeExecuteInstance
-	defer func() { scopeExecuteInstance = oldExecute }()
+	oldExecute := managerExecuteInstance
+	defer func() { managerExecuteInstance = oldExecute }()
 
 	executeCalled := false
-	scopeExecuteInstance = func(m *Manager, i *Instance) (store.Value, error) {
+	managerExecuteInstance = func(m *Manager, i *Instance) (store.Value, error) {
 		executeCalled = true
 		return nil, nil
 	}
