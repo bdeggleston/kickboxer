@@ -87,6 +87,17 @@ func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestam
 	return val, nil
 }
 
+func (c *mockCluster) CheckInterference(i0, i1 []*store.Instruction) bool {
+	for _, x := range i0 {
+		for _, y := range i1 {
+			if x.Key == y.Key {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
 	return mn.manager.HandleMessage(msg)
 }
