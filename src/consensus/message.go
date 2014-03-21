@@ -41,14 +41,13 @@ type PreAcceptRequest struct {
 func (m *PreAcceptRequest) GetType() uint32 { return MESSAGE_PREACCEPT_REQUEST }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error   {
-	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 	return nil
 }
 
 func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-		m.Instance = val
-	}
+	m.Instance = &Instance{}
+	if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	return nil
 }
 
@@ -85,12 +84,12 @@ func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error   {
 	if err := binary.Write(buf, binary.LittleEndian, &accepted); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
 
-	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 
 	numInst := uint32(len(m.MissingInstances))
 	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	for _, inst := range m.MissingInstances {
-		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+		if err := inst.SerializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -100,16 +99,14 @@ func (m *PreAcceptResponse) Deserialize(buf *bufio.Reader) error {
 	if err := binary.Read(buf, binary.LittleEndian, &accepted); err != nil { return err }
 	m.Accepted = accepted != 0x0
 	if err := binary.Read(buf, binary.LittleEndian, &m.MaxBallot); err != nil { return err }
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-		m.Instance = val
-	}
+	m.Instance = &Instance{}
+	if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	var numInst uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	m.MissingInstances = make([]*Instance, numInst)
 	for i := range m.MissingInstances {
-		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-			m.MissingInstances[i] = val
-		}
+		m.MissingInstances[i] = &Instance{}
+		if err := m.MissingInstances[i].DeserializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -130,27 +127,25 @@ var _ = &AcceptRequest{}
 func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
 
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
-	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 
 	numInst := uint32(len(m.MissingInstances))
 	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	for _, inst := range m.MissingInstances {
-		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+		if err := inst.SerializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
 
 func (m *AcceptRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-		m.Instance = val
-	}
+	m.Instance = &Instance{}
+	if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	var numInst uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	m.MissingInstances = make([]*Instance, numInst)
 	for i := range m.MissingInstances {
-		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-			m.MissingInstances[i] = val
-		}
+		m.MissingInstances[i] = &Instance{}
+		if err := m.MissingInstances[i].DeserializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -197,14 +192,13 @@ var _ = &CommitRequest{}
 func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error   {
-	if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 	return nil
 }
 
 func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-		m.Instance = val
-	}
+	m.Instance = &Instance{}
+	if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	return nil
 }
 
@@ -265,7 +259,7 @@ func (m *PrepareResponse) Serialize(buf *bufio.Writer) error   {
 	if m.Instance == nil { isNil = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &isNil); err != nil { return err }
 	if m.Instance != nil {
-		if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+		if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -278,9 +272,8 @@ func (m *PrepareResponse) Deserialize(buf *bufio.Reader) error {
 	var isNil byte
 	if err := binary.Read(buf, binary.LittleEndian, &isNil); err != nil { return err }
 	if isNil == 0x0 {
-		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-			m.Instance = val
-		}
+		m.Instance = &Instance{}
+		if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -318,7 +311,7 @@ func (m *PrepareSuccessorResponse) Serialize(buf *bufio.Writer) error   {
 	if m.Instance == nil { isNil = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &isNil); err != nil { return err }
 	if m.Instance != nil {
-		if err := instanceLimitedSerialize(m.Instance, buf); err != nil { return err }
+		if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -327,9 +320,8 @@ func (m *PrepareSuccessorResponse) Deserialize(buf *bufio.Reader) error {
 	var isNil byte
 	if err := binary.Read(buf, binary.LittleEndian, &isNil); err != nil { return err }
 	if isNil == 0x0 {
-		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-			m.Instance = val
-		}
+		m.Instance = &Instance{}
+		if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -374,7 +366,7 @@ func (m *InstanceResponse) Serialize(buf *bufio.Writer) error   {
 	numInst := uint32(len(m.Instances))
 	if err := binary.Write(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	for _, inst := range m.Instances {
-		if err := instanceLimitedSerialize(inst, buf); err != nil { return err }
+		if err := inst.SerializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
@@ -384,9 +376,8 @@ func (m *InstanceResponse) Deserialize(buf *bufio.Reader) error {
 	if err := binary.Read(buf, binary.LittleEndian, &numInst); err != nil { return err }
 	m.Instances = make([]*Instance, numInst)
 	for i := range m.Instances {
-		if val, err := instanceLimitedDeserialize(buf); err != nil { return err } else {
-			m.Instances[i] = val
-		}
+		m.Instances[i] = &Instance{}
+		if err := m.Instances[i].DeserializeLimited(buf); err != nil { return err }
 	}
 	return nil
 }
