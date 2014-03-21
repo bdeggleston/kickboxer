@@ -43,8 +43,8 @@ var _ = &PreAcceptRequest{}
 
 func (m *PreAcceptRequest) GetType() uint32 { return MESSAGE_PREACCEPT_REQUEST }
 
-func (m *PreAcceptRequest) GetNumBytes() int {
-	return m.Instance.GetNumBytesLimited()
+func (m *PreAcceptRequest) NumBytes() int {
+	return m.Instance.NumBytesLimited()
 }
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error   {
@@ -83,7 +83,7 @@ var _ = &PreAcceptResponse{}
 func (m *PreAcceptResponse) GetBallot() uint32 { return m.MaxBallot }
 func (m *PreAcceptResponse) GetType() uint32 { return MESSAGE_PREACCEPT_RESPONSE }
 
-func (m *PreAcceptResponse) GetNumBytes() int {
+func (m *PreAcceptResponse) NumBytes() int {
 	var numBytes int
 
 	// accepted
@@ -93,12 +93,12 @@ func (m *PreAcceptResponse) GetNumBytes() int {
 	numBytes += 4
 
 	// instance
-	numBytes += m.Instance.GetNumBytesLimited()
+	numBytes += m.Instance.NumBytesLimited()
 
 	// missing instances
 	numBytes += 4  // array size
 	for _, inst := range m.MissingInstances {
-		numBytes += inst.GetNumBytesLimited()
+		numBytes += inst.NumBytesLimited()
 	}
 
 	return numBytes
@@ -152,16 +152,16 @@ var _ = &AcceptRequest{}
 
 func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
 
-func (m *AcceptRequest) GetNumBytes() int {
+func (m *AcceptRequest) NumBytes() int {
 	var numBytes int
 
 	// instance
-	numBytes += m.Instance.GetNumBytesLimited()
+	numBytes += m.Instance.NumBytesLimited()
 
 	// missing instances
 	numBytes += 4  // array size
 	for _, inst := range m.MissingInstances {
-		numBytes += inst.GetNumBytesLimited()
+		numBytes += inst.NumBytesLimited()
 	}
 
 	return numBytes
@@ -201,7 +201,7 @@ type AcceptResponse struct {
 	MaxBallot uint32
 }
 
-func (m *AcceptResponse) GetNumBytes() int {
+func (m *AcceptResponse) NumBytes() int {
 	var numBytes int
 
 	// accepted
@@ -244,11 +244,11 @@ var _ = &CommitRequest{}
 
 func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
-func (m *CommitRequest) GetNumBytes() int {
+func (m *CommitRequest) NumBytes() int {
 	var numBytes int
 
 	// instance
-	numBytes += m.Instance.GetNumBytesLimited()
+	numBytes += m.Instance.NumBytesLimited()
 
 	return numBytes
 }
@@ -266,7 +266,7 @@ func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
 
 type CommitResponse struct {}
 
-func (m *CommitResponse) GetNumBytes() int {
+func (m *CommitResponse) NumBytes() int {
 	return 0
 }
 
@@ -288,7 +288,7 @@ type PrepareRequest struct {
 	InstanceID InstanceID
 }
 
-func (m *PrepareRequest) GetNumBytes() int {
+func (m *PrepareRequest) NumBytes() int {
 	var numBytes int
 
 	// ballot
@@ -328,7 +328,7 @@ var _ = &PrepareResponse{}
 
 func (m *PrepareResponse) GetType() uint32 { return MESSAGE_PREPARE_RESPONSE }
 
-func (m *PrepareResponse) GetNumBytes() int {
+func (m *PrepareResponse) NumBytes() int {
 	var numBytes int
 
 	// accepted
@@ -339,7 +339,7 @@ func (m *PrepareResponse) GetNumBytes() int {
 
 	// instance
 	if m.Instance != nil {
-		numBytes += m.Instance.GetNumBytesLimited()
+		numBytes += m.Instance.NumBytesLimited()
 	}
 
 	return numBytes
@@ -384,7 +384,7 @@ var _ = &PrepareSuccessorRequest{}
 
 func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_REQUEST }
 
-func (m *PrepareSuccessorRequest) GetNumBytes() int {
+func (m *PrepareSuccessorRequest) NumBytes() int {
 	var numBytes int
 
 	// instance id
@@ -411,7 +411,7 @@ var _ = &PrepareSuccessorResponse{}
 
 func (m *PrepareSuccessorResponse) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_RESPONSE }
 
-func (m *PrepareSuccessorResponse) GetNumBytes() int {
+func (m *PrepareSuccessorResponse) NumBytes() int {
 	var numBytes int
 
 	// instance exists
@@ -419,7 +419,7 @@ func (m *PrepareSuccessorResponse) GetNumBytes() int {
 
 	// instance
 	if m.Instance != nil {
-		numBytes += m.Instance.GetNumBytesLimited()
+		numBytes += m.Instance.NumBytesLimited()
 	}
 
 	return numBytes
@@ -454,7 +454,7 @@ var _ = &InstanceRequest{}
 func (m *InstanceRequest) GetType() uint32 { return MESSAGE_INSTANCE_REQUEST }
 
 
-func (m *InstanceRequest) GetNumBytes() int {
+func (m *InstanceRequest) NumBytes() int {
 	var numBytes int
 
 	// num ids
@@ -491,7 +491,7 @@ type InstanceResponse struct {
 	Instances []*Instance
 }
 
-func (m *InstanceResponse) GetNumBytes() int {
+func (m *InstanceResponse) NumBytes() int {
 	var numBytes int
 
 	// num instances
@@ -499,7 +499,7 @@ func (m *InstanceResponse) GetNumBytes() int {
 
 	// missing instances
 	for _, inst := range m.Instances {
-		numBytes += inst.GetNumBytesLimited()
+		numBytes += inst.NumBytesLimited()
 	}
 
 	return numBytes

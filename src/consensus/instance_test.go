@@ -162,7 +162,7 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes())
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes())
 
 	reader := bufio.NewReader(buf)
 	dst := &Instance{}

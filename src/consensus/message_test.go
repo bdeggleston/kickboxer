@@ -28,7 +28,7 @@ func (s *ConsensusMessageTest) TestPreAcceptRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -52,7 +52,7 @@ func (s *ConsensusMessageTest) TestPreAcceptResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -74,7 +74,7 @@ func (s *ConsensusMessageTest) TestAcceptRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -93,7 +93,7 @@ func (s *ConsensusMessageTest) TestAcceptResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -111,7 +111,7 @@ func (s *ConsensusMessageTest) TestCommitRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -127,7 +127,7 @@ func (s *ConsensusMessageTest) TestCommitResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -146,7 +146,7 @@ func (s *ConsensusMessageTest) TestPrepareRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -165,7 +165,7 @@ func (s *ConsensusMessageTest) TestPrepareResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -184,7 +184,7 @@ func (s *ConsensusMessageTest) TestPrepareResponseNoInstance(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -202,7 +202,7 @@ func (s *ConsensusMessageTest) TestPrepareSuccessorRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -220,7 +220,7 @@ func (s *ConsensusMessageTest) TestPrepareSuccessorResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -238,7 +238,7 @@ func (s *ConsensusMessageTest) TestPrepareSuccessorResponseNoInstance(c *gocheck
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -256,7 +256,7 @@ func (s *ConsensusMessageTest) TestInstanceRequest(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)
@@ -277,7 +277,7 @@ func (s *ConsensusMessageTest) TestInstanceResponse(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// test num bytes
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes() + message.MESSAGE_HEADER_SIZE)
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes() + message.MESSAGE_HEADER_SIZE)
 
 	dst, err := message.ReadMessage(buf)
 	c.Assert(err, gocheck.IsNil)

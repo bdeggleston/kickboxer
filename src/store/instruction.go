@@ -54,7 +54,7 @@ func (i *Instruction) Copy() *Instruction {
 }
 
 // returns the expected number of bytes from serialization
-func (i *Instruction) GetNumBytes() (int) {
+func (i *Instruction) NumBytes() (int) {
 	numBytes := 0
 	numBytes += serializer.NumStringBytes(i.Cmd)
 	numBytes += serializer.NumStringBytes(i.Key)

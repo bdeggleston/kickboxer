@@ -43,6 +43,6 @@ func (t *InstructionTest) TestNumBytesCalculation(c *gocheck.C) {
 	err = writer.Flush()
 	c.Assert(err, gocheck.IsNil)
 
-	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes())
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes())
 
 }

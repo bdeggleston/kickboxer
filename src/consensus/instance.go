@@ -575,7 +575,7 @@ func (i *Instance) setNoop() {
 
 // -------------- serialization --------------
 
-func (i *Instance) GetNumBytesLimitedUnsafe() int {
+func (i *Instance) NumBytesLimitedUnsafe() int {
 	var numBytes int
 
 	// instance id
@@ -591,7 +591,7 @@ func (i *Instance) GetNumBytesLimitedUnsafe() int {
 	// instructions
 	numBytes += 4  // num instructions header
 	for _, instruction := range i.Commands {
-		numBytes += instruction.GetNumBytes()
+		numBytes += instruction.NumBytes()
 	}
 
 	// dependencies
@@ -616,10 +616,10 @@ func (i *Instance) GetNumBytesLimitedUnsafe() int {
 	return numBytes
 }
 
-func (i *Instance) GetNumBytesLimited() int {
+func (i *Instance) NumBytesLimited() int {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	return i.GetNumBytesLimitedUnsafe()
+	return i.NumBytesLimitedUnsafe()
 }
 
 func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
@@ -704,10 +704,10 @@ func (i *Instance) SerializeLimited(buf *bufio.Writer) error {
 	return i.SerializeLimitedUnsafe(buf)
 }
 
-func (i *Instance) GetNumBytes() int {
+func (i *Instance) NumBytes() int {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	numBytes := i.GetNumBytesLimitedUnsafe()
+	numBytes := i.NumBytesLimitedUnsafe()
 
 	// commit and execute timeouts
 	numBytes += serializer.NumTimeBytes() * 2
