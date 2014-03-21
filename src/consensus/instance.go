@@ -575,41 +575,6 @@ func (i *Instance) setNoop() {
 
 // -------------- serialization --------------
 
-func instructionSerialize(instruction *store.Instruction, buf *bufio.Writer) error {
-	if err := serializer.WriteFieldString(buf, instruction.Cmd); err != nil { return err }
-	if err := serializer.WriteFieldString(buf, instruction.Key); err != nil { return err }
-	numArgs := uint32(len(instruction.Args))
-	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
-	for _, arg := range instruction.Args {
-		if err := serializer.WriteFieldString(buf, arg); err != nil { return err }
-	}
-	if err := serializer.WriteTime(buf, instruction.Timestamp); err != nil { return err }
-	return nil
-}
-
-func instructionDeserialize(buf *bufio.Reader) (*store.Instruction, error) {
-	instruction := &store.Instruction{}
-	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-		instruction.Cmd = val
-	}
-	if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-		instruction.Key = val
-	}
-
-	var numArgs uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numArgs); err != nil { return nil, err }
-	instruction.Args = make([]string, numArgs)
-	for i := range instruction.Args {
-		if val, err := serializer.ReadFieldString(buf); err != nil { return nil, err } else {
-			instruction.Args[i] = val
-		}
-	}
-	if val, err := serializer.ReadTime(buf); err != nil { return nil, err } else {
-		instruction.Timestamp = val
-	}
-	return instruction, nil
-}
-
 func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error {
 
 	if err := (&instance.InstanceID).WriteBuffer(buf); err != nil { return err }
@@ -623,7 +588,7 @@ func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error
 	numInstructions := uint32(len(instance.Commands))
 	if err := binary.Write(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
 	for _, inst := range instance.Commands {
-		if err := instructionSerialize(inst, buf); err != nil { return err }
+		if err := inst.Serialize(buf); err != nil { return err }
 	}
 	numDeps := uint32(len(instance.Dependencies))
 	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
@@ -662,9 +627,8 @@ func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
 	if err := binary.Read(buf, binary.LittleEndian, &numInstructions); err != nil { return nil, err }
 	instance.Commands = make([]*store.Instruction, numInstructions)
 	for i := range instance.Commands {
-		instr, err := instructionDeserialize(buf)
-		if err != nil { return nil, err }
-		instance.Commands[i] = instr
+		instance.Commands[i] = &store.Instruction{}
+		if err := instance.Commands[i].Deserialize(buf); err != nil { return nil, err }
 	}
 
 	var numDeps uint32
