@@ -106,6 +106,7 @@ func NumSliceBytes(b []byte) int {
 }
 
 func NumTimeBytes() int {
-	return 15
+	// header + bytes
+	return 4 + 15
 }
 
