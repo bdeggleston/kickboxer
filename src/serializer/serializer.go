@@ -96,3 +96,16 @@ func ReadTime(buf *bufio.Reader) (time.Time, error) {
 	}
 	return t, nil
 }
+
+func NumStringBytes(s string) int {
+	return 4 + len(s)
+}
+
+func NumSliceBytes(b []byte) int {
+	return 4 + len(b)
+}
+
+func NumTimeBytes() int {
+	return 15
+}
+
