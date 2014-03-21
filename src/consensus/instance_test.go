@@ -156,13 +156,14 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		DependencyMatch: true,
 	}
 	writer := bufio.NewWriter(buf)
-	err = instanceSerialize(src, writer)
+	err = src.Serialize(writer)
 	c.Assert(err, gocheck.IsNil)
 	err = writer.Flush()
 	c.Assert(err, gocheck.IsNil)
 
 	reader := bufio.NewReader(buf)
-	dst, err := instanceDeserialize(reader)
+	dst := &Instance{}
+	err = dst.Deserialize(reader)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(dst, gocheck.DeepEquals, src)
 }

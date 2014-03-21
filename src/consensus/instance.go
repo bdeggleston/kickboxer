@@ -575,111 +575,106 @@ func (i *Instance) setNoop() {
 
 // -------------- serialization --------------
 
-func instanceLimitedSerializeUnsafe(instance *Instance, buf *bufio.Writer) error {
+func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
+	if err := (&i.InstanceID).WriteBuffer(buf); err != nil { return err }
 
-	if err := (&instance.InstanceID).WriteBuffer(buf); err != nil { return err }
-
-	if err := (&instance.LeaderID).WriteBuffer(buf); err != nil { return err }
-	numSuccessors := uint32(len(instance.Successors))
+	if err := (&i.LeaderID).WriteBuffer(buf); err != nil { return err }
+	numSuccessors := uint32(len(i.Successors))
 	if err := binary.Write(buf, binary.LittleEndian, &numSuccessors); err != nil { return err }
-	for i := range instance.Successors {
-		if err := (&instance.Successors[i]).WriteBuffer(buf); err != nil { return err }
+	for idx := range i.Successors {
+		if err := (&i.Successors[idx]).WriteBuffer(buf); err != nil { return err }
 	}
-	numInstructions := uint32(len(instance.Commands))
+	numInstructions := uint32(len(i.Commands))
 	if err := binary.Write(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
-	for _, inst := range instance.Commands {
+	for _, inst := range i.Commands {
 		if err := inst.Serialize(buf); err != nil { return err }
 	}
-	numDeps := uint32(len(instance.Dependencies))
+	numDeps := uint32(len(i.Dependencies))
 	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	for i := range instance.Dependencies {
-		if err := (&instance.Dependencies[i]).WriteBuffer(buf); err != nil { return err }
+	for idx := range i.Dependencies {
+		if err := (&i.Dependencies[idx]).WriteBuffer(buf); err != nil { return err }
 	}
 
-	if err := binary.Write(buf, binary.LittleEndian, &instance.Sequence); err != nil { return err }
-	if err := binary.Write(buf, binary.LittleEndian, &instance.Status); err != nil { return err }
-	if err := binary.Write(buf, binary.LittleEndian, &instance.MaxBallot); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &i.Sequence); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &i.Status); err != nil { return err }
+	if err := binary.Write(buf, binary.LittleEndian, &i.MaxBallot); err != nil { return err }
 
 	var noop byte
-	if instance.Noop { noop = 0xff }
+	if i.Noop { noop = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &noop); err != nil { return err }
 
 	var match byte
-	if instance.DependencyMatch { match = 0xff }
+	if i.DependencyMatch { match = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &match); err != nil { return err }
 
 	return nil
 }
 
-func instanceLimitedDeserialize(buf *bufio.Reader) (*Instance, error) {
-	instance := &Instance{}
-	if err := (&instance.InstanceID).ReadBuffer(buf); err != nil { return nil, err }
-	if err := (&instance.LeaderID).ReadBuffer(buf); err != nil { return nil, err }
+func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
+	if err := (&i.InstanceID).ReadBuffer(buf); err != nil { return err }
+	if err := (&i.LeaderID).ReadBuffer(buf); err != nil { return err }
 
 	var numSuccessors uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numSuccessors); err != nil { return nil, err }
-	instance.Successors = make([]node.NodeId, numSuccessors)
-	for i := range instance.Successors {
-		if err := (&instance.Successors[i]).ReadBuffer(buf); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &numSuccessors); err != nil { return err }
+	i.Successors = make([]node.NodeId, numSuccessors)
+	for idx := range i.Successors {
+		if err := (&i.Successors[idx]).ReadBuffer(buf); err != nil { return err }
 	}
 
 	var numInstructions uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numInstructions); err != nil { return nil, err }
-	instance.Commands = make([]*store.Instruction, numInstructions)
-	for i := range instance.Commands {
-		instance.Commands[i] = &store.Instruction{}
-		if err := instance.Commands[i].Deserialize(buf); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
+	i.Commands = make([]*store.Instruction, numInstructions)
+	for idx := range i.Commands {
+		i.Commands[idx] = &store.Instruction{}
+		if err := i.Commands[idx].Deserialize(buf); err != nil { return err }
 	}
 
 	var numDeps uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return nil, err }
-	instance.Dependencies = make([]InstanceID, numDeps)
-	for i := range instance.Dependencies {
-		if err := (&instance.Dependencies[i]).ReadBuffer(buf); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
+	i.Dependencies = make([]InstanceID, numDeps)
+	for idx := range i.Dependencies {
+		if err := (&i.Dependencies[idx]).ReadBuffer(buf); err != nil { return err }
 	}
 
-	if err := binary.Read(buf, binary.LittleEndian, &instance.Sequence); err != nil { return nil, err }
-	if err := binary.Read(buf, binary.LittleEndian, &instance.Status); err != nil { return nil, err }
-	if err := binary.Read(buf, binary.LittleEndian, &instance.MaxBallot); err != nil { return nil, err }
+	if err := binary.Read(buf, binary.LittleEndian, &i.Sequence); err != nil { return err }
+	if err := binary.Read(buf, binary.LittleEndian, &i.Status); err != nil { return err }
+	if err := binary.Read(buf, binary.LittleEndian, &i.MaxBallot); err != nil { return err }
 
 	var noop byte
-	if err := binary.Read(buf, binary.LittleEndian, &noop); err != nil { return nil, err }
-	instance.Noop = noop != 0x0
+	if err := binary.Read(buf, binary.LittleEndian, &noop); err != nil { return err }
+	i.Noop = noop != 0x0
 
 	var match byte
-	if err := binary.Read(buf, binary.LittleEndian, &match); err != nil { return nil, err }
-	instance.DependencyMatch = match != 0x0
-
-	return instance, nil
-}
-
-func instanceLimitedSerialize(instance *Instance, buf *bufio.Writer) error {
-	instance.lock.RLock()
-	defer instance.lock.RUnlock()
-	return instanceLimitedSerializeUnsafe(instance, buf)
-}
-
-func instanceSerialize(instance *Instance, buf *bufio.Writer) error {
-	instance.lock.RLock()
-	defer instance.lock.RUnlock()
-	if err := instanceLimitedSerializeUnsafe(instance, buf); err != nil { return err }
-	if err := serializer.WriteTime(buf, instance.commitTimeout); err != nil { return err }
-	if err := serializer.WriteTime(buf, instance.executeTimeout); err != nil { return err }
+	if err := binary.Read(buf, binary.LittleEndian, &match); err != nil { return err }
+	i.DependencyMatch = match != 0x0
 
 	return nil
 }
 
-func instanceDeserialize(buf *bufio.Reader) (*Instance, error) {
-	var instance *Instance
-	if val, err := instanceLimitedDeserialize(buf); err != nil { return nil, err } else {
-		instance = val
-	}
-	if val, err := serializer.ReadTime(buf); err != nil { return nil, err } else {
-		instance.commitTimeout = val
-	}
-	if val, err := serializer.ReadTime(buf); err != nil { return nil, err } else {
-		instance.executeTimeout = val
-	}
-
-	return instance, nil
+func (i *Instance) SerializeLimited(buf *bufio.Writer) error {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.SerializeLimitedUnsafe(buf)
 }
+
+func (i *Instance) Serialize(buf *bufio.Writer) error {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	if err := i.SerializeLimitedUnsafe(buf); err != nil { return err }
+	if err := serializer.WriteTime(buf, i.commitTimeout); err != nil { return err }
+	if err := serializer.WriteTime(buf, i.executeTimeout); err != nil { return err }
+
+	return nil
+}
+
+func (i *Instance) Deserialize(buf *bufio.Reader) error {
+	if err := i.DeserializeLimited(buf); err != nil { return err }
+	if val, err := serializer.ReadTime(buf); err != nil { return err } else {
+		i.commitTimeout = val
+	}
+	if val, err := serializer.ReadTime(buf); err != nil { return err } else {
+		i.executeTimeout = val
+	}
+	return nil
+}
+
