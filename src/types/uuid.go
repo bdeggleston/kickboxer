@@ -13,6 +13,10 @@ import (
 	"serializer"
 )
 
+const (
+	UUID_NUM_BYTES = 16
+)
+
 // wraps up the google uuid library
 // and stores values as 2 uint64 values
 type UUID struct {
