@@ -52,6 +52,8 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
+var _ = &PreAcceptRequest{}
+
 type PreAcceptResponse struct {
 
 	// indicates the remote node ignored the
@@ -71,6 +73,8 @@ type PreAcceptResponse struct {
 	// instances in it's deps, return them here
 	MissingInstances []*Instance
 }
+
+var _ = &PreAcceptResponse{}
 
 func (m *PreAcceptResponse) GetBallot() uint32 { return m.MaxBallot }
 func (m *PreAcceptResponse) GetType() uint32 { return MESSAGE_PREACCEPT_RESPONSE }
@@ -121,6 +125,8 @@ type AcceptRequest struct {
 	MissingInstances []*Instance
 }
 
+var _ = &AcceptRequest{}
+
 func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
 
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
@@ -159,6 +165,8 @@ type AcceptResponse struct {
 	MaxBallot uint32
 }
 
+var _ = &AcceptResponse{}
+
 func (m *AcceptResponse) GetBallot() uint32 { return m.MaxBallot }
 func (m *AcceptResponse) GetType() uint32 { return MESSAGE_ACCEPT_RESPONSE }
 
@@ -184,6 +192,8 @@ type CommitRequest struct {
 	Instance *Instance
 }
 
+var _ = &CommitRequest{}
+
 func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error   {
@@ -199,6 +209,9 @@ func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
 }
 
 type CommitResponse struct {}
+
+var _ = &CommitResponse{}
+
 func (m *CommitResponse) GetType() uint32 { return MESSAGE_COMMIT_RESPONSE }
 
 func (m *CommitResponse) Serialize(buf *bufio.Writer) error   {
@@ -214,6 +227,8 @@ type PrepareRequest struct {
 
 	InstanceID InstanceID
 }
+
+var _ = &PrepareRequest{}
 
 func (m *PrepareRequest) GetType() uint32 { return MESSAGE_PREPARE_REQUEST }
 
@@ -236,6 +251,8 @@ type PrepareResponse struct {
 
 	Instance *Instance
 }
+
+var _ = &PrepareResponse{}
 
 func (m *PrepareResponse) GetType() uint32 { return MESSAGE_PREPARE_RESPONSE }
 
@@ -274,6 +291,8 @@ type PrepareSuccessorRequest struct {
 	InstanceID InstanceID
 }
 
+var _ = &PrepareSuccessorRequest{}
+
 func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_REQUEST }
 
 func (m *PrepareSuccessorRequest) Serialize(buf *bufio.Writer) error   {
@@ -289,6 +308,8 @@ func (m *PrepareSuccessorRequest) Deserialize(buf *bufio.Reader) error {
 type PrepareSuccessorResponse struct {
 	Instance *Instance
 }
+
+var _ = &PrepareSuccessorResponse{}
 
 func (m *PrepareSuccessorResponse) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_RESPONSE }
 
@@ -317,6 +338,8 @@ type InstanceRequest struct {
 	InstanceIDs []InstanceID
 }
 
+var _ = &InstanceRequest{}
+
 func (m *InstanceRequest) GetType() uint32 { return MESSAGE_INSTANCE_REQUEST }
 
 func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
@@ -342,6 +365,8 @@ func (m *InstanceRequest) Deserialize(buf *bufio.Reader) error {
 type InstanceResponse struct {
 	Instances []*Instance
 }
+
+var _ = &InstanceResponse{}
 
 func (m *InstanceResponse) GetType() uint32 { return MESSAGE_INSTANCE_RESPONSE }
 
