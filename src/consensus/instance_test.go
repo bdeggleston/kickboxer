@@ -161,6 +161,9 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 	err = writer.Flush()
 	c.Assert(err, gocheck.IsNil)
 
+	// test num bytes
+	c.Check(len(buf.Bytes()), gocheck.Equals, src.GetNumBytes())
+
 	reader := bufio.NewReader(buf)
 	dst := &Instance{}
 	err = dst.Deserialize(reader)

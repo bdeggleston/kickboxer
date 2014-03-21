@@ -575,6 +575,53 @@ func (i *Instance) setNoop() {
 
 // -------------- serialization --------------
 
+func (i *Instance) GetNumBytesLimitedUnsafe() int {
+	var numBytes int
+
+	// instance id
+	numBytes += types.UUID_NUM_BYTES
+
+	// leader id
+	numBytes += types.UUID_NUM_BYTES
+
+	// successors
+	numBytes += 4  // num successors header
+	numBytes += types.UUID_NUM_BYTES * len(i.Successors)
+
+	// instructions
+	numBytes += 4  // num instructions header
+	for _, instruction := range i.Commands {
+		numBytes += instruction.GetNumBytes()
+	}
+
+	// dependencies
+	numBytes += 4  // num dependencies header
+	numBytes += types.UUID_NUM_BYTES * len(i.Dependencies)
+
+	// sequence
+	numBytes += 8
+
+	// status
+	numBytes += 1
+
+	// ballot
+	numBytes += 4
+
+	// noop
+	numBytes += 1
+
+	// match
+	numBytes += 1
+
+	return numBytes
+}
+
+func (i *Instance) GetNumBytesLimited() int {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	return i.GetNumBytesLimitedUnsafe()
+}
+
 func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
 	if err := (&i.InstanceID).WriteBuffer(buf); err != nil { return err }
 
@@ -655,6 +702,17 @@ func (i *Instance) SerializeLimited(buf *bufio.Writer) error {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	return i.SerializeLimitedUnsafe(buf)
+}
+
+func (i *Instance) GetNumBytes() int {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+	numBytes := i.GetNumBytesLimitedUnsafe()
+
+	// commit and execute timeouts
+	numBytes += serializer.NumTimeBytes() * 2
+
+	return numBytes
 }
 
 func (i *Instance) Serialize(buf *bufio.Writer) error {
