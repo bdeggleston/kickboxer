@@ -7,6 +7,7 @@ import (
 
 import (
 	"message"
+	"types"
 )
 
 type BallotMessage interface {
@@ -38,7 +39,13 @@ type PreAcceptRequest struct {
 	Instance *Instance
 }
 
+var _ = &PreAcceptRequest{}
+
 func (m *PreAcceptRequest) GetType() uint32 { return MESSAGE_PREACCEPT_REQUEST }
+
+func (m *PreAcceptRequest) GetNumBytes() int {
+	return m.Instance.GetNumBytesLimited()
+}
 
 func (m *PreAcceptRequest) Serialize(buf *bufio.Writer) error   {
 	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
@@ -50,8 +57,6 @@ func (m *PreAcceptRequest) Deserialize(buf *bufio.Reader) error {
 	if err := m.Instance.DeserializeLimited(buf); err != nil { return err }
 	return nil
 }
-
-var _ = &PreAcceptRequest{}
 
 type PreAcceptResponse struct {
 
@@ -77,6 +82,27 @@ var _ = &PreAcceptResponse{}
 
 func (m *PreAcceptResponse) GetBallot() uint32 { return m.MaxBallot }
 func (m *PreAcceptResponse) GetType() uint32 { return MESSAGE_PREACCEPT_RESPONSE }
+
+func (m *PreAcceptResponse) GetNumBytes() int {
+	var numBytes int
+
+	// accepted
+	numBytes += 1
+
+	// ballot
+	numBytes += 4
+
+	// instance
+	numBytes += m.Instance.GetNumBytesLimited()
+
+	// missing instances
+	numBytes += 4  // array size
+	for _, inst := range m.MissingInstances {
+		numBytes += inst.GetNumBytesLimited()
+	}
+
+	return numBytes
+}
 
 func (m *PreAcceptResponse) Serialize(buf *bufio.Writer) error   {
 	var accepted byte
@@ -126,6 +152,21 @@ var _ = &AcceptRequest{}
 
 func (m *AcceptRequest) GetType() uint32 { return MESSAGE_ACCEPT_REQUEST }
 
+func (m *AcceptRequest) GetNumBytes() int {
+	var numBytes int
+
+	// instance
+	numBytes += m.Instance.GetNumBytesLimited()
+
+	// missing instances
+	numBytes += 4  // array size
+	for _, inst := range m.MissingInstances {
+		numBytes += inst.GetNumBytesLimited()
+	}
+
+	return numBytes
+}
+
 func (m *AcceptRequest) Serialize(buf *bufio.Writer) error   {
 	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 
@@ -160,6 +201,18 @@ type AcceptResponse struct {
 	MaxBallot uint32
 }
 
+func (m *AcceptResponse) GetNumBytes() int {
+	var numBytes int
+
+	// accepted
+	numBytes += 1
+
+	// ballot
+	numBytes += 4
+
+	return numBytes
+}
+
 var _ = &AcceptResponse{}
 
 func (m *AcceptResponse) GetBallot() uint32 { return m.MaxBallot }
@@ -191,6 +244,15 @@ var _ = &CommitRequest{}
 
 func (m *CommitRequest) GetType() uint32 { return MESSAGE_COMMIT_REQUEST }
 
+func (m *CommitRequest) GetNumBytes() int {
+	var numBytes int
+
+	// instance
+	numBytes += m.Instance.GetNumBytesLimited()
+
+	return numBytes
+}
+
 func (m *CommitRequest) Serialize(buf *bufio.Writer) error   {
 	if err := m.Instance.SerializeLimited(buf); err != nil { return err }
 	return nil
@@ -203,6 +265,10 @@ func (m *CommitRequest) Deserialize(buf *bufio.Reader) error {
 }
 
 type CommitResponse struct {}
+
+func (m *CommitResponse) GetNumBytes() int {
+	return 0
+}
 
 var _ = &CommitResponse{}
 
@@ -220,6 +286,18 @@ type PrepareRequest struct {
 	Ballot uint32
 
 	InstanceID InstanceID
+}
+
+func (m *PrepareRequest) GetNumBytes() int {
+	var numBytes int
+
+	// ballot
+	numBytes += 4
+
+	// instance id
+	numBytes += types.UUID_NUM_BYTES
+
+	return numBytes
 }
 
 var _ = &PrepareRequest{}
@@ -249,6 +327,24 @@ type PrepareResponse struct {
 var _ = &PrepareResponse{}
 
 func (m *PrepareResponse) GetType() uint32 { return MESSAGE_PREPARE_RESPONSE }
+
+func (m *PrepareResponse) GetNumBytes() int {
+	var numBytes int
+
+	// accepted
+	numBytes += 1
+
+	// instance exists
+	numBytes += 1
+
+	// instance
+	if m.Instance != nil {
+		numBytes += m.Instance.GetNumBytesLimited()
+	}
+
+	return numBytes
+}
+
 
 func (m *PrepareResponse) Serialize(buf *bufio.Writer) error   {
 	var accepted byte
@@ -288,6 +384,15 @@ var _ = &PrepareSuccessorRequest{}
 
 func (m *PrepareSuccessorRequest) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_REQUEST }
 
+func (m *PrepareSuccessorRequest) GetNumBytes() int {
+	var numBytes int
+
+	// instance id
+	numBytes += types.UUID_NUM_BYTES
+
+	return numBytes
+}
+
 func (m *PrepareSuccessorRequest) Serialize(buf *bufio.Writer) error   {
 	if err := (&m.InstanceID).WriteBuffer(buf); err != nil { return err }
 	return nil
@@ -305,6 +410,20 @@ type PrepareSuccessorResponse struct {
 var _ = &PrepareSuccessorResponse{}
 
 func (m *PrepareSuccessorResponse) GetType() uint32 { return MESSAGE_PREPARE_SUCCESSOR_RESPONSE }
+
+func (m *PrepareSuccessorResponse) GetNumBytes() int {
+	var numBytes int
+
+	// instance exists
+	numBytes += 1
+
+	// instance
+	if m.Instance != nil {
+		numBytes += m.Instance.GetNumBytesLimited()
+	}
+
+	return numBytes
+}
 
 func (m *PrepareSuccessorResponse) Serialize(buf *bufio.Writer) error   {
 	var isNil byte
@@ -334,6 +453,20 @@ var _ = &InstanceRequest{}
 
 func (m *InstanceRequest) GetType() uint32 { return MESSAGE_INSTANCE_REQUEST }
 
+
+func (m *InstanceRequest) GetNumBytes() int {
+	var numBytes int
+
+	// num ids
+	numBytes += 4
+
+	// ids
+	numBytes += types.UUID_NUM_BYTES * len(m.InstanceIDs)
+
+	return numBytes
+}
+
+
 func (m *InstanceRequest) Serialize(buf *bufio.Writer) error   {
 	numIds := uint32(len(m.InstanceIDs))
 	if err := binary.Write(buf, binary.LittleEndian, &numIds); err != nil { return err }
@@ -356,6 +489,20 @@ func (m *InstanceRequest) Deserialize(buf *bufio.Reader) error {
 
 type InstanceResponse struct {
 	Instances []*Instance
+}
+
+func (m *InstanceResponse) GetNumBytes() int {
+	var numBytes int
+
+	// num instances
+	numBytes += 4
+
+	// missing instances
+	for _, inst := range m.Instances {
+		numBytes += inst.GetNumBytesLimited()
+	}
+
+	return numBytes
 }
 
 var _ = &InstanceResponse{}

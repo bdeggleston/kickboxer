@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+const (
+	MESSAGE_HEADER_SIZE = 4
+)
+
 // function that returns an empty message
 type messageConstructor func() Message
 
