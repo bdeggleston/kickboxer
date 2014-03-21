@@ -20,4 +20,8 @@ type Message interface {
 
 	// returns the message type enum
 	GetType() uint32
+
+	// returns the number of bytes the
+	// serialized message will contain
+	NumBytes() int
 }
