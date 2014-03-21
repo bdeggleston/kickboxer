@@ -20,49 +20,6 @@ type Value interface {
 	Equal(value Value) bool
 }
 
-// an instruction to be executed against
-// the store. These objects should be
-// considered immutable once instantiated
-type Instruction struct {
-	Cmd string
-	Key string
-	Args []string
-	Timestamp time.Time
-}
-
-// creates a new instruction
-func NewInstruction(cmd string, key string, args []string, timestamp time.Time) *Instruction {
-	return &Instruction{
-		Cmd: cmd,
-		Key: key,
-		Args: args,
-		Timestamp: timestamp,
-	}
-}
-
-// instruction equality test
-func (i *Instruction) Equal(o *Instruction) bool {
-	if i.Cmd != o.Cmd { return false }
-	if i.Key != o.Key { return false }
-	if len(i.Args) != len(o.Args) { return false }
-	for n:=0;n<len(i.Args);n++ {
-		if i.Args[n] != o.Args[n] { return false}
-	}
-	if i.Timestamp != o.Timestamp { return false }
-	return true
-}
-
-func (i *Instruction) Copy() *Instruction {
-	newInstr := &Instruction{
-		Cmd: i.Cmd,
-		Key: i.Key,
-		Args: make([]string, len(i.Args)),
-		Timestamp: i.Timestamp,
-	}
-	copy(newInstr.Args, i.Args)
-	return newInstr
-}
-
 type Store interface {
 
 	Start() error
