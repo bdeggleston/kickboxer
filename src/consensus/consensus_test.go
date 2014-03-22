@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -143,47 +144,88 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 			n.cluster.lock.Unlock()
 		}
 	}()
-	nodeInstructions := make([]map[string][]*store.Instruction, s.numNodes)
+	nodeInstructions := make([]map[string][]*Instance, s.numNodes)
+	getKey := func(inst *Instance) string {
+		return inst.Commands[0].Key
+	}
+	getVal := func(inst *Instance) string {
+		return inst.Commands[0].Args[0]
+	}
 	for i, n := range s.nodes {
-		imap := make(map[string][]*store.Instruction)
-		for _, instruction := range n.cluster.instructions {
-			instructions := imap[instruction.Key]
+
+		imap := make(map[string][]*Instance)
+		for _, iid := range n.manager.executed {
+			instance := n.manager.instances.Get(iid)
+			instructions := imap[getKey(instance)]
 			if instructions == nil {
-				instructions = make([]*store.Instruction, 0, *benchQueries / *benchNumKeys)
+				instructions = make([]*Instance, 0, *benchQueries / *benchNumKeys)
 			}
-			instructions = append(instructions, instruction)
-			imap[instruction.Key] = instructions
+			instructions = append(instructions, instance)
+			imap[getKey(instance)] = instructions
 		}
 		nodeInstructions[i] = imap
 	}
 
 	for _, key := range s.keys {
 		maxIdx := 0
-		maxNumInstructions := 0
+		maxNumInstances := 0
 		for i, imap := range nodeInstructions {
 			if imap[key] == nil {
-				imap[key] = make([]*store.Instruction, 0)
+				imap[key] = make([]*Instance, 0)
 			}
-			if len(imap[key]) > maxNumInstructions {
+			if len(imap[key]) > maxNumInstances {
 				maxIdx = i
-				maxNumInstructions = len(imap[key])
+				maxNumInstances = len(imap[key])
 			}
 		}
-		mInstructions := nodeInstructions[maxIdx][key]
+		mInstances := nodeInstructions[maxIdx][key]
 		for i, imap := range nodeInstructions {
 			if i == maxIdx {
 				continue
 			}
-			instructions := imap[key]
-			for i:=0; i<len(instructions); i++ {
-				expected := mInstructions[i]
-				actual := instructions[i]
-				c.Check(
-					expected,
-					gocheck.DeepEquals,
-					actual,
-					gocheck.Commentf("%v: %v %v != %v", key, i, expected, actual),
-				)
+			instances := imap[key]
+			for i:=0; i<len(instances); i++ {
+				expected := mInstances[i]
+				actual := instances[i]
+				if !c.Check(expected.InstanceID, gocheck.Equals, actual.InstanceID,
+					gocheck.Commentf("%v: %v %v != %v", key, i, getVal(expected), getVal(actual)),
+				) {
+					fmt.Printf("Mismatched Instances for %v at %v: %v != %v\b", key, i, getVal(expected), getVal(actual))
+
+					// print jsonified instances
+					divergeIdx := i
+					displayStart := divergeIdx - 1
+					if displayStart < 0 {
+						displayStart = 0
+					}
+					displayEnd := divergeIdx + 2
+					expectedInstances := make([]*Instance, 0)
+					actualInstances := make([]*Instance, 0)
+					for j:=displayStart; j<=displayEnd; j++ {
+						if j < len(mInstances) {
+							expectedInstances = append(expectedInstances, mInstances[j])
+						}
+						if j < len(instances) {
+							actualInstances = append(actualInstances, instances[j])
+						}
+					}
+					var js []byte
+					var err error
+					js, err = json.Marshal(expectedInstances)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Println("expected")
+					fmt.Println(string(js))
+
+					js, err = json.Marshal(actualInstances)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Println("actual")
+					fmt.Println(string(js))
+
+				}
 			}
 		}
 	}
