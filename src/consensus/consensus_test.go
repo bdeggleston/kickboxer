@@ -168,7 +168,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 
 	badKeys := 0
 
-	for _, key := range s.keys {
+	checkKeys: for _, key := range s.keys {
 		maxIdx := 0
 		maxNumInstances := 0
 		for i, imap := range nodeInstructions {
@@ -253,6 +253,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println("e1")
 					fmt.Println(string(js))
 
+					continue checkKeys
 				}
 			}
 		}
