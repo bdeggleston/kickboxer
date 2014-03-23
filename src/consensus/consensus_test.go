@@ -166,6 +166,8 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 		nodeInstructions[i] = imap
 	}
 
+	badKeys := 0
+
 	for _, key := range s.keys {
 		maxIdx := 0
 		maxNumInstances := 0
@@ -190,6 +192,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 				if !c.Check(expected.InstanceID, gocheck.Equals, actual.InstanceID,
 					gocheck.Commentf("%v: %v %v != %v", key, i, getVal(expected), getVal(actual)),
 				) {
+					badKeys++
 					fmt.Printf("Mismatched Instances for %v at %v: %v != %v\b", key, i, getVal(expected), getVal(actual))
 
 					// print jsonified instances
@@ -211,6 +214,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					}
 					var js []byte
 					var err error
+					fmt.Println("")
 					js, err = json.Marshal(expectedInstances)
 					if err != nil {
 						panic(err)
@@ -218,6 +222,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println("expected")
 					fmt.Println(string(js))
 
+					fmt.Println("")
 					js, err = json.Marshal(actualInstances)
 					if err != nil {
 						panic(err)
@@ -225,9 +230,35 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println("actual")
 					fmt.Println(string(js))
 
+					e0 := make([]*Instance, len(s.nodes))
+					e1 := make([]*Instance, len(s.nodes))
+					for i, n := range s.nodes {
+						e0[i] = n.manager.instances.Get(expected.InstanceID)
+						e1[i] = n.manager.instances.Get(actual.InstanceID)
+					}
+
+					fmt.Println("")
+					js, err = json.Marshal(e0)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Println("e0")
+					fmt.Println(string(js))
+
+					fmt.Println("")
+					js, err = json.Marshal(e1)
+					if err != nil {
+						panic(err)
+					}
+					fmt.Println("e1")
+					fmt.Println(string(js))
+
 				}
 			}
 		}
+	}
+	if badKeys > 0 {
+		fmt.Println("Bad Keys: ", badKeys)
 	}
 }
 
