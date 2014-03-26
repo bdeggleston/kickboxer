@@ -255,8 +255,8 @@ type Instance struct {
 	// the order other nodes handle prepare phases
 	Successors []node.NodeId
 
-	// the Instructions(s) to be executed
-	Commands []*store.Instruction
+	// the Instruction to be executed
+	Command *store.Instruction
 
 	// a list of other instance ids that
 	// execution of this instance depends on
@@ -438,7 +438,7 @@ func (i *Instance) Copy() (*Instance, error) {
 		InstanceID: i.InstanceID,
 		LeaderID: i.LeaderID,
 		Successors: make([]node.NodeId, len(i.Successors)),
-		Commands: make([]*store.Instruction, len(i.Commands)),
+		Command: i.Command.Copy(),
 		Dependencies: make([]InstanceID, len(i.Dependencies)),
 		Sequence: i.Sequence,
 		Status: i.Status,
@@ -451,10 +451,6 @@ func (i *Instance) Copy() (*Instance, error) {
 	}
 	copy(newInst.Successors, i.Successors)
 	copy(newInst.Dependencies, i.Dependencies)
-
-	for i, instr := range i.Commands {
-		newInst.Commands[i] = instr.Copy()
-	}
 
 	return newInst, nil
 }
@@ -594,10 +590,7 @@ func (i *Instance) NumBytesLimitedUnsafe() int {
 	numBytes += types.UUID_NUM_BYTES * len(i.Successors)
 
 	// instructions
-	numBytes += 4  // num instructions header
-	for _, instruction := range i.Commands {
-		numBytes += instruction.NumBytes()
-	}
+	numBytes += i.Command.NumBytes()
 
 	// dependencies
 	numBytes += 4  // num dependencies header
@@ -639,11 +632,8 @@ func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
 	for idx := range i.Successors {
 		if err := (&i.Successors[idx]).WriteBuffer(buf); err != nil { return err }
 	}
-	numInstructions := uint32(len(i.Commands))
-	if err := binary.Write(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
-	for _, inst := range i.Commands {
-		if err := inst.Serialize(buf); err != nil { return err }
-	}
+	if err := i.Command.Serialize(buf); err != nil { return nil}
+
 	numDeps := uint32(len(i.Dependencies))
 	if err := binary.Write(buf, binary.LittleEndian, &numDeps); err != nil { return err }
 	for idx := range i.Dependencies {
@@ -682,11 +672,8 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 
 	var numInstructions uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
-	i.Commands = make([]*store.Instruction, numInstructions)
-	for idx := range i.Commands {
-		i.Commands[idx] = &store.Instruction{}
-		if err := i.Commands[idx].Deserialize(buf); err != nil { return err }
-	}
+	i.Command = &store.Instruction{}
+	if err := i.Command.Deserialize(buf); err != nil { return err }
 
 	var numDeps uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
