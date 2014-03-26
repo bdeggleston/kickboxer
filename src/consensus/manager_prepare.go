@@ -341,6 +341,14 @@ var managerPreparePhase = func(m *Manager, instance *Instance) error {
 // TODO: test alone
 // attempts to defer the prepare phase to successor nodes
 // returns a bool indicating if the prepare should proceed locally
+//
+// At instance creation time, a list of the other replica node ids is added to the instance, randomly ordered.
+// After a commit timeout, the node waiting on the commit should send a message asking the node to return the
+// result of a prepare phase. If the node doesn't respond in time, it continues down the successor list until
+// it receives a response, or it's next in line.
+// If a commit timeout occurs and the node it occurs in is the first in line, it will run the prepare phase.
+// When non leader node calculates a commit timeout, it should use it's position in the successor list as
+// a variable in computing it.
 var managerDeferToSuccessor = func(m *Manager, instance *Instance) (bool, error) {
 	start := time.Now()
 	defer m.statsTiming("prepare.successor.time", start)

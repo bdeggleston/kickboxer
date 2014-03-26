@@ -90,34 +90,6 @@ TODO: instead of jumping into a prepare, the preparer, or successor should first
 TODO: consider batching up queries into a single instance
 
 TODO: make execute query tolerant of prepare phases updating the status of it's instance
-TODO: implement an order of prepare phase succession, enable other replicas to initiate it
-
-Prepare succession:
-At instance creation time, a list of the other replica node ids is added to the instance, randomly ordered.
-After a commit timeout, the node waiting on the commit should send a message asking the node to return the
-result of a prepare phase. If the node doesn't respond in time, it continues down the successor list until
-it receives a response, or it's next in line.
-If a commit timeout occurs and the node it occurs in is the first in line, it will run the prepare phase.
-When non leader node calculates a commit timeout, it should use it's position in the successor list as
-a variable in computing it.
-
-When should a prepare successor request be sent, and what should be done when one is received?
-	Should it just be like a heartbeat route that returns a copy of the requested instance?
-
-	It should check if the instance has been committed, and initiate a prepare phase if it hasn't. The prepare
-		phase can keep track of when and if to prepare. As long as there's a prepare mutex on an instance,
-		this should be ok.
-
-	If the instance is not known to the successor, it should return a nil instance, indicating the next
-		successor should be tried
-
-	If a non successor node was not able to communicate with the first node, but received a response from
-		the second, should it talk to the first, or second node when is goes through another successor
-		communication phase, or should it start with the first one?
-
-	If a non successor node is not able to communicate with successor[0], but is able to communicate with
-		successor[1] BUT successor[1] IS able to communicate with successor[0], it's ok, because the
-		prepare phase call on successorp1[ will defer to successor[0]
 
 TODO: fix all tests that take >100ms
 TODO: remove commit timeouts, replace with last activity (last message sent received)
