@@ -79,7 +79,7 @@ func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 	var err error
 	instance := s.manager.makeInstance(getBasicInstruction())
-	repeat := copyInstance(instance)
+	repeat, _ := instance.Copy()
 
 	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
@@ -110,7 +110,7 @@ func (s *PreAcceptInstanceTest) TestNewNoopPreaccept(c *gocheck.C) {
 func (s *PreAcceptInstanceTest) TestOldNoopPreaccept(c *gocheck.C) {
 	var err error
 	instance := s.manager.makeInstance(getBasicInstruction())
-	repeat := copyInstance(instance)
+	repeat, _ := instance.Copy()
 
 	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
@@ -141,7 +141,7 @@ var _ = gocheck.Suite(&PreAcceptLeaderTest{})
 func (s *PreAcceptLeaderTest) TestSendSuccessCase(c *gocheck.C) {
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(s.instance)
+		newInst, _ := s.instance.Copy()
 		return &PreAcceptResponse{
 			Accepted:         true,
 			MaxBallot:        newInst.MaxBallot,
@@ -174,7 +174,7 @@ func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
 	defer func(){ PREACCEPT_TIMEOUT = oldPreAcceptTimeout }()
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(s.instance)
+		newInst, _ := s.instance.Copy()
 		return &PreAcceptResponse{
 			Accepted:         true,
 			MaxBallot:        newInst.MaxBallot,
@@ -205,7 +205,7 @@ func (s *PreAcceptLeaderTest) TestSendQuorumFailure(c *gocheck.C) {
 // rejects the message
 func (s *PreAcceptLeaderTest) TestSendBallotFailure(c *gocheck.C) {
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(s.instance)
+		newInst, _ := s.instance.Copy()
 		return &PreAcceptResponse{
 			Accepted:         true,
 			MaxBallot:        newInst.MaxBallot,
@@ -214,7 +214,7 @@ func (s *PreAcceptLeaderTest) TestSendBallotFailure(c *gocheck.C) {
 		}, nil
 	}
 	rejectFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		newInst := copyInstance(s.instance)
+		newInst, _ := s.instance.Copy()
 		return &PreAcceptResponse{
 			Accepted:         false,
 			MaxBallot:        newInst.MaxBallot + 1,
@@ -298,7 +298,7 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 	expected := NewInstanceIDSet(s.instance.Dependencies)
 
 	// setup remote instance seq & deps
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 
 	// sanity checks
 	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)

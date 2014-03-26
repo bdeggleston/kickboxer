@@ -32,7 +32,7 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	s.manager.acceptInstance(replicaInstance, false)
 	originalBallot := replicaInstance.MaxBallot
 
-	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance, _ := replicaInstance.Copy()
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
@@ -114,7 +114,7 @@ func (s *CommitInstanceTest) TestCommitExecutedFailure(c *gocheck.C) {
 	s.manager.instances.Add(replicaInstance)
 	s.manager.executed = append(s.manager.executed, replicaInstance.InstanceID)
 
-	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance, _ := replicaInstance.Copy()
 	leaderInstance.Status = INSTANCE_ACCEPTED
 
 	// sanity checks
@@ -140,7 +140,7 @@ func (s *CommitInstanceTest) TestCommitExecutedFailure(c *gocheck.C) {
 func (s *CommitInstanceTest) TestRepeatCommit(c *gocheck.C ) {
 	var err error
 	instance := s.manager.makeInstance(getBasicInstruction())
-	repeat := copyInstance(instance)
+	repeat, _ := instance.Copy()
 
 	err = s.manager.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)

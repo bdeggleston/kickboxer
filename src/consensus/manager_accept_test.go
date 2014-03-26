@@ -38,7 +38,7 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	c.Assert(uint64(3), gocheck.Equals, replicaInstance.Sequence)
 	c.Assert(uint64(3), gocheck.Equals, s.manager.maxSeq)
 
-	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance, _ := replicaInstance.Copy()
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 	err := s.manager.acceptInstance(leaderInstance, false)
@@ -102,7 +102,7 @@ func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	s.manager.instances.Add(replicaInstance)
 	s.manager.committed.Add(replicaInstance)
 
-	leaderInstance := copyInstance(replicaInstance)
+	leaderInstance, _ := replicaInstance.Copy()
 	leaderInstance.Status = INSTANCE_ACCEPTED
 
 	// sanity checks
@@ -126,7 +126,7 @@ func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 func (s *AcceptInstanceTest) TestRepeatAccept(c *gocheck.C ) {
 	var err error
 	instance := s.manager.makeInstance(getBasicInstruction())
-	repeat := copyInstance(instance)
+	repeat, _ := instance.Copy()
 
 	err = s.manager.acceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
@@ -315,7 +315,7 @@ func (s *AcceptReplicaTest) TestHandleSuccessCase(c *gocheck.C) {
 	err = s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	leaderInstance := copyInstance(s.instance)
+	leaderInstance, _ := s.instance.Copy()
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 	leaderInstance.Sequence += 5
 	leaderInstance.MaxBallot++
@@ -345,7 +345,7 @@ func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
 	err = s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	leaderInstance := copyInstance(s.instance)
+	leaderInstance, _ := s.instance.Copy()
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 	leaderInstance.Sequence += 5
 	leaderInstance.MaxBallot++
@@ -407,7 +407,7 @@ func (s *AcceptReplicaTest) TestOldBallotFailure(c *gocheck.C) {
 	err = s.manager.preAcceptInstance(s.instance, false)
 	c.Assert(err, gocheck.IsNil)
 
-	leaderInstance := copyInstance(s.instance)
+	leaderInstance, _ := s.instance.Copy()
 	leaderInstance.Sequence += 5
 
 	request := &AcceptRequest{
@@ -432,7 +432,7 @@ func (s *AcceptReplicaTest) TestMissingInstanceSuccess(c *gocheck.C) {
 
 	leaderID := node.NewNodeId()
 	missingInstance := makeInstance(leaderID, s.instance.Dependencies)
-	leaderInstance := copyInstance(s.instance)
+	leaderInstance, _ := s.instance.Copy()
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, missingInstance.InstanceID)
 	leaderInstance.Sequence += 5
 	leaderInstance.MaxBallot++
