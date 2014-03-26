@@ -118,12 +118,8 @@ type baseManagerTest struct {
 	manager *Manager
 }
 
-func (s *baseManagerTest) getInstructions(values ...int) []*store.Instruction {
-	instructions := make([]*store.Instruction, len(values))
-	for i, val := range values {
-		instructions[i] = store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
-	}
-	return instructions
+func (s *baseManagerTest) getInstruction(val int) *store.Instruction {
+	return store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
 }
 
 func (s *baseManagerTest) SetUpTest(c *gocheck.C) {

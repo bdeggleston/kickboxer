@@ -34,7 +34,7 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	// sets up a new instance, and appends it to the expected order needs
 	// to be called in the same order as the expected dependency ordering
 	addInst := func() *Instance {
-		inst := s.manager.makeInstance(s.getInstructions(lastVal))
+		inst := s.manager.makeInstance(s.getInstruction(lastVal))
 		inst.Successors = []node.NodeId{inst.LeaderID}
 		lastVal++
 		s.manager.preAcceptInstanceUnsafe(inst, false)
@@ -273,7 +273,7 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
-	inst := s.manager.makeInstance(s.getInstructions(6))
+	inst := s.manager.makeInstance(s.getInstruction(6))
 	s.manager.preAcceptInstanceUnsafe(inst, false)
 	inst.commit(nil, false)
 	c.Assert(len(inst.Dependencies), gocheck.Equals, 6)
@@ -302,7 +302,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *
 	s.manager = NewManager(s.manager.cluster)
 	instances := make([]*Instance, 50)
 	for i := range instances {
-		instance := s.manager.makeInstance(s.getInstructions(1))
+		instance := s.manager.makeInstance(s.getInstruction(1))
 		s.manager.preAcceptInstance(instance, false)
 		c.Assert(len(instance.Dependencies), gocheck.Equals, i, gocheck.Commentf("instance: %v", i))
 		s.manager.commitInstance(instance, false)
@@ -576,7 +576,7 @@ type ExecuteApplyInstanceTest struct {
 var _ = gocheck.Suite(&ExecuteApplyInstanceTest{})
 
 func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstruction(5))
 	err := s.manager.commitInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 	val, err := s.manager.applyInstance(instance)
@@ -590,7 +590,7 @@ func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
 
 //
 func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstruction(5))
 	instance.Status = INSTANCE_COMMITTED
 	instance.Noop = true
 	val, err := s.manager.applyInstance(instance)
@@ -604,7 +604,7 @@ func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 // broadcasts to an existing notify instance, and
 // removes it from the executeNotify map
 func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstruction(5))
 	s.manager.commitInstance(instance, false)
 	instance.getExecuteEvent()
 
@@ -629,7 +629,7 @@ func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
 // tests that apply instance marks the instance as
 // executed, and moves it into the executed container
 func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstruction(5))
 	iid := instance.InstanceID
 	s.manager.commitInstance(instance, false)
 
@@ -649,7 +649,7 @@ func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 
 // tests that apply instance fails if the instance is not committed
 func (s *ExecuteApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstructions(5))
+	instance := s.manager.makeInstance(s.getInstruction(5))
 	iid := instance.InstanceID
 	s.manager.acceptInstance(instance, false)
 
