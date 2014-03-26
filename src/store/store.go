@@ -46,7 +46,7 @@ type Store interface {
 	//
 	// the instance will gain dependencies on instances in the parent and
 	// child keys, but not on siblings.
-	InterferingKeys(instructions []*Instruction) []string
+	InterferingKeys(instruction *Instruction) []string
 
 	// ----------- data import / export -----------
 
