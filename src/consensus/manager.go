@@ -263,7 +263,7 @@ func (m *Manager) setStatter(s statsd.Statter) {
 
 // returns the replicas for the manager's key, at the given  consistency level
 func (m *Manager) getInstanceNodes(instance *Instance) []node.Node {
-	return m.cluster.GetNodesForKey(instance.Commands[0].Key)
+	return m.cluster.GetNodesForKey(instance.Command.Key)
 }
 
 func (m *Manager) checkLocalKeyEligibility(key string) bool {
@@ -278,12 +278,12 @@ func (m *Manager) checkLocalKeyEligibility(key string) bool {
 }
 
 func (m *Manager) checkLocalInstanceEligibility(instance *Instance) bool {
-	return m.checkLocalKeyEligibility(instance.Commands[0].Key)
+	return m.checkLocalKeyEligibility(instance.Command.Key)
 }
 
 // returns the replicas for the given instance's key, excluding the local node
 func (m *Manager) getInstanceReplicas(instance *Instance) []node.Node {
-	nodes := m.cluster.GetNodesForKey(instance.Commands[0].Key)
+	nodes := m.cluster.GetNodesForKey(instance.Command.Key)
 	replicas := make([]node.Node, 0, len(nodes))
 	for _, n := range nodes {
 		if n.GetId() == m.GetLocalID() { continue }
@@ -367,16 +367,16 @@ func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 	return m.instances.GetOrSet(inst, initialize)
 }
 
-func (m *Manager) getInstructionDeps(instructions []*store.Instruction) []InstanceID {
+func (m *Manager) getInstructionDeps(instructions *store.Instruction) []InstanceID {
 	numDeps := m.inProgress.Len() + m.committed.Len()
 	deps := make([]InstanceID, 0, numDeps)
 	for _, instance := range m.inProgress.Instances() {
-		if m.cluster.CheckInterference(instructions, instance.Commands) {
+		if m.cluster.CheckInterference(instructions, instance.Command) {
 			deps = append(deps, instance.InstanceID)
 		}
 	}
 	for _, instance := range m.committed.Instances() {
-		if m.cluster.CheckInterference(instructions, instance.Commands) {
+		if m.cluster.CheckInterference(instructions, instance.Command) {
 			deps = append(deps, instance.InstanceID)
 		}
 	}
@@ -384,7 +384,7 @@ func (m *Manager) getInstructionDeps(instructions []*store.Instruction) []Instan
 }
 
 func (m *Manager) getInstanceDeps(instance *Instance) []InstanceID {
-	return m.getInstructionDeps(instance.Commands)
+	return m.getInstructionDeps(instance.Command)
 }
 
 // TODO: delete

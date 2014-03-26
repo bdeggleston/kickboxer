@@ -44,5 +44,5 @@ type Cluster interface {
 
 	// TODO: remove and rework epaxos to interact with the store directly
 	// determines if 2 sets of commands interfere with each other
-	CheckInterference(i0, i1 []*store.Instruction) bool
+	CheckInterference(i0, i1 *store.Instruction) bool
 }
