@@ -154,6 +154,7 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		commitTimeout: time.Now(),
 		executeTimeout: time.Now(),
 		DependencyMatch: true,
+		ReadOnly: true,
 	}
 	writer := bufio.NewWriter(buf)
 	err = src.Serialize(writer)

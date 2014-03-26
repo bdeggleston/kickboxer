@@ -287,6 +287,11 @@ type Instance struct {
 	// * not message serialized *
 	DependencyMatch bool
 
+	// indicates that this instance only reads data, and only
+	// depends on writes. If false, it will depend on reads
+	// and writes
+	ReadOnly bool
+
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
 	// * not message serialized *
@@ -613,6 +618,9 @@ func (i *Instance) NumBytesLimitedUnsafe() int {
 	// match
 	numBytes += 1
 
+	// read only
+	numBytes += 1
+
 	return numBytes
 }
 
@@ -654,6 +662,10 @@ func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
 	if i.DependencyMatch { match = 0xff }
 	if err := binary.Write(buf, binary.LittleEndian, &match); err != nil { return err }
 
+	var readonly byte
+	if i.ReadOnly { readonly = 0xff }
+	if err := binary.Write(buf, binary.LittleEndian, &readonly); err != nil { return err }
+
 	return nil
 }
 
@@ -694,6 +706,10 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 	var match byte
 	if err := binary.Read(buf, binary.LittleEndian, &match); err != nil { return err }
 	i.DependencyMatch = match != 0x0
+
+	var readonly byte
+	if err := binary.Read(buf, binary.LittleEndian, &readonly); err != nil { return err }
+	i.ReadOnly = readonly != 0x0
 
 	return nil
 }
