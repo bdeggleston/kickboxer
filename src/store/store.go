@@ -37,9 +37,16 @@ type Store interface {
 	// determines if the given command returns a value
 	ReturnsValue(cmd string) bool
 
-	// TODO: rework epaxos to interact with the store directly
-	// determines if 2 sets of commands interfere with each other
-	CheckInterference(i0, i1 []*Instruction) bool
+	// returns an array of keys used by consensus to determine
+	// which instructions the given instruction set will interfere
+	// with. Basically, think of the given instructions as operating
+	// on a nested hash, the reurned array of keys should describe the
+	// hierarchy of keys being operated on.
+	// ie: store['a']['b']['c'] = 5 returns ['a', 'b', 'c'] as the interfering keys
+	//
+	// the instance will gain dependencies on instances in the parent and
+	// child keys, but not on siblings.
+	InterferingKeys(instructions []*Instruction) []string
 
 	// ----------- data import / export -----------
 
