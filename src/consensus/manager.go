@@ -296,27 +296,14 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) Query(instructions []*store.Instruction) (store.Value, error) {
-	// check that all the instruction keys are the same
-	if len(instructions) == 0 {
-		return nil, fmt.Errorf("need at least one instruction to execute")
-	}
+func (m *Manager) Query(instruction *store.Instruction) (store.Value, error) {
 
-	key := instructions[0].Key
-	if len(instructions) > 1 {
-		for _, instruction := range instructions[1:] {
-			if instruction.Key != key {
-				return nil, fmt.Errorf("Multiple keys found, each instruction must operate on the same key")
-			}
-		}
-	}
-
-	if !m.checkLocalKeyEligibility(key) {
+	if !m.checkLocalKeyEligibility(instruction.Key) {
 		// need to iterate over the possible replicas, allowing for
 		// some to be down
 		panic("Forward to eligible replica not implemented yet")
 	} else {
-		val, err := m.ExecuteQuery(instructions)
+		val, err := m.ExecuteQuery(instruction)
 		return val, err
 	}
 
@@ -438,11 +425,11 @@ func (m *Manager) updateSeq(seq uint64) error {
 }
 
 // creates a bare epaxos instance from the given instructions
-func (m *Manager) makeInstance(instructions []*store.Instruction) *Instance {
+func (m *Manager) makeInstance(instruction *store.Instruction) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     m.GetLocalID(),
-		Commands:     instructions,
+		Command:      instruction,
 		manager:	  m,
 	}
 	replicas := m.getInstanceReplicas(instance)
@@ -514,13 +501,13 @@ func (m *Manager) updateInstanceBallotFromResponses(instance *Instance, response
 // executes a serialized query against the cluster this method designates the node
 // it's called on as the command leader for the given query. Should only be called
 // once per client query
-func (m *Manager) ExecuteQuery(instructions []*store.Instruction) (store.Value, error) {
+func (m *Manager) ExecuteQuery(instruction *store.Instruction) (store.Value, error) {
 	start := time.Now()
 	defer m.statsTiming("manager.client.query.time", start)
 	m.statsInc("manager.client.query.count", 1)
 
 	// create epaxos instance, and preaccept locally
-	instance := m.makeInstance(instructions)
+	instance := m.makeInstance(instruction)
 
 	logger.Debug("Beginning preaccept leader phase for: %v", instance.InstanceID)
 	// run pre-accept
