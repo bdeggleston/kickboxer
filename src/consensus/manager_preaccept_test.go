@@ -372,7 +372,7 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Commands:     instructions,
+		Command:      instructions,
 		Dependencies: s.manager.getInstructionDeps(instructions),
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
@@ -412,7 +412,7 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Commands:     instructions,
+		Command:      instructions,
 		Dependencies: leaderDeps,
 		Sequence:     3,
 		Status:       INSTANCE_PREACCEPTED,
@@ -452,7 +452,7 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Commands:     getBasicInstruction(),
+		Command:      getBasicInstruction(),
 		Dependencies: []InstanceID{},
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
