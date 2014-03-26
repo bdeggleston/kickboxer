@@ -61,8 +61,8 @@ var _ = gocheck.Suite(&ManagerTest{})
 
 // test that instances are created properly
 func (s *ManagerTest) TestInstanceCreation(c *gocheck.C) {
-	instructions := []*store.Instruction{store.NewInstruction("set", "b", []string{}, time.Now())}
-	instance := s.manager.makeInstance(instructions)
+	instruction := store.NewInstruction("set", "b", []string{}, time.Now())
+	instance := s.manager.makeInstance(instruction)
 	c.Check(instance.MaxBallot, gocheck.Equals, uint32(0))
 	c.Check(instance.LeaderID, gocheck.Equals, s.manager.GetLocalID())
 
@@ -83,8 +83,8 @@ func (s *ManagerTest) TestInstanceCreation(c *gocheck.C) {
 
 func (s *ManagerTest) TestGetCurrentDeps(c *gocheck.C) {
 	instanceByKey := make(map[string]InstanceIDSet)
-	newInstruction := func(key string) []*store.Instruction {
-		return []*store.Instruction{store.NewInstruction("set", key, []string{"b", "c"}, time.Now())}
+	newInstruction := func(key string) *store.Instruction {
+		return store.NewInstruction("set", key, []string{"b", "c"}, time.Now())
 	}
 	newInstance := func(key string, committed bool) *Instance {
 		instructions := newInstruction(key)
