@@ -161,7 +161,7 @@ func (s *PrepareLeaderTest) TestBallotFailure(c *gocheck.C) {
 	s.instance.MaxBallot = 5
 	// all replicas agree
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		inst := copyInstance(s.instance)
+		inst, _ := s.instance.Copy()
 		inst.MaxBallot += 5
 		return &PrepareResponse{
 			Accepted:         false,
@@ -200,7 +200,7 @@ var _ = gocheck.Suite(&PrepareAnalyzeResponsesTest{})
 func (s *PrepareAnalyzeResponsesTest) TestSuccessCase(c *gocheck.C) {
 	responses := make([]*PrepareResponse, 0)
 	addResponse := func(ballot uint32, status InstanceStatus) {
-		instance := copyInstance(s.instance)
+		instance, _ := s.instance.Copy()
 		instance.MaxBallot = ballot
 		instance.Status = status
 		response := &PrepareResponse{
@@ -361,7 +361,7 @@ var _ = gocheck.Suite(&PrepareCheckResponsesTest{})
 // if all of the responses have been accepted, no error should
 // be returned
 func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
 	}
@@ -372,7 +372,7 @@ func (s *PrepareCheckResponsesTest) TestSuccessCase(c *gocheck.C) {
 // if any of the responses have been rejected, an error should be returned
 func (s *PrepareCheckResponsesTest) TestRejectedMessageFailure(c *gocheck.C) {
 	s.instance.MaxBallot = 4
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.MaxBallot = 5
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: false, Instance: remoteInstance},
@@ -394,7 +394,7 @@ func (s *PrepareCheckResponsesTest) TestAcceptStatusUpdate(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_ACCEPTED
 	remoteInstance.MaxBallot = 5
 	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
@@ -425,7 +425,7 @@ func (s *PrepareCheckResponsesTest) TestCommitStatusUpdate(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_COMMITTED
 	remoteInstance.MaxBallot = 5
 	remoteInstance.Dependencies = append(remoteInstance.Dependencies, NewInstanceID())
@@ -457,7 +457,7 @@ var _ = gocheck.Suite(&PreparePhase2Test{})
 // balloted instance's status was preaccepted, a preaccept phase
 // is initiated
 func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -483,7 +483,7 @@ func (s *PreparePhase2Test) TestPreAcceptedSuccess(c *gocheck.C) {
 // is initiated, and the accept phase is skipped if there are
 // dependency mismatches
 func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -508,7 +508,7 @@ func (s *PreparePhase2Test) TestPreAcceptedChangeSuccess(c *gocheck.C) {
 // is initiated, and the method returns if pre accept returns an
 // error
 func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -529,7 +529,7 @@ func (s *PreparePhase2Test) TestPreAcceptedFailure(c *gocheck.C) {
 // balloted instance's status was accepted, an accept phase
 // is initiated
 func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_ACCEPTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -553,7 +553,7 @@ func (s *PreparePhase2Test) TestAcceptSuccess(c *gocheck.C) {
 // balloted instance's status was accepted, an accept phase
 // is initiated, and the method returns if accept returns an error
 func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_ACCEPTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -574,7 +574,7 @@ func (s *PreparePhase2Test) TestAcceptFailure(c *gocheck.C) {
 // balloted instance's status was committed, a commit phase
 // is initiated
 func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_COMMITTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -597,7 +597,7 @@ func (s *PreparePhase2Test) TestCommitSuccess(c *gocheck.C) {
 // balloted instance's status was committed, a commit phase
 // is initiated, and the method returns if commit returns an error
 func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_COMMITTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -618,7 +618,7 @@ func (s *PreparePhase2Test) TestCommitFailure(c *gocheck.C) {
 // balloted instance's status was executed, a commit phase
 // is initiated
 func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_EXECUTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -641,7 +641,7 @@ func (s *PreparePhase2Test) TestExecutedSuccess(c *gocheck.C) {
 // balloted instance's status was executed, a commit phase
 // is initiated, and the method returns if commit returns an error
 func (s *PreparePhase2Test) TestExecutedFailure(c *gocheck.C) {
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_EXECUTED
 	responses := []*PrepareResponse{
 		&PrepareResponse{Accepted: true, Instance: remoteInstance},
@@ -666,7 +666,7 @@ func (s *PreparePhase2Test) TestBallotUpdate(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	s.instance.MaxBallot = 4
 
-	remoteInstance := copyInstance(s.instance)
+	remoteInstance, _ := s.instance.Copy()
 	remoteInstance.Status = INSTANCE_PREACCEPTED
 	remoteInstance.MaxBallot = 5
 	responses := []*PrepareResponse{
@@ -818,7 +818,8 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorMessageIsSent(c *gocheck.C) {
 		request := m.(*PrepareSuccessorRequest)
 		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
 		s1Calls++
-		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+		instanceCopy, _ := s.instance.Copy()
+		return &PrepareSuccessorResponse{Instance: instanceCopy}, nil
 	}
 	s2Calls := 0
 	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
@@ -845,7 +846,8 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorProgression(c *gocheck.C) {
 		request := m.(*PrepareSuccessorRequest)
 		c.Assert(request.InstanceID, gocheck.Equals, s.instance.InstanceID)
 		s2Calls++
-		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+		instanceCopy, _ := s.instance.Copy()
+		return &PrepareSuccessorResponse{Instance: instanceCopy}, nil
 	}
 	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
@@ -902,7 +904,8 @@ func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
 	s2Calls := 0
 	s.successor2.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
 		s2Calls++
-		return &PrepareSuccessorResponse{Instance: copyInstance(s.instance)}, nil
+		instanceCopy, _ := s.instance.Copy()
+		return &PrepareSuccessorResponse{Instance: instanceCopy}, nil
 	}
 	proceed, err := managerDeferToSuccessor(s.manager, s.instance)
 	c.Assert(err, gocheck.IsNil)
@@ -915,7 +918,7 @@ func (s *SuccessorPreparePhaseTest) TestNilSuccessorResponse(c *gocheck.C) {
 // returns an accepted instance
 func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) {
 	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
-		instCopy := copyInstance(s.instance)
+		instCopy, _ := s.instance.Copy()
 		instCopy.Status = INSTANCE_ACCEPTED
 		return &PrepareSuccessorResponse{Instance: instCopy}, nil
 	}
@@ -934,7 +937,7 @@ func (s *SuccessorPreparePhaseTest) TestAcceptedSuccessorResponse(c *gocheck.C) 
 // returns an committed instance
 func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C) {
 	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
-		instCopy := copyInstance(s.instance)
+		instCopy, _ := s.instance.Copy()
 		instCopy.Status = INSTANCE_COMMITTED
 		return &PrepareSuccessorResponse{Instance: instCopy}, nil
 	}
@@ -952,7 +955,7 @@ func (s *SuccessorPreparePhaseTest) TestCommittedSuccessorResponse(c *gocheck.C)
 // returns an committed instance
 func (s *SuccessorPreparePhaseTest) TestExecutedSuccessorResponse(c *gocheck.C) {
 	s.successor.messageHandler = func(n *mockNode, m message.Message) (message.Message, error) {
-		instCopy := copyInstance(s.instance)
+		instCopy, _ := s.instance.Copy()
 		instCopy.Status = INSTANCE_EXECUTED
 		return &PrepareSuccessorResponse{Instance: instCopy}, nil
 	}
