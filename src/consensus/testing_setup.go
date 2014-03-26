@@ -82,30 +82,8 @@ func setupReplicaSet(size int) []*mockNode {
 	return replicas
 }
 
-func getBasicInstruction() []*store.Instruction {
-	return []*store.Instruction{
-		store.NewInstruction("set", "a", []string{"b", "c"}, time.Now()),
-	}
-}
-
-// ...copies an instance. This is helpful when simulating
-// message sending which are never serialized/deserialized
-// so the 'remote' node isn't given a pointer to the actual
-// leader instance it's working on, and field which aren't
-// supposed to be serialized are nulled out
-func copyInstance(i *Instance) *Instance {
-	n := &Instance{}
-	n.InstanceID = i.InstanceID
-	n.LeaderID = i.LeaderID
-	n.Sequence = i.Sequence
-	n.Status = i.Status
-	n.MaxBallot = i.MaxBallot
-	n.Commands = make([]*store.Instruction, len(i.Commands))
-	copy(n.Commands, i.Commands)
-	n.Dependencies = make([]InstanceID, len(i.Dependencies))
-	copy(n.Dependencies, i.Dependencies)
-	n.Noop = i.Noop
-	return n
+func getBasicInstruction() *store.Instruction {
+	return store.NewInstruction("set", "a", []string{"b", "c"}, time.Now())
 }
 
 func copyDependencies(o []*InstanceID) []*InstanceID {
@@ -126,7 +104,7 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     nid,
-		Commands:     getBasicInstruction(),
+		Command:      getBasicInstruction(),
 		Dependencies: deps,
 		Sequence:     0,
 		Status:       INSTANCE_PREACCEPTED,
