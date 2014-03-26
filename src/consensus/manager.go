@@ -74,14 +74,11 @@ var (
 
 /*
 
-Current problems:
-	Prepare phase explosion under load
-	Unbounded dependency size, dependency chain calculation
-	the current hacks around dependency chain calculation are delaying
-		execution of committed instances, because instances that depend on
-		them are not committed, and also prematurely attempting to prepare
-		those instances
-
+TODO: support instances with multiple instructions, operating on different keys, owned by multiple nodes
+	* will need to determine dependencies from different nodes, and track the status of
+		dependencies it doesn't own (weird / hard / error prone)
+	* this will be a much bigger job than anticipated, should factor out support for multiple
+		instruction instances for now
 
 TODO: add and test ballot checking to every message handler
 TODO: add a 'passive' flag to executeInstance, that will execute if possible, but not prepare
