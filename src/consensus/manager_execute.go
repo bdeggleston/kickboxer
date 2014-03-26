@@ -176,16 +176,14 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 		var val store.Value
 		var err error
 		if !instance.Noop {
-			for _, instruction := range instance.Commands {
-				val, err = m.cluster.ApplyQuery(
-					instruction.Cmd,
-					instruction.Key,
-					instruction.Args,
-					instruction.Timestamp,
-				)
-				if err != nil {
-					return nil, err
-				}
+			val, err = m.cluster.ApplyQuery(
+				instance.Command.Cmd,
+				instance.Command.Key,
+				instance.Command.Args,
+				instance.Command.Timestamp,
+			)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			m.statsInc("execute.instance.noop.count", 1)
