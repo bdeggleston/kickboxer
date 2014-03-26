@@ -142,10 +142,7 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		InstanceID: NewInstanceID(),
 		LeaderID: node.NewNodeId(),
 		Successors: []node.NodeId{node.NewNodeId(), node.NewNodeId(), node.NewNodeId()},
-		Commands: []*store.Instruction{
-			store.NewInstruction("set", "a", []string{"b", "c"}, time.Now()),
-			store.NewInstruction("get", "d", []string{"e", "f"}, time.Now()),
-		},
+		Command: store.NewInstruction("set", "a", []string{"b", "c"}, time.Now()),
 		Dependencies: []InstanceID{NewInstanceID(), NewInstanceID()},
 		Sequence: uint64(11),
 		Status: INSTANCE_ACCEPTED,

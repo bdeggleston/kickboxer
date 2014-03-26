@@ -22,10 +22,8 @@ func (s *baseIntegrationTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 }
 
-func (s *baseIntegrationTest) makeInstruction(val int) []*store.Instruction {
-	return []*store.Instruction{
-		store.NewInstruction("set", "a", []string{fmt.Sprint(val)}, time.Now()),
-	}
+func (s *baseIntegrationTest) makeInstruction(val int) *store.Instruction {
+	return store.NewInstruction("set", "a", []string{fmt.Sprint(val)}, time.Now())
 }
 
 // waits for all managers to have the given status for the given instance
@@ -342,8 +340,8 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 	var err error
 
 	// make and accept the instance across the cluster
-	instructions := []*store.Instruction{store.NewInstruction("set", "a", []string{fmt.Sprint(0)}, time.Now())}
-	instance := s.manager.makeInstance(instructions)
+	instruction := store.NewInstruction("set", "a", []string{fmt.Sprint(0)}, time.Now())
+	instance := s.manager.makeInstance(instruction)
 	initialBallot := instance.getBallot()
 	err = s.manager.acceptPhase(instance)
 	c.Assert(err, gocheck.IsNil)
