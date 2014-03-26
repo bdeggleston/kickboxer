@@ -146,10 +146,10 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 	}()
 	nodeInstructions := make([]map[string][]*Instance, s.numNodes)
 	getKey := func(inst *Instance) string {
-		return inst.Commands[0].Key
+		return inst.Command.Key
 	}
 	getVal := func(inst *Instance) string {
-		return inst.Commands[0].Args[0]
+		return inst.Command.Args[0]
 	}
 	for i, n := range s.nodes {
 
@@ -300,7 +300,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 		} else {
 			key = s.keys[0]
 		}
-		instructions := []*store.Instruction{store.NewInstruction("set", key, []string{fmt.Sprint(i)}, time.Now())}
+		instructions := store.NewInstruction("set", key, []string{fmt.Sprint(i)}, time.Now())
 		_, err := manager.ExecuteQuery(instructions)
 		if err != nil {
 			s.stats.Inc("query.failed", 1, 1.0)
