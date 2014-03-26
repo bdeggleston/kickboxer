@@ -27,28 +27,12 @@ type Store interface {
 
 	// ----------- queries -----------
 
-	// TODO: remove
-	// executes a read instruction against the node's store
-	ExecuteRead(cmd string, key string, args []string) (Value, error)
-
-	// TODO: remove
-	// executes a write instruction against the node's store
-	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (Value, error)
-
 	// executes a query instruction against the node's store
 	ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (Value, error)
 
 	// reconciles multiple values and returns instructions for correcting
 	// the values on inaccurate nodes
 	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
-
-	// TODO: remove
-	// determines if the given command is a read command
-	IsReadCommand(cmd string) bool
-
-	// TODO: remove
-	// determines if the given command is a write command
-	IsWriteCommand(cmd string) bool
 
 	// determines if the given command returns a value
 	ReturnsValue(cmd string) bool
