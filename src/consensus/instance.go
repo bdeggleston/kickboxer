@@ -632,6 +632,7 @@ func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
 	for idx := range i.Successors {
 		if err := (&i.Successors[idx]).WriteBuffer(buf); err != nil { return err }
 	}
+
 	if err := i.Command.Serialize(buf); err != nil { return nil}
 
 	numDeps := uint32(len(i.Dependencies))
@@ -670,8 +671,6 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 		if err := (&i.Successors[idx]).ReadBuffer(buf); err != nil { return err }
 	}
 
-	var numInstructions uint32
-	if err := binary.Read(buf, binary.LittleEndian, &numInstructions); err != nil { return err }
 	i.Command = &store.Instruction{}
 	if err := i.Command.Deserialize(buf); err != nil { return err }
 
