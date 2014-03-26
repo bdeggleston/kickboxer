@@ -46,3 +46,11 @@ func (t *InstructionTest) TestNumBytesCalculation(c *gocheck.C) {
 	c.Check(len(buf.Bytes()), gocheck.Equals, src.NumBytes())
 
 }
+
+func (t *InstructionTest) TestCopy(c *gocheck.C) {
+
+	src := NewInstruction("SET", "ABC", []string{"x", "y", "z"}, time.Now())
+	dst := src.Copy()
+
+	c.Assert(dst, gocheck.DeepEquals, src)
+}
