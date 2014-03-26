@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"sync"
 	"time"
 )
 
@@ -189,13 +190,11 @@ func (s *CommitLeaderTest) SetUpTest(c *gocheck.C) {
 // tests that calling sendCommit sends commit requests
 // to the other replicas
 func (s *CommitLeaderTest) TestSendSuccess(c *gocheck.C) {
-	err := s.manager.sendCommit(s.instance, transformMockNodeArray(s.replicas))
-	c.Assert(err, gocheck.IsNil)
-
 	// all replicas agree
-	responseWaitChan := make(chan bool, len(s.replicas))
+	wg := &sync.WaitGroup{}
+	wg.Add(len(s.replicas))
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
-		responseWaitChan <- true
+		wg.Done()
 		return &CommitResponse{}, nil
 	}
 
@@ -203,10 +202,10 @@ func (s *CommitLeaderTest) TestSendSuccess(c *gocheck.C) {
 		replica.messageHandler = responseFunc
 	}
 
-	// wait for all of the nodes to receive their messages
-	for i:=0;i<len(s.replicas);i++ {
-		<-responseWaitChan
-	}
+	err := s.manager.sendCommit(s.instance, transformMockNodeArray(s.replicas))
+	c.Assert(err, gocheck.IsNil)
+
+	wg.Wait()
 
 	// test that the nodes received the correct message
 	for _, replica := range s.replicas {
