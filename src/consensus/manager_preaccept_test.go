@@ -403,25 +403,28 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
-	instructions := getBasicInstruction()
-	replicaDeps := s.manager.getInstructionDeps(instructions)
-	leaderDeps := s.manager.getInstructionDeps(instructions)
+	instruction := getBasicInstruction()
+	replicaDeps := s.manager.getInstructionDeps(instruction)
+	leaderDeps := s.manager.getInstructionDeps(instruction)
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
+	c.Assert(instruction, gocheck.NotNil)
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
-		Command:      instructions,
+		Command:      instruction,
 		Dependencies: leaderDeps,
 		Sequence:     3,
 		Status:       INSTANCE_PREACCEPTED,
 	}
+	c.Assert(instance, gocheck.NotNil)
+	c.Assert(instance.Command, gocheck.NotNil)
 	request := &PreAcceptRequest{
 		Instance: instance,
 	}
 
-	s.manager.instances.Add(&Instance{InstanceID: missingDep})
+	s.manager.instances.Add(&Instance{InstanceID: missingDep, Command: getBasicInstruction()})
 
 	// process the preaccept message
 	response, err := s.manager.HandlePreAccept(request)
