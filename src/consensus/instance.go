@@ -36,7 +36,7 @@ func (s InstanceStatus) String() string {
 	case INSTANCE_EXECUTED:
 		return "INSTANCE_EXECUTED"
 	default:
-		return fmt.Sprintf("Unknown InstanceStatus: %v", s)
+		return fmt.Sprintf("Unknown InstanceStatus: %v", byte(s))
 	}
 	panic("unreachable")
 }
