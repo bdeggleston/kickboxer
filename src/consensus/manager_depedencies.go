@@ -115,7 +115,7 @@ func (d *dependencies) getLocalDeps(instance *Instance) []InstanceID {
 
 	var lenDeps int
 
-	if instance.ReadOnly && !d.lastWrite.IsZero() {
+	if !d.lastWrite.IsZero() {
 		lenDeps++
 	}
 

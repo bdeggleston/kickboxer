@@ -41,12 +41,14 @@ func (s *DependencyMapTest) TestExistingRootDependencyMap(c *gocheck.C) {
 	instance := s.manager.makeInstance(s.newInstruction("a"))
 
 	depsNode := s.manager.depsMngr.deps.get("a")
+	lastWrite := NewInstanceID()
+	depsNode.lastWrite = lastWrite
 	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
 
 	deps, err := s.manager.depsMngr.GetAndSetDeps(instance)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(deps, gocheck.NotNil)
-	c.Assert(deps, gocheck.DeepEquals, []InstanceID{})
+	c.Assert(deps, gocheck.DeepEquals, []InstanceID{lastWrite})
 
 	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
 	c.Assert(s.manager.depsMngr.deps.get("a"), gocheck.Equals, depsNode)
