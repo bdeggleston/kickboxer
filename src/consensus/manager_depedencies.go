@@ -202,7 +202,7 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) []Instan
 
 // the root of the dependency tree
 type dependencyManager struct {
-	deps dependencyMap
+	deps *dependencyMap
 	manager *Manager
 	lock sync.RWMutex
 }
@@ -219,6 +219,6 @@ func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, er
 }
 
 func newDependencyManager(manager *Manager) *dependencyManager {
-	return &dependencyManager{deps: newDependencyMap()}
+	return &dependencyManager{deps: newDependencyMap(), manager: manager}
 }
 
