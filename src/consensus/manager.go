@@ -240,11 +240,13 @@ type Manager struct {
 
 	maxSeq       uint64
 	maxSeqLock   sync.RWMutex
+
+	depsMngr  *dependencyManager
 }
 
 func NewManager(cluster cluster.Cluster) *Manager {
 	stats, _ := statsd.NewNoop()
-	return &Manager{
+	mngr := &Manager{
 		cluster:  cluster,
 		stats:    stats,
 		instances:  NewInstanceMap(),
@@ -252,6 +254,9 @@ func NewManager(cluster cluster.Cluster) *Manager {
 		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 	}
+
+	mngr.depsMngr = newDependencyManager(mngr)
+	return mngr
 }
 
 func (m *Manager) setStatter(s statsd.Statter) {
