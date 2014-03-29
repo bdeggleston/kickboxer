@@ -1,20 +1,55 @@
 package consensus
 
 import (
+	"time"
+)
+
+import (
 	"launchpad.net/gocheck"
 )
 
-type DependencyMapTest struct {}
+import (
+	"store"
+)
+
+type DependencyMapTest struct {
+	baseManagerTest
+}
 
 var _ = gocheck.Suite(&DependencyMapTest{})
 
+func (s *DependencyMapTest) newInstruction(key string) *store.Instruction {
+	return store.NewInstruction("SET", key, []string{}, time.Now())
+}
+
 // tests that a new dependencies object is created for new root nodes
 func (s *DependencyMapTest) TestNewRootDependencyMap(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a"))
 
+	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.IsNil)
+
+	deps, err := s.manager.depsMngr.GetAndSetDeps(instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(deps, gocheck.NotNil)
+	c.Assert(deps, gocheck.DeepEquals, []InstanceID{})
+
+	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
 }
 
 // tests that an existing dependencies object is used for a key if it exists
 func (s *DependencyMapTest) TestExistingRootDependencyMap(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+
+	depsNode := s.manager.depsMngr.deps.get("a")
+	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
+
+	deps, err := s.manager.depsMngr.GetAndSetDeps(instance)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(deps, gocheck.NotNil)
+	c.Assert(deps, gocheck.DeepEquals, []InstanceID{})
+
+	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
+	c.Assert(s.manager.depsMngr.deps.get("a"), gocheck.Equals, depsNode)
 
 }
 
