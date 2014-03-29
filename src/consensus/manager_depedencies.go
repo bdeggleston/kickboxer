@@ -202,7 +202,7 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) []Instan
 
 // the root of the dependency tree
 type dependencyManager struct {
-	depMap map[string]*dependencies
+	deps dependencyMap
 	manager *Manager
 	lock sync.RWMutex
 }
@@ -214,19 +214,11 @@ func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, er
 		return nil, fmt.Errorf("at least one interfering key required, none found")
 	}
 
-	dm.lock.RLock()
-	deps := dm.depMap[keys[0]]
-	dm.lock.RUnlock()
-
-	if deps == nil {
-		dm.lock.Lock()
-		if deps = dm.depMap[keys[0]]; deps == nil {
-			deps = newDependencies()
-			dm.depMap[keys[0]] = deps
-		}
-		dm.lock.Unlock()
-	}
-
+	deps := dm.deps.get(keys[0])
 	return deps.GetAndSetDeps(keys, instance), nil
+}
+
+func newDependencyManager(manager *Manager) *dependencyManager {
+	return &dependencyManager{deps: newDependencyMap()}
 }
 
