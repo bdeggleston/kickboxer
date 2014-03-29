@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -92,7 +93,7 @@ func (c *mockCluster) CheckInterference(i0, i1 *store.Instruction) bool {
 }
 
 func mockClusterDefaultInterferingKeys(c *mockCluster, instruction *store.Instruction) []string {
-	return []string{instruction.Key}
+	return strings.Split(instruction.Key, ":")
 }
 
 func (c *mockCluster) InterferingKeys(instruction *store.Instruction) []string {
