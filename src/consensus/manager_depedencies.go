@@ -98,15 +98,15 @@ func (dm *dependencyMap) all() []*dependencies {
 }
 
 type dependencies struct {
-	lastWrite *Instance
-	lastReads []*Instance
+	lastWrite InstanceID
+	lastReads []InstanceID
 	lock sync.RWMutex
 	subDependencies *dependencyMap
 }
 
 func newDependencies() *dependencies {
 	return &dependencies{
-		lastReads: make([]*Instance, 0),
+		lastReads: make([]InstanceID, 0),
 		subDependencies: newDependencyMap(),
 	}
 }
@@ -115,7 +115,7 @@ func (d *dependencies) getLocalDeps(instance *Instance) []InstanceID {
 
 	var lenDeps int
 
-	if instance.ReadOnly && d.lastWrite != nil {
+	if instance.ReadOnly && !d.lastWrite.IsZero() {
 		lenDeps++
 	}
 
@@ -126,13 +126,11 @@ func (d *dependencies) getLocalDeps(instance *Instance) []InstanceID {
 	deps := make([]InstanceID, lenDeps)
 
 	if !instance.ReadOnly {
-		for i := range d.lastReads {
-			deps[i] = d.lastReads[i].InstanceID
-		}
+		copy(deps, d.lastReads)
 	}
 
-	if d.lastWrite != nil {
-		deps[lenDeps - 1] = d.lastWrite.InstanceID
+	if !d.lastWrite.IsZero() {
+		deps[lenDeps - 1] = d.lastWrite
 	}
 
 	return deps
@@ -150,9 +148,9 @@ func (d *dependencies) getChildDeps(instance *Instance) []InstanceID {
 
 	deps := d.getLocalDeps(instance)
 
-	if len(d.subDependencies) > 0 {
-		for _, subDeps := range d.subDependencies.all() {
-			deps = append(deps, subDeps.getChildDeps()...)
+	if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
+		for _, subDeps := range subDependencies {
+			deps = append(deps, subDeps.getChildDeps(instance)...)
 		}
 	}
 
@@ -179,17 +177,18 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) []Instan
 
 	if lastKey {
 		// get child deps and update reads / writes
-		if len(d.subDependencies) > 0 {
-			for _, subDeps := range d.subDependencies.all() {
-				deps = append(deps, subDeps.getChildDeps()...)
+		if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
+			for _, subDeps := range subDependencies {
+				deps = append(deps, subDeps.getChildDeps(instance)...)
 			}
 		}
+
 		if instance.ReadOnly {
-			d.lastReads = append(d.lastReads, instance)
+			d.lastReads = append(d.lastReads, instance.InstanceID)
 		} else {
-			d.lastWrite = instance
-			d.lastReads = make([]*Instance, 0)
-			d.subDependencies = newDependencies()
+			d.lastWrite = instance.InstanceID
+			d.lastReads = make([]InstanceID, 0)
+			d.subDependencies = newDependencyMap()
 		}
 
 	} else {
