@@ -49,6 +49,10 @@ func NewInstanceID() InstanceID {
 	return InstanceID{types.NewUUID1()}
 }
 
+func (iid InstanceID) IsZero() bool {
+	return iid == InstanceID{}
+}
+
 //func (i InstanceID) UUID() uuid.UUID {
 //	return uuid.UUID(i)
 //}
