@@ -132,3 +132,7 @@ func (u *UUID) ReadBuffer(buf *bufio.Reader) error {
 
 	return nil
 }
+
+func (u *UUID) IsZero() bool {
+	return u.u0 == 0 && u.u1 == 0
+}
