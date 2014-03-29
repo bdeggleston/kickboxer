@@ -91,6 +91,14 @@ func (c *mockCluster) CheckInterference(i0, i1 *store.Instruction) bool {
 	return i0.Key == i1.Key
 }
 
+func mockClusterDefaultInterferingKeys(c *mockCluster, instruction *store.Instruction) []string {
+	return []string{instruction.Key}
+}
+
+func (c *mockCluster) InterferingKeys(instruction *store.Instruction) []string {
+	return mockClusterDefaultInterferingKeys(c, instruction)
+}
+
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
 	return mn.manager.HandleMessage(msg)
 }
