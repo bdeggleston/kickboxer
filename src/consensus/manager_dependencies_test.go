@@ -100,12 +100,34 @@ func (s *DependenciesTest) TestExistingDependencyMap(c *gocheck.C) {
 
 // tests the last reads array is updated if the instance is a read
 func (s *DependenciesTest) TestLastKeyReadIsUpdated(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	instance.ReadOnly = true
+	keys := []string{"a"}
+	deps := newDependencies()
 
+	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
+	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
+
+	deps.GetAndSetDeps(keys, instance)
+
+	expectedReads := []InstanceID{instance.InstanceID}
+	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
+	c.Assert(deps.lastReads, gocheck.DeepEquals, expectedReads)
 }
 
 // tests the last write is updated if the instance is a write
 func (s *DependenciesTest) TestLastKeyWriteIsUpdated(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	keys := []string{"a"}
+	deps := newDependencies()
 
+	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
+	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
+
+	deps.GetAndSetDeps(keys, instance)
+
+	c.Assert(deps.lastWrite, gocheck.Equals, instance.InstanceID)
+	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
 }
 
 // tests instances from all child nodes are added to the deps
