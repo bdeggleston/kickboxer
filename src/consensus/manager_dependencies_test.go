@@ -12,15 +12,19 @@ import (
 	"store"
 )
 
-type DependencyMapTest struct {
+type baseDependencyTest struct {
 	baseManagerTest
 }
 
-var _ = gocheck.Suite(&DependencyMapTest{})
-
-func (s *DependencyMapTest) newInstruction(key string) *store.Instruction {
+func (s *baseDependencyTest) newInstruction(key string) *store.Instruction {
 	return store.NewInstruction("SET", key, []string{}, time.Now())
 }
+
+type DependencyMapTest struct {
+	baseDependencyTest
+}
+
+var _ = gocheck.Suite(&DependencyMapTest{})
 
 // tests that a new dependencies object is created for new root nodes
 func (s *DependencyMapTest) TestNewRootDependencyMap(c *gocheck.C) {
@@ -55,18 +59,43 @@ func (s *DependencyMapTest) TestExistingRootDependencyMap(c *gocheck.C) {
 
 }
 
-type DependenciesTest struct {}
+type DependenciesTest struct {
+	baseDependencyTest
+}
 
 var _ = gocheck.Suite(&DependenciesTest{})
 
 // tests that a new dependencies object is created for new leaf nodes
 func (s *DependenciesTest) TestNewDependencyMap(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a:b"))
+	keys := []string{"a", "b"}
+	deps := newDependencies()
 
+	c.Assert(len(deps.subDependencies.deps), gocheck.Equals, 0)
+	c.Assert(deps.subDependencies.deps["b"], gocheck.IsNil)
+
+	deps.GetAndSetDeps(keys, instance)
+
+	c.Assert(len(deps.subDependencies.deps), gocheck.Equals, 1)
+	c.Assert(deps.subDependencies.deps["b"], gocheck.NotNil)
 }
 
-// tests that a new dependencies object is created for new leaf nodes
+// tests that existing dependencies object is used if it exists
 func (s *DependenciesTest) TestExistingDependencyMap(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.newInstruction("a:b"))
+	keys := []string{"a", "b"}
+	deps := newDependencies()
 
+
+	bdeps := deps.subDependencies.get("b")
+	c.Assert(len(deps.subDependencies.deps), gocheck.Equals, 1)
+	c.Assert(deps.subDependencies.deps["b"], gocheck.NotNil)
+
+	deps.GetAndSetDeps(keys, instance)
+
+	c.Assert(len(deps.subDependencies.deps), gocheck.Equals, 1)
+	c.Assert(deps.subDependencies.deps["b"], gocheck.NotNil)
+	c.Assert(deps.subDependencies.get("b"), gocheck.Equals, bdeps)
 }
 
 // tests the last reads array is updated if the instance is a read
