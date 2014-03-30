@@ -162,12 +162,52 @@ func (s *DependenciesTest) TestLocalWriteDeps(c *gocheck.C) {
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
 
-// tests instances from all child nodes are added to the deps
-func (s *DependenciesTest) TestChildDepsAreIncluded(c *gocheck.C) {
+func (s *DependenciesTest) TestIntegration(c *gocheck.C) {
+	// the key "a:b" is the key being used for tests
+	addInstance := func(key string, readOnly bool) InstanceID {
+		instance := s.manager.makeInstance(s.newInstruction(key))
+		instance.ReadOnly = readOnly
+		_, err := s.manager.depsMngr.GetAndSetDeps(instance)
+		c.Assert(err, gocheck.IsNil)
+		return instance.InstanceID
+	}
 
-}
+	aWrite := addInstance("a", false)
+	aRead := addInstance("a", true)
+	abWrite := addInstance("a:b", false)
+	abRead := addInstance("a:b", true)
+	abcWrite := addInstance("a:b:c", false)
+	abcRead := addInstance("a:b:c", true)
+	abcdWrite := addInstance("a:b:c:d", false)
+	abcdRead := addInstance("a:b:c:d", true)
 
-// tests that child nodes are removed on a write
-func (s *DependenciesTest) TestChildrenAreClearedOnWrite(c *gocheck.C) {
+	// add sibling deps, these should never be returned
+	addInstance("a:b1", false)
+	addInstance("a:b1", true)
+
+	// check read deps
+	readInstance := s.manager.makeInstance(s.newInstruction("a:b"))
+	readInstance.ReadOnly = true
+	expected := NewInstanceIDSet([]InstanceID{aWrite, abWrite, abcWrite, abcdWrite})
+	deps, err := s.manager.depsMngr.GetAndSetDeps(readInstance)
+	c.Assert(err, gocheck.IsNil)
+	actual := NewInstanceIDSet(deps)
+	c.Check(actual, gocheck.DeepEquals, expected)
+
+	// check write deps
+	writeInstance := s.manager.makeInstance(s.newInstruction("a:b"))
+	expected.Add(aRead, abRead, abcRead, abcdRead, readInstance.InstanceID)
+	deps, err = s.manager.depsMngr.GetAndSetDeps(writeInstance)
+	c.Assert(err, gocheck.IsNil)
+	actual = NewInstanceIDSet(deps)
+	c.Check(actual, gocheck.DeepEquals, expected)
+
+	// check children have been cleared
+	expected = NewInstanceIDSet([]InstanceID{aWrite, aRead, writeInstance.InstanceID})
+	writeInstance = s.manager.makeInstance(s.newInstruction("a:b"))
+	deps, err = s.manager.depsMngr.GetAndSetDeps(writeInstance)
+	c.Assert(err, gocheck.IsNil)
+	actual = NewInstanceIDSet(deps)
+	c.Check(actual, gocheck.DeepEquals, expected)
 
 }
