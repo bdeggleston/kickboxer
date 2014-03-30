@@ -130,6 +130,38 @@ func (s *DependenciesTest) TestLastKeyWriteIsUpdated(c *gocheck.C) {
 	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
 }
 
+// tests the deps reported by a single deps node for a read
+func (s *DependenciesTest) TestLocalReadDeps(c *gocheck.C) {
+	depsNode := newDependencies()
+	depsNode.lastWrite = NewInstanceID()
+	depsNode.lastReads = []InstanceID{NewInstanceID(), NewInstanceID()}
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	instance.ReadOnly = true
+
+	deps := depsNode.getLocalDeps(instance)
+
+	c.Assert(deps, gocheck.DeepEquals, []InstanceID{depsNode.lastWrite})
+}
+
+// tests the deps reported by a single deps node for a write
+func (s *DependenciesTest) TestLocalWriteDeps(c *gocheck.C) {
+	depsNode := newDependencies()
+	depsNode.lastWrite = NewInstanceID()
+	depsNode.lastReads = []InstanceID{NewInstanceID(), NewInstanceID()}
+
+	expected := NewInstanceIDSet(depsNode.lastReads)
+	expected.Add(depsNode.lastWrite)
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+
+	deps := depsNode.getLocalDeps(instance)
+
+	actual := NewInstanceIDSet(deps)
+
+	c.Assert(actual, gocheck.DeepEquals, expected)
+}
+
 // tests instances from all child nodes are added to the deps
 func (s *DependenciesTest) TestChildDepsAreIncluded(c *gocheck.C) {
 
