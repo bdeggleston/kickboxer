@@ -26,6 +26,7 @@ func setupDeps(manager *Manager) {
 		instance := manager.makeInstance(getBasicInstruction())
 		instance.Status = INSTANCE_EXECUTED
 		instance.Sequence = seq
+		instance.Dependencies, _ = manager.getInstanceDeps(instance)
 		manager.instances.Add(instance)
 		manager.executed = append(manager.executed, instance.InstanceID)
 	}
@@ -34,6 +35,7 @@ func setupDeps(manager *Manager) {
 		instance := manager.makeInstance(getBasicInstruction())
 		instance.Status = INSTANCE_COMMITTED
 		instance.Sequence = seq
+		instance.Dependencies, _ = manager.getInstanceDeps(instance)
 		manager.instances.Add(instance)
 		manager.committed.Add(instance)
 	}
@@ -46,6 +48,7 @@ func setupDeps(manager *Manager) {
 			instance.Status = INSTANCE_PREACCEPTED
 		}
 		instance.Sequence = seq
+		instance.Dependencies, _ = manager.getInstanceDeps(instance)
 		manager.instances.Add(instance)
 		manager.inProgress.Add(instance)
 	}

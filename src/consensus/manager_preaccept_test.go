@@ -366,6 +366,13 @@ func (s *PreAcceptReplicaTest) SetUpTest(c *gocheck.C) {
 // tests that the dependency match flag is set
 // if the seq and deps matched
 func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
+	oldManagerGetDeps := managerGetInstanceDeps
+	defer func() { managerGetInstanceDeps = oldManagerGetDeps }()
+	iids := s.manager.instances.InstanceIDs()
+	managerGetInstanceDeps = func(_ *Manager, _ *Instance) ([]InstanceID, error) {
+		return iids, nil
+	}
+
 	s.manager.maxSeq = 3
 
 	instructions := getBasicInstruction()
@@ -401,15 +408,25 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 // tests that the replica updates the sequence and
 // dependencies if it disagrees with the leader
 func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
+	oldManagerGetDeps := managerGetInstanceDeps
+	defer func() { managerGetInstanceDeps = oldManagerGetDeps }()
+	iids := s.manager.instances.InstanceIDs()
+	managerGetInstanceDeps = func(_ *Manager, _ *Instance) ([]InstanceID, error) {
+		return iids, nil
+	}
 	s.manager.maxSeq = 3
 
+	// get expected deps, and modify so the request handler will update
 	instruction := getBasicInstruction()
-	replicaDeps := []InstanceID{s.manager.depsMngr.deps.deps["a"].lastWrite}
-	leaderDeps := []InstanceID{s.manager.depsMngr.deps.deps["a"].lastWrite}
+	replicaDeps := make([]InstanceID, len(iids))
+	leaderDeps := make([]InstanceID, len(iids))
+	copy(replicaDeps, iids)
+	copy(leaderDeps, iids)
+
 	missingDep := leaderDeps[0]
-	extraDep := NewInstanceID()
-	leaderDeps[0] = extraDep
-	c.Assert(instruction, gocheck.NotNil)
+	extraDepID := NewInstanceID()
+	leaderDeps[0] = extraDepID
+
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
@@ -423,8 +440,6 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	request := &PreAcceptRequest{
 		Instance: instance,
 	}
-
-	s.manager.instances.Add(&Instance{InstanceID: missingDep, Command: getBasicInstruction()})
 
 	// process the preaccept message
 	response, err := s.manager.HandlePreAccept(request)
@@ -449,6 +464,15 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 
 // tests that new attributes are returned
 func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
+	oldManagerGetDeps := managerGetInstanceDeps
+	defer func() { managerGetInstanceDeps = oldManagerGetDeps }()
+	iids := s.manager.instances.InstanceIDs()
+	managerGetInstanceDeps = func(_ *Manager, _ *Instance) ([]InstanceID, error) {
+		deps := make([]InstanceID, len(iids))
+		copy(deps, iids)
+		return deps, nil
+	}
+
 	s.manager.maxSeq = 3
 
 	instance := &Instance{
@@ -459,7 +483,7 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
-	replicaDeps, _ := s.manager.getInstanceDeps(instance)
+	replicaDeps, _ := managerGetInstanceDeps(nil, nil)
 	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	request := &PreAcceptRequest{
 		Instance: instance,
