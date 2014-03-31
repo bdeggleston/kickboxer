@@ -368,9 +368,11 @@ func (s *AcceptReplicaTest) TestHandleNoop(c *gocheck.C) {
 // the commit if for an instance the node has
 // not been previously seen by this replica
 func (s *AcceptReplicaTest) TestNewInstanceSuccess(c *gocheck.C) {
+	var err error
 	leaderID := node.NewNodeId()
 	leaderInstance := makeInstance(leaderID, []InstanceID{})
-	leaderInstance.Dependencies = s.manager.getInstanceDeps(leaderInstance)
+	leaderInstance.Dependencies, err = s.manager.getInstanceDeps(leaderInstance)
+	c.Assert(err, gocheck.IsNil)
 	leaderInstance.Sequence += 5
 
 	request := &AcceptRequest{

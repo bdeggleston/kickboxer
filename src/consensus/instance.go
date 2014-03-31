@@ -481,6 +481,7 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
 // -------------- state changes --------------
 
 func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
+	var err error
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -498,7 +499,9 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 	}
 	i.Status = INSTANCE_PREACCEPTED
 	i.Sequence = i.manager.getNextSeq()
-	i.Dependencies = i.manager.getInstanceDeps(i)
+	if i.Dependencies, err = i.manager.getInstanceDeps(i); err != nil {
+		return err
+	}
 	i.commitTimeout = makePreAcceptCommitTimeout()
 	if incrementBallot {
 		i.MaxBallot++

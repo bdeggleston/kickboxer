@@ -373,10 +373,10 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Command:      instructions,
-		Dependencies: s.manager.getInstructionDeps(instructions),
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
+	instance.Dependencies, _ = s.manager.getInstanceDeps(instance)
 	request := &PreAcceptRequest{
 		Instance: instance,
 	}
@@ -404,8 +404,8 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
 	instruction := getBasicInstruction()
-	replicaDeps := s.manager.getInstructionDeps(instruction)
-	leaderDeps := s.manager.getInstructionDeps(instruction)
+	replicaDeps := []InstanceID{s.manager.depsMngr.deps.deps["a"].lastWrite}
+	leaderDeps := []InstanceID{s.manager.depsMngr.deps.deps["a"].lastWrite}
 	missingDep := leaderDeps[0]
 	extraDep := NewInstanceID()
 	leaderDeps[0] = extraDep
@@ -436,8 +436,7 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	expectedDeps := NewInstanceIDSet(replicaDeps)
 
 	actualDeps := NewInstanceIDSet(responseInst.Dependencies)
-	c.Check(len(actualDeps), gocheck.Equals, len(expectedDeps))
-	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
+	c.Assert(actualDeps, gocheck.DeepEquals, expectedDeps)
 
 	c.Check(responseInst.Sequence, gocheck.Equals, uint64(4))
 	c.Check(responseInst.DependencyMatch, gocheck.Equals, false)
@@ -460,7 +459,7 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
-	replicaDeps := s.manager.getInstanceDeps(instance)
+	replicaDeps, _ := s.manager.getInstanceDeps(instance)
 	c.Assert(len(replicaDeps) > 0, gocheck.Equals, true)
 	request := &PreAcceptRequest{
 		Instance: instance,

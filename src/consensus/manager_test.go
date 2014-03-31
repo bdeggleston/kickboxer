@@ -81,50 +81,6 @@ func (s *ManagerTest) TestInstanceCreation(c *gocheck.C) {
 	c.Check(actual, gocheck.DeepEquals, expected)
 }
 
-func (s *ManagerTest) TestGetCurrentDeps(c *gocheck.C) {
-	instanceByKey := make(map[string]InstanceIDSet)
-	newInstruction := func(key string) *store.Instruction {
-		return store.NewInstruction("set", key, []string{"b", "c"}, time.Now())
-	}
-	newInstance := func(key string, committed bool) *Instance {
-		instructions := newInstruction(key)
-		instance := s.manager.makeInstance(instructions)
-
-		if instanceByKey[key] == nil {
-			instanceByKey[key] = NewInstanceIDSet([]InstanceID{})
-		}
-		instanceByKey[key].Add(instance.InstanceID)
-
-		if committed {
-			s.manager.committed.Add(instance)
-		} else {
-			s.manager.inProgress.Add(instance)
-		}
-		return instance
-	}
-
-	newInstance("a", false)
-	newInstance("a", false)
-	newInstance("a", true)
-	newInstance("a", true)
-	newInstance("b", false)
-	newInstance("b", true)
-	newInstance("b", true)
-	newInstance("c", true)
-
-	// sanity check
-	c.Assert(len(instanceByKey["a"].List()), gocheck.Equals, 4)
-	c.Assert(len(instanceByKey["b"].List()), gocheck.Equals, 3)
-	c.Assert(len(instanceByKey["c"].List()), gocheck.Equals, 1)
-
-	aDeps := NewInstanceIDSet(s.manager.getInstructionDeps(newInstruction("a")))
-	c.Check(aDeps, gocheck.DeepEquals, instanceByKey["a"])
-	c.Check(aDeps, gocheck.DeepEquals, instanceByKey["a"])
-
-	bDeps := NewInstanceIDSet(s.manager.getInstructionDeps(newInstruction("b")))
-	c.Check(bDeps, gocheck.DeepEquals, instanceByKey["b"])
-}
-
 func (s *ManagerTest) TestGetNextSeq(c *gocheck.C) {
 	s.manager.maxSeq = 5
 	nextSeq := s.manager.getNextSeqUnsafe()

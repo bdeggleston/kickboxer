@@ -277,9 +277,11 @@ func (s *CommitReplicaTest) TestHandleSuccess(c *gocheck.C) {
 // the commit if for an instance the node has
 // not previously seen
 func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
+	var err error
 	leaderID := node.NewNodeId()
 	leaderInstance := makeInstance(leaderID, []InstanceID{})
-	leaderInstance.Dependencies = s.manager.getInstanceDeps(leaderInstance)
+	leaderInstance.Dependencies, err = s.manager.getInstanceDeps(leaderInstance)
+	c.Assert(err, gocheck.IsNil)
 	leaderInstance.Sequence += 5
 
 	request := &CommitRequest{
