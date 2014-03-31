@@ -276,7 +276,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 	inst := s.manager.makeInstance(s.getInstruction(6))
 	s.manager.preAcceptInstanceUnsafe(inst, false)
 	inst.commit(nil, false)
-	c.Assert(len(inst.Dependencies), gocheck.Equals, 6)
+	c.Assert(len(inst.Dependencies), gocheck.Equals, 1)
 	s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 
 	for i, iid := range s.expectedOrder {
@@ -304,7 +304,11 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *
 	for i := range instances {
 		instance := s.manager.makeInstance(s.getInstruction(1))
 		s.manager.preAcceptInstance(instance, false)
-		c.Assert(len(instance.Dependencies), gocheck.Equals, i, gocheck.Commentf("instance: %v", i))
+		numExpectedDeps := 1
+		if i == 0 {
+			numExpectedDeps = 0
+		}
+		c.Assert(len(instance.Dependencies), gocheck.Equals, numExpectedDeps, gocheck.Commentf("instance: %v", i))
 		s.manager.commitInstance(instance, false)
 		instances[i] = instance
 	}
@@ -514,7 +518,7 @@ func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *goch
 	}
 
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(val, gocheck.NotNil)
+	c.Check(val, gocheck.NotNil)
 
 	// check stats
 	stats := s.manager.stats.(*mockStatter)
