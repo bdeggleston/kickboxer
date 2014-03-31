@@ -156,19 +156,6 @@ func (s *AcceptIntegrationTest) TestAcceptSuccessCase(c *gocheck.C) {
 	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
 
-	// check that the nodes that preaccepted the remoteInstance have added it to
-	// the newInstance deps
-	for i, manager := range s.replicaManagers {
-		inst := manager.instances.Get(newInstance.InstanceID)
-		c.Assert(inst, gocheck.NotNil)
-		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
-		if i < quorumSize {
-			c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
-		} else {
-			c.Assert(inst.Dependencies, gocheck.Not(instIdSliceContains), remoteInstance.InstanceID)
-		}
-	}
-
 	// run an accept phase for the new instance
 	err = s.manager.acceptPhase(newInstance)
 	c.Assert(err, gocheck.IsNil)
@@ -223,19 +210,6 @@ func (s *CommitIntegrationTest) TestSkippedAcceptSuccessCase(c *gocheck.C) {
 	// check that the new instance contains the remote instance in it's dependencies
 	c.Assert(newInstance.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
 	c.Assert(newInstance.Dependencies, instIdSliceContains, knownInstance.InstanceID)
-
-	// check that the nodes that preaccepted the remoteInstance have added it to
-	// the newInstance deps
-	for i, manager := range s.replicaManagers {
-		inst := manager.instances.Get(newInstance.InstanceID)
-		c.Assert(inst, gocheck.NotNil)
-		c.Assert(inst.Dependencies, instIdSliceContains, knownInstance.InstanceID)
-		if i < quorumSize {
-			c.Assert(inst.Dependencies, instIdSliceContains, remoteInstance.InstanceID)
-		} else {
-			c.Assert(inst.Dependencies, gocheck.Not(instIdSliceContains), remoteInstance.InstanceID)
-		}
-	}
 
 	// run a commit phase for the new instance
 	err = s.manager.commitPhase(newInstance)
