@@ -88,10 +88,6 @@ func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestam
 	return val, nil
 }
 
-func (c *mockCluster) CheckInterference(i0, i1 *store.Instruction) bool {
-	return i0.Key == i1.Key
-}
-
 func mockClusterDefaultInterferingKeys(c *mockCluster, instruction *store.Instruction) []string {
 	return strings.Split(instruction.Key, ":")
 }

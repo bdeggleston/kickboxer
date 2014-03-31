@@ -43,8 +43,5 @@ type Cluster interface {
 	ApplyQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
 
 	// TODO: remove and rework epaxos to interact with the store directly
-	// determines if 2 sets of commands interfere with each other
-	CheckInterference(i0, i1 *store.Instruction) bool
-	// TODO: remove and rework epaxos to interact with the store directly
 	InterferingKeys(instruction *store.Instruction) []string
 }
