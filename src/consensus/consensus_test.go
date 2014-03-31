@@ -316,12 +316,25 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 		wg.Done()
 	}
 
-	for i:=0;i<numQueries;i++ {
+	fmt.Printf("Wait time: %v\n", waitTime)
+	start := time.Now()
+	for i:=0; i<numQueries; i++ {
 		s.stats.Inc("query.request", 1, 1.0)
 		go query(i)
-		time.Sleep(waitTime)
+		if i < numQueries - 1 {
+			time.Sleep(waitTime)
+		}
 	}
 	wg.Wait()
+	end := time.Now()
+	fmt.Println("")
+	fmt.Printf("Query time: %v\n", end.Sub(start))
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
+	gcTime := time.Duration(memStats.PauseTotalNs) * time.Nanosecond
+	fmt.Printf("GC time: %v\n", gcTime)
+	fmt.Printf("GC count: %v\n", memStats.NumGC)
+	fmt.Printf("GC avg pause: %v\n\n", gcTime / time.Duration(memStats.NumGC))
 }
 
 func (s *ConsensusQueryBenchmarks) TestBenchmarkQueries(c *gocheck.C) {
@@ -335,10 +348,8 @@ func (s *ConsensusQueryBenchmarks) TestBenchmarkQueries(c *gocheck.C) {
 		runtime.GOMAXPROCS(1)
 	}
 
-	start := time.Now()
 	s.runBenchmark(*benchQueries, c)
-	end := time.Now()
-	logger.Info("\nQuery time: %v\n", end.Sub(start))
+
 	s.checkConsistency(c)
 }
 
