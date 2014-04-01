@@ -83,7 +83,11 @@ func (m *Manager) sendCommit(instance *Instance, replicas []node.Node) error {
 		return err
 	}
 	msg := &CommitRequest{Instance: instanceCopy}
-	sendCommitMessage := func(n node.Node) { n.SendMessage(msg) }
+	sendCommitMessage := func(n node.Node) {
+		if _, err := n.SendMessage(msg); err != nil {
+			logger.Critical("Error sending commit message: %v", err)
+		}
+	}
 	for _, replica := range replicas {
 		go sendCommitMessage(replica)
 	}
