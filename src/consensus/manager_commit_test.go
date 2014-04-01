@@ -218,12 +218,16 @@ func (s *CommitLeaderTest) TestSendSuccess(c *gocheck.C) {
 // as the local instance
 func (s *CommitLeaderTest) TestCommitMessageBallotIsUpToDate(c *gocheck.C) {
 	var sentBallot uint32
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(s.replicas))
+
 	// all replicas agree
-	responseWaitChan := make(chan bool, len(s.replicas))
 	responseFunc := func(n *mockNode, m message.Message) (message.Message, error) {
 		request := m.(*CommitRequest)
 		sentBallot = request.Instance.MaxBallot
-		responseWaitChan <- true
+		wg.Done()
+
 		return &CommitResponse{}, nil
 	}
 
@@ -238,9 +242,7 @@ func (s *CommitLeaderTest) TestCommitMessageBallotIsUpToDate(c *gocheck.C) {
 	err = s.manager.commitPhase(duplicateInstance)
 
 	// wait for all of the nodes to receive their messages
-	for i:=0;i<len(s.replicas);i++ {
-		<-responseWaitChan
-	}
+	wg.Wait()
 
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(sentBallot, gocheck.Equals, expectedBallot)
