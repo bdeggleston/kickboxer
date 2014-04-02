@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"sort"
 	"sync"
 	"time"
 	"testing"
@@ -36,6 +37,22 @@ var (
 	benchNumKeys = flag.Int("bench.numkeys", 1, "activates performance profiling")
 	benchMaster = flag.Bool("bench.master", false, "only executes queries against a single node")
 )
+
+type durationSorter struct {
+	durations []time.Duration
+}
+
+func (d *durationSorter) Len() int {
+	return len(d.durations)
+}
+
+func (d *durationSorter) Less(x, y int) bool {
+	return d.durations[x] < d.durations[y]
+}
+
+func (d *durationSorter) Swap(x, y int) {
+	d.durations[x], d.durations[y] = d.durations[y], d.durations[x]
+}
 
 type ConsensusQueryBenchmarks struct {
 	baseReplicaTest
@@ -285,6 +302,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	errors := 0
 
 	waitTime := time.Second / time.Duration(*benchRate)
+	queryTimes := make([]time.Duration, numQueries)
 
 	query := func(i int) {
 		queryStart := time.Now()
@@ -311,6 +329,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 			logger.Debug("Finished Query QUERY: %v\n", i)
 		}
 		queryEnd := time.Now()
+		queryTimes[i] = queryEnd.Sub(queryStart)
 		delta := queryEnd.Sub(queryStart) / time.Millisecond
 		s.stats.Timing("query.time", int64(delta), 1.0)
 		wg.Done()
@@ -318,13 +337,23 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 
 	fmt.Printf("Wait time: %v\n", waitTime)
 	start := time.Now()
+
+	// print a status update every n queries
+	statusUpdateInterval := numQueries / 10
+	statusUpdateInterval2 := numQueries / 100
 	for i:=0; i<numQueries; i++ {
 		s.stats.Inc("query.request", 1, 1.0)
 		go query(i)
 		if i < numQueries - 1 {
 			time.Sleep(waitTime)
 		}
+		if i % statusUpdateInterval == 0 {
+			fmt.Printf("\nExecuted query %v ", i)
+		} else if i % statusUpdateInterval2 == 0 {
+			fmt.Printf(".")
+		}
 	}
+	fmt.Printf("\n%v queries completed\n", numQueries)
 	wg.Wait()
 	end := time.Now()
 	fmt.Println("")
@@ -334,7 +363,21 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	gcTime := time.Duration(memStats.PauseTotalNs) * time.Nanosecond
 	fmt.Printf("GC time: %v\n", gcTime)
 	fmt.Printf("GC count: %v\n", memStats.NumGC)
-	fmt.Printf("GC avg pause: %v\n\n", gcTime / time.Duration(memStats.NumGC))
+	fmt.Printf("GC avg pause: %v\n", gcTime / time.Duration(memStats.NumGC))
+
+	// get query time stats
+	dSorter := &durationSorter{durations:queryTimes}
+	sort.Sort(dSorter)
+	fmt.Println("")
+	fmt.Printf("Min query time: %v\n", queryTimes[0])
+	fmt.Printf("Max query time: %v\n", queryTimes[len(queryTimes) - 1])
+	fmt.Printf("Median query time: %v\n", queryTimes[len(queryTimes) / 2])
+	var queryTimeSum time.Duration
+	for _, qt := range queryTimes {
+		queryTimeSum += qt
+	}
+	fmt.Printf("Average query time: %v\n", queryTimeSum / time.Duration(len(queryTimes)))
+
 }
 
 func (s *ConsensusQueryBenchmarks) TestBenchmarkQueries(c *gocheck.C) {
