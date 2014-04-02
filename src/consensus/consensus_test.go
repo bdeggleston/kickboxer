@@ -301,6 +301,27 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	wg.Add(numQueries)
 	errors := 0
 
+	numAccept := 0
+	numPrepare := 0
+
+	oldAcceptPhase := managerAcceptPhase
+	managerAcceptPhase = func(m *Manager, instance *Instance) error {
+		numAccept++
+		return oldAcceptPhase(m, instance)
+	}
+
+	oldPreparePhase := managerPreparePhase
+	managerPreparePhase = func(m *Manager, instance *Instance) error {
+		numPrepare++
+		return oldPreparePhase(m, instance)
+	}
+
+	defer func() {
+		managerAcceptPhase = oldAcceptPhase
+		managerPreparePhase = oldPreparePhase
+	}()
+
+
 	waitTime := time.Second / time.Duration(*benchRate)
 	queryTimes := make([]time.Duration, numQueries)
 
@@ -342,10 +363,18 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	statusUpdateInterval := numQueries / 10
 	statusUpdateInterval2 := numQueries / 100
 	for i:=0; i<numQueries; i++ {
+		// adjust wait time for drift
+		expectedTime := start.Add(waitTime * time.Duration(i))
+		actualTime := time.Now()
+		localWait := waitTime - actualTime.Sub(expectedTime)
+		if localWait < waitTime / time.Duration(4) {
+			localWait = waitTime / time.Duration(4)
+		}
+
 		s.stats.Inc("query.request", 1, 1.0)
 		go query(i)
 		if i < numQueries - 1 {
-			time.Sleep(waitTime)
+			time.Sleep(localWait)
 		}
 		if i % statusUpdateInterval == 0 {
 			fmt.Printf("\nExecuted query %v ", i)
@@ -353,11 +382,22 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 			fmt.Printf(".")
 		}
 	}
+	queryEnd := time.Now()
 	fmt.Printf("\n%v queries completed\n", numQueries)
+
+	fmt.Println("")
+	fmt.Printf("query dispatch time: %v\n", queryEnd.Sub(start))
+	// this should be immediately after start + (waitTime * numQueries)
+	fmt.Printf("query dispatch drift: %v\n", queryEnd.Sub(start) - (waitTime * time.Duration(numQueries)))
+
+	// wait for queries to be completed
 	wg.Wait()
 	end := time.Now()
 	fmt.Println("")
 	fmt.Printf("Query time: %v\n", end.Sub(start))
+	fmt.Printf("Query wrap up time: %v\n", end.Sub(queryEnd))
+
+	// GC stats
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 	gcTime := time.Duration(memStats.PauseTotalNs) * time.Nanosecond
@@ -376,7 +416,13 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	for _, qt := range queryTimes {
 		queryTimeSum += qt
 	}
-	fmt.Printf("Average query time: %v\n", queryTimeSum / time.Duration(len(queryTimes)))
+	fmt.Printf("Mean query time: %v\n", queryTimeSum / time.Duration(len(queryTimes)))
+
+	// extra phase stats
+	fmt.Println("")
+	fmt.Printf("Num Accept Phases : ~%v / %v\n", numAccept, numQueries)
+	fmt.Printf("Num Prepare Phases : ~%v / %v\n", numPrepare, numQueries)
+	fmt.Println("")
 
 }
 
