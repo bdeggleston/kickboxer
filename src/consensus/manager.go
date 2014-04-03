@@ -301,7 +301,7 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) Query(instruction *store.Instruction) (store.Value, error) {
+func (m *Manager) Query(instruction store.Instruction) (store.Value, error) {
 
 	if !m.checkLocalKeyEligibility(instruction.Key) {
 		// need to iterate over the possible replicas, allowing for
@@ -418,7 +418,7 @@ func (m *Manager) updateSeq(seq uint64) error {
 }
 
 // creates a bare epaxos instance from the given instructions
-func (m *Manager) makeInstance(instruction *store.Instruction) *Instance {
+func (m *Manager) makeInstance(instruction store.Instruction) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
 		LeaderID:     m.GetLocalID(),
@@ -494,7 +494,7 @@ func (m *Manager) updateInstanceBallotFromResponses(instance *Instance, response
 // executes a serialized query against the cluster this method designates the node
 // it's called on as the command leader for the given query. Should only be called
 // once per client query
-func (m *Manager) ExecuteQuery(instruction *store.Instruction) (store.Value, error) {
+func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, error) {
 	start := time.Now()
 	defer m.statsTiming("manager.client.query.time", start)
 	m.statsInc("manager.client.query.count", 1)

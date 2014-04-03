@@ -256,7 +256,7 @@ type Instance struct {
 	Successors []node.NodeId
 
 	// the Instruction to be executed
-	Command *store.Instruction
+	Command store.Instruction
 
 	// a list of other instance ids that
 	// execution of this instance depends on
@@ -674,7 +674,6 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 		if err := (&i.Successors[idx]).ReadBuffer(buf); err != nil { return err }
 	}
 
-	i.Command = &store.Instruction{}
 	if err := i.Command.Deserialize(buf); err != nil { return err }
 
 	var numDeps uint32

@@ -85,7 +85,7 @@ func setupReplicaSet(size int) []*mockNode {
 	return replicas
 }
 
-func getBasicInstruction() *store.Instruction {
+func getBasicInstruction() store.Instruction {
 	return store.NewInstruction("set", "a", []string{"b", "c"}, time.Now())
 }
 
@@ -121,7 +121,7 @@ type baseManagerTest struct {
 	manager *Manager
 }
 
-func (s *baseManagerTest) getInstruction(val int) *store.Instruction {
+func (s *baseManagerTest) getInstruction(val int) store.Instruction {
 	return store.NewInstruction("set", "a", []string{fmt.Sprintf("%v", val)}, time.Now())
 }
 

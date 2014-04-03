@@ -21,8 +21,8 @@ type Instruction struct {
 }
 
 // creates a new instruction
-func NewInstruction(cmd string, key string, args []string, timestamp time.Time) *Instruction {
-	return &Instruction{
+func NewInstruction(cmd string, key string, args []string, timestamp time.Time) Instruction {
+	return Instruction{
 		Cmd: cmd,
 		Key: key,
 		Args: args,
@@ -42,8 +42,8 @@ func (i *Instruction) Equal(o *Instruction) bool {
 	return true
 }
 
-func (i *Instruction) Copy() *Instruction {
-	newInstr := &Instruction{
+func (i *Instruction) Copy() Instruction {
+	newInstr := Instruction{
 		Cmd: i.Cmd,
 		Key: i.Key,
 		Args: make([]string, len(i.Args)),

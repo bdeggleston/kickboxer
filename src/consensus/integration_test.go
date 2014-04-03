@@ -22,7 +22,7 @@ func (s *baseIntegrationTest) SetUpTest(c *gocheck.C) {
 	s.baseReplicaTest.SetUpTest(c)
 }
 
-func (s *baseIntegrationTest) makeInstruction(val int) *store.Instruction {
+func (s *baseIntegrationTest) makeInstruction(val int) store.Instruction {
 	return store.NewInstruction("set", "a", []string{fmt.Sprint(val)}, time.Now())
 }
 

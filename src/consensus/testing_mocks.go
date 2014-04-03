@@ -47,7 +47,7 @@ type mockCluster struct {
 	id node.NodeId
 	nodes []node.Node
 	lock sync.Mutex
-	instructions []*store.Instruction
+	instructions []store.Instruction
 	values map[string]*intVal
 }
 
@@ -57,7 +57,7 @@ func newMockCluster() *mockCluster {
 	return &mockCluster{
 		id: node.NewNodeId(),
 		nodes: make([]node.Node, 0, 10),
-		instructions: make([]*store.Instruction, 0),
+		instructions: make([]store.Instruction, 0),
 		values: make(map[string]*intVal),
 	}
 }
@@ -88,11 +88,11 @@ func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestam
 	return val, nil
 }
 
-func mockClusterDefaultInterferingKeys(c *mockCluster, instruction *store.Instruction) []string {
+func mockClusterDefaultInterferingKeys(c *mockCluster, instruction store.Instruction) []string {
 	return strings.Split(instruction.Key, ":")
 }
 
-func (c *mockCluster) InterferingKeys(instruction *store.Instruction) []string {
+func (c *mockCluster) InterferingKeys(instruction store.Instruction) []string {
 	return mockClusterDefaultInterferingKeys(c, instruction)
 }
 

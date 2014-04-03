@@ -16,7 +16,7 @@ type baseDependencyTest struct {
 	baseManagerTest
 }
 
-func (s *baseDependencyTest) newInstruction(key string) *store.Instruction {
+func (s *baseDependencyTest) newInstruction(key string) store.Instruction {
 	return store.NewInstruction("SET", key, []string{}, time.Now())
 }
 
