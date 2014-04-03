@@ -214,7 +214,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 
 					// print jsonified instances
 					divergeIdx := i
-					displayStart := divergeIdx - 1
+					displayStart := divergeIdx - 2
 					if displayStart < 0 {
 						displayStart = 0
 					}
