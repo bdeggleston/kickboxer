@@ -136,7 +136,10 @@ func (m *Manager) mergePreAcceptAttributes(instance *Instance, responses []*PreA
 	logger.Debug("Merging preaccept attributes from %v responses", len(responses))
 	changes := false
 	for i, response := range responses {
-		mergeChanges := instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+		mergeChanges, err := instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+		if err != nil {
+			return changes, err
+		}
 		changes = changes || mergeChanges
 		logger.Debug("Merging preaccept attributes from response %v, changes: %v", i+1, mergeChanges)
 	}

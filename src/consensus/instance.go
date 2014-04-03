@@ -457,9 +457,13 @@ func (i *Instance) Copy() (*Instance, error) {
 
 // merges sequence and dependencies onto this instance, and returns
 // true/false to indicate if there were any changes
-func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
+func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) (bool, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
+
+	if i.Status != INSTANCE_PREACCEPTED {
+		return false, fmt.Errorf("attributes can only be merged on instances with preaccepted status, %v", i.Status)
+	}
 	changes := false
 	if seq > i.Sequence {
 		changes = true
@@ -475,7 +479,7 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) bool {
 			i.Dependencies = append(i.Dependencies, id)
 		}
 	}
-	return changes
+	return changes, nil
 }
 
 // -------------- state changes --------------

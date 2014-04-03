@@ -168,3 +168,24 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(dst, gocheck.DeepEquals, src)
 }
+
+type InstanceTest struct { }
+
+var _ = gocheck.Suite(&InstanceTest{})
+
+// tests that calling merge attributes fails if the instance
+// status id not preaccepted
+func (s *InstanceTest) TestMergeAttributesBadStatus(c *gocheck.C) {
+	var err error
+
+	instance := makeInstance(node.NewNodeId(), []InstanceID{})
+
+	instance.Status = INSTANCE_PREACCEPTED
+	_, err = instance.mergeAttributes(instance.Sequence, []InstanceID{})
+	c.Assert(err, gocheck.IsNil)
+
+	instance.Status = INSTANCE_ACCEPTED
+	_, err = instance.mergeAttributes(instance.Sequence, []InstanceID{})
+	c.Assert(err, gocheck.NotNil)
+
+}
