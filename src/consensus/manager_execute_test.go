@@ -22,6 +22,17 @@ type baseExecutionTest struct {
 	baseManagerTest
 	expectedOrder []InstanceID
 	maxIdx int
+
+	oldExecutionTimeout uint64
+}
+
+func (s *baseExecutionTest) SetUpSuite(c *gocheck.C) {
+	s.oldExecutionTimeout = EXECUTE_TIMEOUT
+	EXECUTE_TIMEOUT = uint64(5)
+}
+
+func (s *baseExecutionTest) TearDownSuite(c *gocheck.C) {
+	EXECUTE_TIMEOUT = s.oldExecutionTimeout
 }
 
 // makes a set of interdependent instances, and sets
@@ -81,11 +92,13 @@ type ExecuteInstanceTest struct {
 var _ = gocheck.Suite(&ExecuteInstanceTest{})
 
 func (s *ExecuteInstanceTest) SetUpSuite(c *gocheck.C) {
+	s.baseExecutionTest.SetUpSuite(c)
 	s.oldBallotTimeout = BALLOT_FAILURE_WAIT_TIME
 	BALLOT_FAILURE_WAIT_TIME = uint64(5)
 }
 
 func (s *ExecuteInstanceTest) TearDownSuite(c *gocheck.C) {
+	s.baseExecutionTest.TearDownSuite(c)
 	BALLOT_FAILURE_WAIT_TIME = s.oldBallotTimeout
 }
 
@@ -143,10 +156,6 @@ func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
 // tests that an explicit prepare is retried if it fails due to
 // a ballot failure
 func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
-	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
-	defer func() {BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime}()
-	BALLOT_FAILURE_WAIT_TIME = uint64(5)
-
 	// die once, succeed on second try
 	managerPreparePhase = func(manager *Manager, instance *Instance) error {
 		if s.preparePhaseCalls > 0 {
@@ -171,10 +180,11 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 // tests that an explicit prepare which is retried, will wait before
 // retrying, but will abort if a commit notify event is broadcasted
 func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
-	// TODO: I think this test is actually waiting 10 seconds
+	// skip waiting
 	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
 	BALLOT_FAILURE_WAIT_TIME = uint64(10000)
 	defer func() { BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime }()
+
 	s.patchPreparePhase(NewBallotError("nope"), false)
 
 	s.toExecute.getExecuteEvent()
