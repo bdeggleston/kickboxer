@@ -244,6 +244,11 @@ func (i *InstanceMap) GetMap(imap map[InstanceID]*Instance, iids []InstanceID) m
 	return imap
 }
 
+type DepsLog struct {
+	Reason string
+	Deps []InstanceID
+}
+
 // a serializable set of instructions
 type Instance struct {
 	// the uuid of this instance
@@ -291,6 +296,9 @@ type Instance struct {
 	// depends on writes. If false, it will depend on reads
 	// and writes
 	ReadOnly bool
+
+	// log of dependency changes, used for debugging
+	DepsLog []DepsLog
 
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
@@ -429,6 +437,17 @@ func (i *Instance) updateBallot(ballot uint32) bool {
 	return false
 }
 
+func (i *Instance) setDeps(reason string, deps []InstanceID) {
+	i.Dependencies = deps
+	if PAXOS_DEBUG {
+		if i.DepsLog == nil {
+			i.DepsLog = make([]DepsLog, 0)
+		}
+		entry := DepsLog{Reason: reason, Deps: deps}
+		i.DepsLog = append(i.DepsLog, entry)
+	}
+}
+
 // returns a copy of the instance
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()
@@ -474,10 +493,11 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) (bool, error) 
 	if !iSet.Equal(oSet) {
 		changes = true
 		union := iSet.Union(oSet)
-		i.Dependencies = make([]InstanceID, 0, len(union))
+		deps = make([]InstanceID, 0, len(union))
 		for id := range union {
-			i.Dependencies = append(i.Dependencies, id)
+			deps = append(deps, id)
 		}
+		i.setDeps("merge attrs", deps)
 	}
 	return changes, nil
 }
@@ -485,7 +505,6 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) (bool, error) 
 // -------------- state changes --------------
 
 func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
-	var err error
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -503,8 +522,10 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 	}
 	i.Status = INSTANCE_PREACCEPTED
 	i.Sequence = i.manager.getNextSeq()
-	if i.Dependencies, err = i.manager.getInstanceDeps(i); err != nil {
+	if deps, err := i.manager.getInstanceDeps(i); err != nil {
 		return err
+	} else {
+		i.setDeps("preaccept", deps)
 	}
 	i.commitTimeout = makePreAcceptCommitTimeout()
 	if incrementBallot {
@@ -524,7 +545,7 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 
 	if inst != nil && inst != i {
 		inst.lock.RLock()
-		i.Dependencies = inst.Dependencies
+		i.setDeps("accept", inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
@@ -557,7 +578,7 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		inst.lock.RLock()
 		// this replica may have missed an accept message
 		// so copy the seq & deps onto the existing instance
-		i.Dependencies = inst.Dependencies
+		i.setDeps("commit", inst.Dependencies)
 
 		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
@@ -682,10 +703,11 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 
 	var numDeps uint32
 	if err := binary.Read(buf, binary.LittleEndian, &numDeps); err != nil { return err }
-	i.Dependencies = make([]InstanceID, numDeps)
-	for idx := range i.Dependencies {
-		if err := (&i.Dependencies[idx]).ReadBuffer(buf); err != nil { return err }
+	deps := make([]InstanceID, numDeps)
+	for idx := range deps {
+		if err := (&deps[idx]).ReadBuffer(buf); err != nil { return err }
 	}
+	i.setDeps("deserialize", deps)
 
 	if err := binary.Read(buf, binary.LittleEndian, &i.Sequence); err != nil { return err }
 	if err := binary.Read(buf, binary.LittleEndian, &i.Status); err != nil { return err }

@@ -70,6 +70,9 @@ var (
 	EXECUTE_TIMEOUT = uint64(500)
 
 	STATS_SAMPLE_RATE = float32(0.1)
+
+	// flag enabling additional instance info to be kept
+	PAXOS_DEBUG = false
 )
 
 /*

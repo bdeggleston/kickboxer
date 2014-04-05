@@ -67,6 +67,7 @@ type ConsensusQueryBenchmarks struct {
 var _ = gocheck.Suite(&ConsensusQueryBenchmarks{})
 
 func (s *ConsensusQueryBenchmarks) SetUpSuite(c *gocheck.C) {
+	PAXOS_DEBUG = true
 	s.baseReplicaTest.SetUpSuite(c)
 	s.numNodes = *benchReplicas
 
