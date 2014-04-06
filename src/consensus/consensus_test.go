@@ -248,6 +248,23 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println("actual")
 					fmt.Println(string(js))
 
+					// export full execution history for key, for each node
+					for i, nodeKeyInstructions := range nodeInstructions {
+						js, err = json.Marshal(nodeKeyInstructions[key])
+						if err != nil {
+							panic(err)
+						}
+						f, err := os.Create(fmt.Sprintf("%v:%v.json", key, i))
+						_, err = f.Write(js)
+						if err != nil {
+							panic(err)
+						}
+						err = f.Close()
+						if err != nil {
+							panic(err)
+						}
+					}
+
 					e0 := make([]*Instance, len(s.nodes))
 					e1 := make([]*Instance, len(s.nodes))
 					for i, n := range s.nodes {
