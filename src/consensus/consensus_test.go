@@ -331,6 +331,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	oldPreparePhase := managerPreparePhase
 	managerPreparePhase = func(m *Manager, instance *Instance) error {
 		numPrepare++
+		fmt.Println("\nPrepare: ", instance.InstanceID)
 		return oldPreparePhase(m, instance)
 	}
 
