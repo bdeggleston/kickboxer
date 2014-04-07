@@ -91,7 +91,6 @@ TODO: consider batching up queries into a single instance
 
 TODO: make execute query tolerant of prepare phases updating the status of it's instance
 
-TODO: fix all tests that take >100ms
 TODO: remove commit timeouts, replace with last activity (last message sent received)
 
 Prepare successors should increment the last activity time outs by their order in the successor list. The
@@ -100,7 +99,7 @@ farther they are from first successor, the higher their timeout should be
 TODO: make the prepare phase a bit smarter
 
 Prepare phase improvement:
-If the prepare responses are all preaccepted instances with the dependency match flag set, prepare should send an accept
+If the prepare responses are all preaccepted instances with the dependency match flag set, prepare should send a commit
 If the prepare responses are all preaccepted instances with the same ballot, the dependencies should be merged and an
 	accept message should be sent.
 If the prepare responses are all accepted instances with the same ballot, seq, and deps, a commit message should be sent
@@ -112,82 +111,6 @@ Keep a count of instances in progress, and delay new queries proportionally
 
 TODO: think about potential race conditions caused by multiple goroutines running executeDependencyChain concurrently
 
------- older notes ------
-
-1) The manager needs to know the consistency level, and have a means of querying the cluster
-	for the proper replicas each time it needs to send a message to the replicas. If a replica
-	is added to, or removed from, the cluster mid transaction, the transaction will be executing
-	against an out of date set of replicas.
-
-2) manager state persistence. Maybe add system state mutation method to store?
-	A triply nested hash table should do the trick for most applications.
-		ex:
-			consensus:
-				<consensus_state> [manager_id][instance_id] = serialized_instance
-			cluster state:
-				<cluster_state> [node_id][node_property] = node_metadata
-
-3) Workout a method for removing old nodes from the dependency graph
-
-4) Add response expected param to execute instance, so queries that don't expect
-	a return value can return even if it's instance dependencies have not been committed
-
- */
-
-/*
-Notes:
-
-Explicit Prepare:
-	Prepare race condition. Since replicas have a common commit timeout, in the event of
-	a leader failure, it's likely that several will try to to take control of an instance
-	once it's commit timeout is up. In the worst case, each replica will increment it's
-	ballot and send out prepare responses at the same time, and then rejecting the other
-	prepare responses. with no replica successfully taking control of the instance. This
-	could conceivably result in the prepare process being deadlocked.
-
-	Possible solutions:
-		add some jitter into the commit timeout
-		on instance creation, the leader randomly sets an order of succession for prepare phase
-			problems:
-				if the immediate successor(s) fails, the prepare phase would be delayed
-
-Cluster Changes:
-	Joining nodes. When a node joins the cluster, it needs to get a snapshot of the data
-	for a key, the id of the last executed instance, as well as the instance set for that
-	key's consensus manager. That should allow it to start participating in the consensus
-	process without any inconsistencies. Nodes should probably forward consensus state to
-	the joining node while it's in the process of joining, since it probably wouldn't make
-	sense to have a half joined node start participating in consensus for some of it's keys,
-	but not for others.
-
-Variable datacenter consistency:
-	Should it even be allowed? If it were, we'd have a situation where different datacenters
-	could diverge in their executed command history for queries without inter dc consistency,
-	and then have this unresolvable situation when queries were done *with* inter dc
-	consistency.
-		Solutions:
-			caveat emptor: Use interdc consistency. You can use local consistency if you want
-				but any inconsistencies are on you. Probably a bad idea?
-			force interdc consistency: don't allow local consensus. Kind of restrictive, but
-				may be desirable in situations where consistency is the priority
-			home dc: assign keys a 'home' datacenter. Probably the first dc to touch the key,
-				unless explicity assigned. Queries performed in the home dc only run consensus
-				in the local dcs, and remote dc nodes forward their queries to the home dc. The
-				home dc could be moved automatically based on query frequency. Reassigning a manager's
-				home would be an inter dc consensus operation.
-				Local consensus reads can be performed against the local cluster, with the understanding
-				that local consensus is not as consistent as inter dc consensus, and local consensus
-				writes are forwarded to the home dc. Interdc consistency from any datacenter, must
-				hear from a quorum of home dc nodes. This might not be a bad model to follow for
-				all consensus operations. But what if a datacenter becomes unavailable? That
-				key will basically be dead until it can be reached again.
-
-				problems:
-					selecting the key owner will require a interdc consensus round. This would
-					be ok for keys with regular r/w, but would be useless for keys that are
-					used only once
-
-			table replication: Have tables that are not replicated across datacenters.
  */
 
 // wraps the conditional struct
