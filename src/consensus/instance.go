@@ -411,12 +411,9 @@ func (i *Instance) getSuccessors() []node.NodeId {
 }
 
 func (i *Instance) getDependencies() []InstanceID {
-	// TODO: don't return a copy
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	result := make([]InstanceID, len(i.Dependencies))
-	copy(result, i.Dependencies)
-	return result
+	return i.Dependencies
 }
 
 
