@@ -36,6 +36,7 @@ var (
 	benchProfile = flag.Bool("bench.profile", false, "activates performance profiling")
 	benchNumKeys = flag.Int("bench.numkeys", 1, "activates performance profiling")
 	benchMaster = flag.Bool("bench.master", false, "only executes queries against a single node")
+	benchExport = flag.Bool("bench.export", false, "exports inconsistent dependency chain if set")
 )
 
 type durationSorter struct {
@@ -252,20 +253,22 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println("actual")
 					fmt.Println(string(js))
 
-					// export full execution history for key, for each node
-					for i, nodeKeyInstructions := range nodeInstructions {
-						js, err = json.Marshal(nodeKeyInstructions[key])
-						if err != nil {
-							panic(err)
-						}
-						f, err := os.Create(fmt.Sprintf("%v:%v.json", key, i))
-						_, err = f.Write(js)
-						if err != nil {
-							panic(err)
-						}
-						err = f.Close()
-						if err != nil {
-							panic(err)
+					if *benchExport {
+						// export full execution history for key, for each node
+						for i, nodeKeyInstructions := range nodeInstructions {
+							js, err = json.Marshal(nodeKeyInstructions[key])
+							if err != nil {
+								panic(err)
+							}
+							f, err := os.Create(fmt.Sprintf("%v:%v.json", key, i))
+							_, err = f.Write(js)
+							if err != nil {
+								panic(err)
+							}
+							err = f.Close()
+							if err != nil {
+								panic(err)
+							}
 						}
 					}
 
