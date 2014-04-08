@@ -63,6 +63,11 @@ func NewInstanceIDSet(ids []InstanceID) InstanceIDSet {
 	return s
 }
 
+func NewSizedInstanceIDSet(size int) InstanceIDSet {
+	s := make(InstanceIDSet, size)
+	return s
+}
+
 func (i InstanceIDSet) Equal(o InstanceIDSet) bool {
 	if len(i) != len(o) {
 		return false
@@ -92,6 +97,20 @@ func (i InstanceIDSet) Add(ids ...InstanceID) {
 	}
 }
 
+func (i InstanceIDSet) Remove(ids ...InstanceID) {
+	for _, id := range ids {
+		delete(i, id)
+	}
+}
+
+func (i InstanceIDSet) Combine(idSets ...InstanceIDSet) {
+	for _, ids := range idSets {
+		for id := range ids {
+			i[id] = true
+		}
+	}
+}
+
 // returns all of the keys in i, that aren't in o
 func (i InstanceIDSet) Subtract(o InstanceIDSet) InstanceIDSet {
 	s := NewInstanceIDSet([]InstanceID{})
@@ -103,9 +122,21 @@ func (i InstanceIDSet) Subtract(o InstanceIDSet) InstanceIDSet {
 	return s
 }
 
+func (i InstanceIDSet) Copy() InstanceIDSet {
+	c := NewSizedInstanceIDSet(i.Size())
+	for k := range i {
+		c[k] = true
+	}
+	return c
+}
+
 func (i InstanceIDSet) Contains(id InstanceID) bool {
 	_, exists := i[id]
 	return exists
+}
+
+func (i InstanceIDSet) Size() int {
+	return len(i)
 }
 
 func (i InstanceIDSet) List() []InstanceID {
