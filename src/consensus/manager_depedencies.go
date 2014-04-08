@@ -98,45 +98,30 @@ func (dm *dependencyMap) all() []*dependencies {
 }
 
 type dependencies struct {
-	lastWrite InstanceID
-	lastReads []InstanceID
+	writes InstanceIDSet
+	reads InstanceIDSet
 	lock sync.RWMutex
 	subDependencies *dependencyMap
 }
 
 func newDependencies() *dependencies {
 	return &dependencies{
-		lastReads: make([]InstanceID, 0),
+		writes: NewSizedInstanceIDSet(0),
+		reads: NewSizedInstanceIDSet(0),
 		subDependencies: newDependencyMap(),
 	}
 }
 
-func (d *dependencies) getLocalDeps(instance *Instance) []InstanceID {
-
-	var lenDeps int
-
-	if !d.lastWrite.IsZero() {
-		lenDeps++
-	}
-
+func (d *dependencies) getLocalDeps(instance *Instance) InstanceIDSet {
+	deps := d.writes.Copy()
 	if !instance.ReadOnly {
-		lenDeps += len(d.lastReads)
-	}
-
-	deps := make([]InstanceID, lenDeps)
-
-	if !instance.ReadOnly {
-		copy(deps, d.lastReads)
-	}
-
-	if !d.lastWrite.IsZero() {
-		deps[lenDeps - 1] = d.lastWrite
+		deps.Combine(d.reads)
 	}
 
 	return deps
 }
 
-func (d *dependencies) getChildDeps(instance *Instance) []InstanceID {
+func (d *dependencies) getChildDeps(instance *Instance) InstanceIDSet {
 	// setup locks
 	if !instance.ReadOnly {
 		d.lock.Lock()
@@ -150,14 +135,14 @@ func (d *dependencies) getChildDeps(instance *Instance) []InstanceID {
 
 	if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
 		for _, subDeps := range subDependencies {
-			deps = append(deps, subDeps.getChildDeps(instance)...)
+			deps.Combine(subDeps.getChildDeps(instance))
 		}
 	}
 
 	return deps
 }
 
-func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) []InstanceID {
+func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) InstanceIDSet {
 	// this is the final key, so last writes should be swapped out
 	var nextKeys []string
 	lastKey := len(keys) == 1
@@ -179,22 +164,20 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) []Instan
 		// get child deps and update reads / writes
 		if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
 			for _, subDeps := range subDependencies {
-				deps = append(deps, subDeps.getChildDeps(instance)...)
+				deps.Combine(subDeps.getChildDeps(instance))
 			}
 		}
 
 		if instance.ReadOnly {
-			d.lastReads = append(d.lastReads, instance.InstanceID)
+			d.reads.Add(instance.InstanceID)
 		} else {
-			d.lastWrite = instance.InstanceID
-			d.lastReads = make([]InstanceID, 0)
-			d.subDependencies = newDependencyMap()
+			d.writes.Add(instance.InstanceID)
 		}
 
 	} else {
 		// get deps from the next node in the tree
 		subDeps := d.subDependencies.get(nextKeys[0])
-		deps = append(deps, subDeps.GetAndSetDeps(nextKeys, instance)...)
+		deps.Combine(subDeps.GetAndSetDeps(nextKeys, instance))
 	}
 
 	return deps
@@ -215,7 +198,7 @@ func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, er
 	}
 
 	deps := dm.deps.get(keys[0])
-	return deps.GetAndSetDeps(keys, instance), nil
+	return deps.GetAndSetDeps(keys, instance).List(), nil
 }
 
 func newDependencyManager(manager *Manager) *dependencyManager {

@@ -46,7 +46,7 @@ func (s *DependencyMapTest) TestExistingRootDependencyMap(c *gocheck.C) {
 
 	depsNode := s.manager.depsMngr.deps.get("a")
 	lastWrite := NewInstanceID()
-	depsNode.lastWrite = lastWrite
+	depsNode.writes = NewInstanceIDSet([]InstanceID{lastWrite})
 	c.Assert(s.manager.depsMngr.deps.deps["a"], gocheck.NotNil)
 
 	deps, err := s.manager.depsMngr.GetAndSetDeps(instance)
@@ -105,14 +105,14 @@ func (s *DependenciesTest) TestLastKeyReadIsUpdated(c *gocheck.C) {
 	keys := []string{"a"}
 	deps := newDependencies()
 
-	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
-	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
+	c.Assert(deps.writes.Size(), gocheck.Equals, 0)
+	c.Assert(deps.reads.Size(), gocheck.Equals, 0)
 
 	deps.GetAndSetDeps(keys, instance)
 
-	expectedReads := []InstanceID{instance.InstanceID}
-	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
-	c.Assert(deps.lastReads, gocheck.DeepEquals, expectedReads)
+	expectedReads := NewInstanceIDSet([]InstanceID{instance.InstanceID})
+	c.Assert(deps.writes.Size(), gocheck.Equals, 0)
+	c.Assert(deps.reads, gocheck.DeepEquals, expectedReads)
 }
 
 // tests the last write is updated if the instance is a write
@@ -121,43 +121,39 @@ func (s *DependenciesTest) TestLastKeyWriteIsUpdated(c *gocheck.C) {
 	keys := []string{"a"}
 	deps := newDependencies()
 
-	c.Assert(deps.lastWrite.IsZero(), gocheck.Equals, true)
-	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
+	c.Assert(deps.writes.Size(), gocheck.Equals, 0)
+	c.Assert(deps.reads.Size(), gocheck.DeepEquals, 0)
 
 	deps.GetAndSetDeps(keys, instance)
 
-	c.Assert(deps.lastWrite, gocheck.Equals, instance.InstanceID)
-	c.Assert(deps.lastReads, gocheck.DeepEquals, []InstanceID{})
+	c.Assert(deps.writes, gocheck.DeepEquals, NewInstanceIDSet([]InstanceID{instance.InstanceID}))
+	c.Assert(deps.reads.Size(), gocheck.Equals, 0)
 }
 
 // tests the deps reported by a single deps node for a read
 func (s *DependenciesTest) TestLocalReadDeps(c *gocheck.C) {
 	depsNode := newDependencies()
-	depsNode.lastWrite = NewInstanceID()
-	depsNode.lastReads = []InstanceID{NewInstanceID(), NewInstanceID()}
+	depsNode.reads.Add(NewInstanceID(), NewInstanceID())
 
 	instance := s.manager.makeInstance(s.newInstruction("a"))
 	instance.ReadOnly = true
 
 	deps := depsNode.getLocalDeps(instance)
 
-	c.Assert(deps, gocheck.DeepEquals, []InstanceID{depsNode.lastWrite})
+	c.Assert(deps, gocheck.DeepEquals, depsNode.writes)
 }
 
 // tests the deps reported by a single deps node for a write
 func (s *DependenciesTest) TestLocalWriteDeps(c *gocheck.C) {
 	depsNode := newDependencies()
-	depsNode.lastWrite = NewInstanceID()
-	depsNode.lastReads = []InstanceID{NewInstanceID(), NewInstanceID()}
+	depsNode.reads.Add(NewInstanceID(), NewInstanceID())
 
-	expected := NewInstanceIDSet(depsNode.lastReads)
-	expected.Add(depsNode.lastWrite)
+	expected := depsNode.reads.Copy()
+	expected.Combine(depsNode.writes)
 
 	instance := s.manager.makeInstance(s.newInstruction("a"))
 
-	deps := depsNode.getLocalDeps(instance)
-
-	actual := NewInstanceIDSet(deps)
+	actual := depsNode.getLocalDeps(instance)
 
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
@@ -201,13 +197,4 @@ func (s *DependenciesTest) TestIntegration(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	actual = NewInstanceIDSet(deps)
 	c.Check(actual, gocheck.DeepEquals, expected)
-
-	// check children have been cleared
-	expected = NewInstanceIDSet([]InstanceID{aWrite, aRead, writeInstance.InstanceID})
-	writeInstance = s.manager.makeInstance(s.newInstruction("a:b"))
-	deps, err = s.manager.depsMngr.GetAndSetDeps(writeInstance)
-	c.Assert(err, gocheck.IsNil)
-	actual = NewInstanceIDSet(deps)
-	c.Check(actual, gocheck.DeepEquals, expected)
-
 }
