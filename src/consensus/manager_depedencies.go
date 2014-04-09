@@ -100,6 +100,8 @@ func (dm *dependencyMap) all() []*dependencies {
 type dependencies struct {
 	writes InstanceIDSet
 	reads InstanceIDSet
+	executed InstanceIDSet
+	acknowledged InstanceIDSet
 	lock sync.RWMutex
 	subDependencies *dependencyMap
 }
@@ -108,6 +110,8 @@ func newDependencies() *dependencies {
 	return &dependencies{
 		writes: NewSizedInstanceIDSet(0),
 		reads: NewSizedInstanceIDSet(0),
+		executed: NewSizedInstanceIDSet(0),
+		acknowledged: NewSizedInstanceIDSet(0),
 		subDependencies: newDependencyMap(),
 	}
 }
@@ -133,6 +137,7 @@ func (d *dependencies) getChildDeps(instance *Instance) InstanceIDSet {
 
 	deps := d.getLocalDeps(instance)
 
+
 	if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
 		for _, subDeps := range subDependencies {
 			deps.Combine(subDeps.getChildDeps(instance))
@@ -143,7 +148,6 @@ func (d *dependencies) getChildDeps(instance *Instance) InstanceIDSet {
 }
 
 func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) InstanceIDSet {
-	// this is the final key, so last writes should be swapped out
 	var nextKeys []string
 	lastKey := len(keys) == 1
 
@@ -160,6 +164,7 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 
 	deps := d.getLocalDeps(instance)
 
+
 	if lastKey {
 		// get child deps and update reads / writes
 		if subDependencies := d.subDependencies.all(); len(subDependencies) > 0 {
@@ -174,6 +179,11 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 			d.writes.Add(instance.InstanceID)
 		}
 
+		// remove executed and acknowledged deps
+		exAcked := d.executed.Union(d.acknowledged)
+		d.reads.Subtract(exAcked)
+		d.writes.Subtract(exAcked)
+
 	} else {
 		// get deps from the next node in the tree
 		subDeps := d.subDependencies.get(nextKeys[0])
@@ -181,6 +191,61 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 	}
 
 	return deps
+}
+
+// when an instance is accepted or committed, it's dependencies can be
+// considered acknowledged by the cluster. The instance itself is not,
+// because we want to make sure that it's a dependency for at least one
+// other instance before it's removed from the dependency manager
+func (d *dependencies) ReportAcknowledged(keys []string, instance *Instance) {
+	var nextKeys []string
+	lastKey := len(keys) == 1
+
+	// setup locks
+	if lastKey {
+		d.lock.Lock()
+		defer d.lock.Unlock()
+		nextKeys = []string{}
+	} else {
+		d.lock.RLock()
+		defer d.lock.RUnlock()
+		nextKeys = keys[1:]
+	}
+
+	if lastKey {
+		// we want an instance id to be acknowledged as
+		// a dependency before removing it
+		// d.acknowledged.Add(instance.InstanceID)
+		d.acknowledged.Add(instance.Dependencies...)
+	} else {
+		subDeps := d.subDependencies.get(nextKeys[0])
+		subDeps.ReportAcknowledged(nextKeys, instance)
+	}
+}
+
+// reports and instance as executed. Once an instance has been acknowledged
+// as a dependency and executed, it can be removed from the dependency tree
+func (d *dependencies) ReportExecuted(keys []string, instance *Instance) {
+	var nextKeys []string
+	lastKey := len(keys) == 1
+
+	// setup locks
+	if lastKey {
+		d.lock.Lock()
+		defer d.lock.Unlock()
+		nextKeys = []string{}
+	} else {
+		d.lock.RLock()
+		defer d.lock.RUnlock()
+		nextKeys = keys[1:]
+	}
+
+	if lastKey {
+		d.executed.Add(instance.InstanceID)
+	} else {
+		subDeps := d.subDependencies.get(nextKeys[0])
+		subDeps.ReportAcknowledged(nextKeys, instance)
+	}
 }
 
 // the root of the dependency tree
@@ -201,6 +266,31 @@ func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, er
 	return deps.GetAndSetDeps(keys, instance).List(), nil
 }
 
+// When an instance is committed, it has been acknowledged by a quorum of replicas,
+// and it's dependencies can be removed from the dependency manager
+func (dm *dependencyManager) ReportAcknowledged(instance *Instance) error {
+	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+
+	if len(keys) < 1 {
+		return fmt.Errorf("at least one interfering key required, none found")
+	}
+
+	deps := dm.deps.get(keys[0])
+	deps.ReportAcknowledged(keys, instance)
+	return nil
+}
+
+func (dm *dependencyManager) ReportExecuted(instance *Instance) error {
+	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+
+	if len(keys) < 1 {
+		return fmt.Errorf("at least one interfering key required, none found")
+	}
+
+	deps := dm.deps.get(keys[0])
+	deps.ReportExecuted(keys, instance)
+	return nil
+}
 func newDependencyManager(manager *Manager) *dependencyManager {
 	return &dependencyManager{deps: newDependencyMap(), manager: manager}
 }

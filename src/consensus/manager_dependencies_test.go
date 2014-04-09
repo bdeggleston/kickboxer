@@ -158,6 +158,22 @@ func (s *DependenciesTest) TestLocalWriteDeps(c *gocheck.C) {
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
 
+func (s *DependenciesTest) TestReportExecution(c *gocheck.C) {
+	depsNode := newDependencies()
+	depsNode.reads.Add(NewInstanceID(), NewInstanceID())
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	instance.ReadOnly = true
+}
+
+func (s *DependenciesTest) TestRemovalOfExecutedWrites(c *gocheck.C) {
+
+}
+
+func (s *DependenciesTest) TestRemovalOfExecutedReads(c *gocheck.C) {
+
+}
+
 func (s *DependenciesTest) TestIntegration(c *gocheck.C) {
 	// the key "a:b" is the key being used for tests
 	addInstance := func(key string, readOnly bool) InstanceID {

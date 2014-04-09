@@ -55,6 +55,10 @@ func (m *Manager) commitInstance(inst *Instance, incrementBallot bool) error {
 	m.committed.Add(instance)
 	m.inProgress.Remove(instance)
 
+	if err := m.depsMngr.ReportAcknowledged(instance); err != nil {
+		return err
+	}
+
 	if err := m.Persist(); err != nil {
 		m.statsInc("commit.instance.error", 1)
 		return err

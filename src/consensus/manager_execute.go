@@ -200,6 +200,10 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 			m.executed = append(m.executed, instance.InstanceID)
 			m.committed.Remove(instance)
 		}()
+		// remove instance deps from dependency manager
+		if err := m.depsMngr.ReportExecuted(instance); err != nil {
+			return nil, err
+		}
 		if err := m.Persist(); err != nil {
 			return nil, err
 		}

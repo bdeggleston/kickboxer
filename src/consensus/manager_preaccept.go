@@ -253,7 +253,7 @@ func (m *Manager) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse
 	}
 
 	missingStart := time.Now()
-	missingDeps := newDeps.Subtract(extDeps)
+	missingDeps := newDeps.Difference(extDeps)
 	reply := &PreAcceptResponse{
 		Accepted:         true,
 		MissingInstances: make([]*Instance, 0, len(missingDeps)),

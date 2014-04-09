@@ -111,8 +111,8 @@ func (i InstanceIDSet) Combine(idSets ...InstanceIDSet) {
 	}
 }
 
-// returns all of the keys in i, that aren't in o
-func (i InstanceIDSet) Subtract(o InstanceIDSet) InstanceIDSet {
+// returns a new set with all of the keys in i, that aren't in o
+func (i InstanceIDSet) Difference(o InstanceIDSet) InstanceIDSet {
 	s := NewInstanceIDSet([]InstanceID{})
 	for key := range i {
 		if !o.Contains(key) {
@@ -120,6 +120,20 @@ func (i InstanceIDSet) Subtract(o InstanceIDSet) InstanceIDSet {
 		}
 	}
 	return s
+}
+
+// remove all the keys in o, from i, returns removed keys
+func (i InstanceIDSet) Subtract(o InstanceIDSet) {
+	for key := range o {
+		delete(i, key)
+	}
+}
+
+// remove all keys from i
+func (i InstanceIDSet) Clear() {
+	for key := range i {
+		delete(i, key)
+	}
 }
 
 func (i InstanceIDSet) Copy() InstanceIDSet {

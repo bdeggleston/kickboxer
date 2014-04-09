@@ -182,6 +182,7 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	// skip waiting
 	oldBallotFailureWaitTime := BALLOT_FAILURE_WAIT_TIME
+	// FIXME: this test watis for the entire 10 seconds sometimes
 	BALLOT_FAILURE_WAIT_TIME = uint64(10000)
 	defer func() { BALLOT_FAILURE_WAIT_TIME = oldBallotFailureWaitTime }()
 

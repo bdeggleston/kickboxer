@@ -52,6 +52,9 @@ func (m *Manager) acceptInstance(inst *Instance, incrementBallot bool) error {
 
 	m.inProgress.Add(instance)
 	m.updateSeq(instance.getSeq())
+	if err := m.depsMngr.ReportAcknowledged(instance); err != nil {
+		return err
+	}
 	if err := m.Persist(); err != nil {
 		m.statsInc("accept.instance.error", 1)
 		return err
