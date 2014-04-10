@@ -179,7 +179,7 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 			d.writes.Add(instance.InstanceID)
 		}
 
-		// remove executed and acknowledged deps
+		// remove deps that have been both executed and acknowledged
 		exAcked := d.executed.Union(d.acknowledged)
 		d.reads.Subtract(exAcked)
 		d.writes.Subtract(exAcked)
@@ -190,6 +190,12 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 		deps.Combine(subDeps.GetAndSetDeps(nextKeys, instance))
 	}
 
+	// don't allow an instance to have a dependency to itself
+	// this can remove a dependency from the dependency manager
+	// prematurely when the instance is committed (dependencies
+	// acknowledged) and executed before it's been confirmed that
+	// other instances have taken it as a dependency
+	deps.Remove(instance.InstanceID)
 	return deps
 }
 
@@ -216,7 +222,11 @@ func (d *dependencies) ReportAcknowledged(keys []string, instance *Instance) {
 		// we want an instance id to be acknowledged as
 		// a dependency before removing it
 		// d.acknowledged.Add(instance.InstanceID)
+		containsInstance := d.acknowledged.Contains(instance.InstanceID)
 		d.acknowledged.Add(instance.Dependencies...)
+		if !containsInstance {
+			d.acknowledged.Remove(instance.InstanceID)
+		}
 	} else {
 		subDeps := d.subDependencies.get(nextKeys[0])
 		subDeps.ReportAcknowledged(nextKeys, instance)

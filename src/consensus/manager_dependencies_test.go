@@ -115,6 +115,11 @@ func (s *DependenciesTest) TestLastKeyReadIsUpdated(c *gocheck.C) {
 	c.Assert(deps.reads, gocheck.DeepEquals, expectedReads)
 }
 
+// tests that an instance cannot gain a dependency on itself
+func (s *DependenciesTest) TestNoSelfDependence(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
 // tests the last write is updated if the instance is a write
 func (s *DependenciesTest) TestLastKeyWriteIsUpdated(c *gocheck.C) {
 	instance := s.manager.makeInstance(s.newInstruction("a"))
@@ -167,11 +172,15 @@ func (s *DependenciesTest) TestReportExecution(c *gocheck.C) {
 }
 
 func (s *DependenciesTest) TestRemovalOfExecutedWrites(c *gocheck.C) {
-
+	c.Fatal("implement")
 }
 
 func (s *DependenciesTest) TestRemovalOfExecutedReads(c *gocheck.C) {
+	c.Fatal("implement")
+}
 
+func (s *DependenciesTest) TestSelfDependenciesAreNotAcknowledged(c *gocheck.C) {
+	c.Fatal("implement")
 }
 
 func (s *DependenciesTest) TestIntegration(c *gocheck.C) {
