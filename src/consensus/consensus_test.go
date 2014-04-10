@@ -422,6 +422,7 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	fmt.Println("")
 	fmt.Printf("Query time: %v\n", end.Sub(start))
 	fmt.Printf("Query wrap up time: %v\n", end.Sub(queryEnd))
+	fmt.Printf("Query failures: %v\n", errors)
 
 	// GC stats
 	memStats := &runtime.MemStats{}
