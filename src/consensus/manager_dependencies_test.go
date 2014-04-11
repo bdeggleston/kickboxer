@@ -272,11 +272,26 @@ func (s *DependenciesTest) TestSelfDependenciesAreNotAcknowledged(c *gocheck.C) 
 }
 
 func (s *DependenciesTest) TestAddReadDependency(c *gocheck.C) {
-	c.Fatal("implement")
+	depsNode := newDependencies()
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+
+	c.Check(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	depsNode.AddDependency([]string{"a"}, instance)
+
+	c.Check(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, true)
 }
 
 func (s *DependenciesTest) TestAddWriteDependency(c *gocheck.C) {
-	c.Fatal("implement")
+	depsNode := newDependencies()
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	instance.ReadOnly = true
+
+	c.Check(depsNode.reads.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	depsNode.AddDependency([]string{"a"}, instance)
+
+	c.Check(depsNode.reads.Contains(instance.InstanceID), gocheck.Equals, true)
 }
 
 func (s *DependenciesTest) TestIntegration(c *gocheck.C) {
