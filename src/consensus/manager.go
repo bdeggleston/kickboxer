@@ -92,6 +92,7 @@ TODO: consider batching up queries into a single instance
 TODO: make execute query tolerant of prepare phases updating the status of it's instance
 
 TODO: remove commit timeouts, replace with last activity (last message sent received)
+TODO: add missing instances "requests" to preaccept, accept, and commit message replies
 
 Prepare successors should increment the last activity time outs by their order in the successor list. The
 farther they are from first successor, the higher their timeout should be
@@ -386,6 +387,9 @@ func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 					panic("!")
 				}
 			}()
+			if err := m.depsMngr.AddDependency(instance); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
