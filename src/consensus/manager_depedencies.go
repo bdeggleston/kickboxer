@@ -180,9 +180,11 @@ func (d *dependencies) GetAndSetDeps(keys []string, instance *Instance) Instance
 		}
 
 		// remove deps that have been both executed and acknowledged
-		exAcked := d.executed.Union(d.acknowledged)
+		exAcked := d.executed.Intersect(d.acknowledged)
 		d.reads.Subtract(exAcked)
 		d.writes.Subtract(exAcked)
+		d.executed.Subtract(exAcked)
+		d.acknowledged.Subtract(exAcked)
 
 	} else {
 		// get deps from the next node in the tree

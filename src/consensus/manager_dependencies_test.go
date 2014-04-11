@@ -163,23 +163,119 @@ func (s *DependenciesTest) TestLocalWriteDeps(c *gocheck.C) {
 	c.Assert(actual, gocheck.DeepEquals, expected)
 }
 
+func (s *DependenciesTest) TestReportAcknowledged(c *gocheck.C) {
+	depsNode := newDependencies()
+	depsNode.reads.Add(NewInstanceID(), NewInstanceID())
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	dependency := NewInstanceID()
+	instance.Dependencies = []InstanceID{dependency}
+
+	c.Assert(depsNode.acknowledged.Contains(instance.InstanceID), gocheck.Equals, false)
+	depsNode.ReportAcknowledged([]string{"a"}, instance)
+	c.Assert(depsNode.acknowledged.Contains(instance.InstanceID), gocheck.Equals, false)
+	c.Assert(depsNode.acknowledged.Contains(dependency), gocheck.Equals, true)
+}
+
 func (s *DependenciesTest) TestReportExecution(c *gocheck.C) {
 	depsNode := newDependencies()
 	depsNode.reads.Add(NewInstanceID(), NewInstanceID())
 
 	instance := s.manager.makeInstance(s.newInstruction("a"))
-	instance.ReadOnly = true
+
+	c.Assert(depsNode.executed.Contains(instance.InstanceID), gocheck.Equals, false)
+	depsNode.ReportExecuted([]string{"a"}, instance)
+	c.Assert(depsNode.executed.Contains(instance.InstanceID), gocheck.Equals, true)
 }
 
-func (s *DependenciesTest) TestRemovalOfExecutedWrites(c *gocheck.C) {
-	c.Fatal("implement")
+// tests that read deps are removed from the dependency manager if they've
+// been both executed and acknowledged
+func (s *DependenciesTest) TestRemovalOfExAckedWrites(c *gocheck.C) {
+	depsNode := newDependencies()
+	executed := NewInstanceID()
+	acknowledged := NewInstanceID()
+	exAcked := NewInstanceID()
+
+	depsNode.writes.Add(executed, acknowledged, exAcked)
+	depsNode.executed.Add(executed, exAcked)
+	depsNode.acknowledged.Add(acknowledged, exAcked)
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+
+	deps := depsNode.GetAndSetDeps([]string{"a"}, instance)
+
+	// check executed
+	c.Check(depsNode.executed.Contains(executed), gocheck.Equals, true)
+	c.Check(depsNode.executed.Contains(exAcked), gocheck.Equals, false)
+	c.Check(depsNode.writes.Contains(executed), gocheck.Equals, true)
+	c.Check(depsNode.writes.Contains(exAcked), gocheck.Equals, false)
+
+	// check acknowledged
+	c.Check(depsNode.acknowledged.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(depsNode.acknowledged.Contains(exAcked), gocheck.Equals, false)
+	c.Check(depsNode.writes.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(depsNode.writes.Contains(exAcked), gocheck.Equals, false)
+
+	// check deps
+	c.Check(deps.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(deps.Contains(executed), gocheck.Equals, true)
+	c.Check(deps.Contains(exAcked), gocheck.Equals, true)
 }
 
-func (s *DependenciesTest) TestRemovalOfExecutedReads(c *gocheck.C) {
-	c.Fatal("implement")
+// tests that write deps are removed from the dependency manager if they've
+// been both executed and acknowledged
+func (s *DependenciesTest) TestRemovalOfExAckedReads(c *gocheck.C) {
+	depsNode := newDependencies()
+	executed := NewInstanceID()
+	acknowledged := NewInstanceID()
+	exAcked := NewInstanceID()
+
+	depsNode.reads.Add(executed, acknowledged, exAcked)
+	depsNode.executed.Add(executed, exAcked)
+	depsNode.acknowledged.Add(acknowledged, exAcked)
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+
+	deps := depsNode.GetAndSetDeps([]string{"a"}, instance)
+
+	// check executed
+	c.Check(depsNode.executed.Contains(executed), gocheck.Equals, true)
+	c.Check(depsNode.executed.Contains(exAcked), gocheck.Equals, false)
+	c.Check(depsNode.reads.Contains(executed), gocheck.Equals, true)
+	c.Check(depsNode.reads.Contains(exAcked), gocheck.Equals, false)
+
+	// check acknowledged
+	c.Check(depsNode.acknowledged.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(depsNode.acknowledged.Contains(exAcked), gocheck.Equals, false)
+	c.Check(depsNode.reads.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(depsNode.reads.Contains(exAcked), gocheck.Equals, false)
+
+	// check deps
+	c.Check(deps.Contains(acknowledged), gocheck.Equals, true)
+	c.Check(deps.Contains(executed), gocheck.Equals, true)
+	c.Check(deps.Contains(exAcked), gocheck.Equals, true)
 }
 
 func (s *DependenciesTest) TestSelfDependenciesAreNotAcknowledged(c *gocheck.C) {
+	depsNode := newDependencies()
+	toAcknowledge := NewInstanceID()
+
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	instance.Dependencies = []InstanceID{instance.InstanceID, toAcknowledge}
+
+	c.Assert(len(depsNode.acknowledged), gocheck.Equals, 0)
+
+	depsNode.ReportAcknowledged([]string{"a"}, instance)
+
+	c.Check(depsNode.acknowledged.Contains(toAcknowledge), gocheck.Equals, true)
+	c.Check(depsNode.acknowledged.Contains(instance.InstanceID), gocheck.Equals, false)
+}
+
+func (s *DependenciesTest) TestAddReadDependency(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
+func (s *DependenciesTest) TestAddWriteDependency(c *gocheck.C) {
 	c.Fatal("implement")
 }
 

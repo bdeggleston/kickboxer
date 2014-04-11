@@ -91,6 +91,24 @@ func (i InstanceIDSet) Union(o InstanceIDSet) InstanceIDSet {
 	return u
 }
 
+func (i InstanceIDSet) Intersect(o InstanceIDSet) InstanceIDSet {
+	var maxLen int
+	if li, lo := len(i), len(o); li > lo {
+		maxLen = li
+	} else {
+		maxLen = lo
+	}
+	n := make(InstanceIDSet, maxLen)
+	for k := range i {
+		if _, exists := o[k]; exists {
+			n[k] = true
+		}
+	}
+
+	return n
+}
+
+
 func (i InstanceIDSet) Add(ids ...InstanceID) {
 	for _, id := range ids {
 		i[id] = true
