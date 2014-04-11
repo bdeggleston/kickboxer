@@ -258,6 +258,33 @@ func (d *dependencies) ReportExecuted(keys []string, instance *Instance) {
 	}
 }
 
+func (d *dependencies) AddDependency(keys []string, instance *Instance) {
+	var nextKeys []string
+	lastKey := len(keys) == 1
+
+	// setup locks
+	if lastKey {
+		d.lock.Lock()
+		defer d.lock.Unlock()
+		nextKeys = []string{}
+	} else {
+		d.lock.RLock()
+		defer d.lock.RUnlock()
+		nextKeys = keys[1:]
+	}
+
+	if lastKey {
+		if instance.ReadOnly {
+			d.reads.Add(instance.InstanceID)
+		} else {
+			d.writes.Add(instance.InstanceID)
+		}
+
+	} else {
+		subDeps := d.subDependencies.get(nextKeys[0])
+		subDeps.ReportAcknowledged(nextKeys, instance)
+	}
+}
 // the root of the dependency tree
 type dependencyManager struct {
 	deps *dependencyMap
@@ -301,6 +328,19 @@ func (dm *dependencyManager) ReportExecuted(instance *Instance) error {
 	deps.ReportExecuted(keys, instance)
 	return nil
 }
+
+func (dm *dependencyManager) AddDependency(instance *Instance) error {
+	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+
+	if len(keys) < 1 {
+		return fmt.Errorf("at least one interfering key required, none found")
+	}
+
+	deps := dm.deps.get(keys[0])
+	deps.AddDependency(keys, instance)
+	return nil
+}
+
 func newDependencyManager(manager *Manager) *dependencyManager {
 	return &dependencyManager{deps: newDependencyMap(), manager: manager}
 }
