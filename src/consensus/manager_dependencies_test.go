@@ -117,7 +117,16 @@ func (s *DependenciesTest) TestLastKeyReadIsUpdated(c *gocheck.C) {
 
 // tests that an instance cannot gain a dependency on itself
 func (s *DependenciesTest) TestNoSelfDependence(c *gocheck.C) {
-	c.Fatal("implement")
+	instance := s.manager.makeInstance(s.newInstruction("a"))
+	keys := []string{"a"}
+	deps := newDependencies()
+
+	deps.writes.Add(instance.InstanceID)
+	c.Assert(deps.writes.Contains(instance.InstanceID), gocheck.Equals, true)
+
+	instanceDeps := deps.GetAndSetDeps(keys, instance)
+
+	c.Assert(instanceDeps.Contains(instance.InstanceID), gocheck.Equals, false)
 }
 
 // tests the last write is updated if the instance is a write
