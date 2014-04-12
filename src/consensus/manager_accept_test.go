@@ -151,6 +151,26 @@ func (s *AcceptInstanceTest) TestOldNoopAccept(c *gocheck.C) {
 
 }
 
+// tests that instance dependencies are marked as acknowledged on commit
+func (s *AcceptInstanceTest) TestReportAcknowledged(c *gocheck.C) {
+	var err error
+	instance := s.manager.makeInstance(getBasicInstruction())
+	toAcknowledge := NewInstanceID()
+	instance.Dependencies = []InstanceID{toAcknowledge}
+
+	// check that this instance hasn't already been somehow acknowledged
+	depsNode := s.manager.depsMngr.deps.get("a")
+	c.Assert(depsNode.acknowledged.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	err = s.manager.acceptInstance(instance, false)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that this instance's deps has been acknowledged, but it hasn't
+	c.Check(depsNode.acknowledged.Contains(toAcknowledge), gocheck.Equals, true)
+	c.Check(depsNode.acknowledged.Contains(instance.InstanceID), gocheck.Equals, false)
+	c.Check(depsNode.executed.Contains(instance.InstanceID), gocheck.Equals, false)
+}
+
 type AcceptLeaderTest struct {
 	baseReplicaTest
 	instance *Instance
