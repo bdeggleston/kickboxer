@@ -297,7 +297,7 @@ func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 		}
 	}
 	instance, existed := m.instances.GetOrSet(inst, initialize)
-	if !existed {
+	if !existed && instance.Status > INSTANCE_PREACCEPTED {
 		m.depsMngr.AddDependency(instance)
 	}
 	return instance, existed
@@ -388,7 +388,7 @@ func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 					instance.Status = INSTANCE_COMMITTED
 					m.committed.Add(instance)
 				default:
-					panic("!")
+					panic(fmt.Errorf("Unknown status: %v", instance.Status))
 				}
 			}()
 			if err := m.depsMngr.AddDependency(instance); err != nil {
