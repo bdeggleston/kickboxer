@@ -287,7 +287,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 	inst := s.manager.makeInstance(s.getInstruction(6))
 	s.manager.preAcceptInstanceUnsafe(inst, false)
 	inst.commit(nil, false)
-	c.Assert(len(inst.Dependencies), gocheck.Equals, 1)
+	c.Assert(len(inst.Dependencies), gocheck.Equals, len(s.expectedOrder))
 	s.expectedOrder = append(s.expectedOrder, inst.InstanceID)
 
 	for i, iid := range s.expectedOrder {
@@ -295,7 +295,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 		var expected []InstanceID
 		if i > 5 {
 			expected = s.expectedOrder
-		} else if i > 2{
+		} else if i > 2 {
 			expected = s.expectedOrder[:6]
 		} else {
 			expected = s.expectedOrder[:3]
@@ -315,10 +315,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *
 	for i := range instances {
 		instance := s.manager.makeInstance(s.getInstruction(1))
 		s.manager.preAcceptInstance(instance, false)
-		numExpectedDeps := 1
-		if i == 0 {
-			numExpectedDeps = 0
-		}
+		numExpectedDeps := i
 		c.Assert(len(instance.Dependencies), gocheck.Equals, numExpectedDeps, gocheck.Commentf("instance: %v", i))
 		s.manager.commitInstance(instance, false)
 		instances[i] = instance
@@ -675,4 +672,22 @@ func (s *ExecuteApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
 
 	_, err := s.manager.applyInstance(instance)
 	c.Assert(err, gocheck.NotNil)
+}
+
+// tests that instances are marked as executed
+func (s *ExecuteApplyInstanceTest) TestReportExecuted(c *gocheck.C) {
+	var err error
+	instance := s.manager.makeInstance(s.getInstruction(5))
+
+	// check that this instance hasn't already been somehow acknowledged
+	depsNode := s.manager.depsMngr.deps.get("a")
+	c.Assert(depsNode.executed.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	err = s.manager.commitInstance(instance, false)
+	c.Assert(err, gocheck.IsNil)
+	_, err = s.manager.applyInstance(instance)
+	c.Assert(err, gocheck.IsNil)
+
+	// check that the dependency manager knows this instance was executed
+	c.Assert(depsNode.executed.Contains(instance.InstanceID), gocheck.Equals, true)
 }
