@@ -296,7 +296,11 @@ func (m *Manager) getOrSetInstance(inst *Instance) (*Instance, bool) {
 			i.Status = INSTANCE_COMMITTED
 		}
 	}
-	return m.instances.GetOrSet(inst, initialize)
+	instance, existed := m.instances.GetOrSet(inst, initialize)
+	if !existed {
+		m.depsMngr.AddDependency(instance)
+	}
+	return instance, existed
 }
 
 var managerGetInstanceDeps = func(m *Manager, instance *Instance) ([]InstanceID, error) {

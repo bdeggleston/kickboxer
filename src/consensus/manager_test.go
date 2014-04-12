@@ -155,6 +155,19 @@ func (s *ManagerTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 	c.Assert(existed, gocheck.Equals, true)
 }
 
+// tests that new instances passed into get or set adds the instance
+// to the dependency manager
+func (s *ManagerTest) TestGetOrSetNewInstanceAddsToDepsManager(c *gocheck.C) {
+	instance := makeInstance(node.NewNodeId(), []InstanceID{})
+	depsNode := s.manager.depsMngr.deps.get("a")
+	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	_, existed := s.manager.getOrSetInstance(instance)
+	c.Assert(existed, gocheck.Equals, false)
+
+	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, true)
+}
+
 // tests that get or set sets new instances to committed if the
 // new instance has an status of executed
 func (s *ManagerTest) TestGetOrSetResetsToCommitted(c *gocheck.C) {
