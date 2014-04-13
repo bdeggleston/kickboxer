@@ -59,6 +59,68 @@ func (s *DependencyMapTest) TestExistingRootDependencyMap(c *gocheck.C) {
 
 }
 
+// tests overall behavior for a single key
+func (s *DependencyMapTest) TestSingleKeyIntegration(c *gocheck.C) {
+	var err error
+	depsNode := s.manager.depsMngr.deps.get("a")
+	expected := NewSizedInstanceIDSet(0)
+
+	// instance 0
+	instance0 := s.manager.makeInstance(s.newInstruction("a"))
+	instance0.Dependencies, err = s.manager.depsMngr.GetAndSetDeps(instance0)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(NewInstanceIDSet(instance0.Dependencies), gocheck.DeepEquals, expected)
+	c.Check(depsNode.writes.Contains(instance0.InstanceID), gocheck.Equals, true)
+
+	// instance 1
+	expected.Add(instance0.InstanceID)
+	instance1 := s.manager.makeInstance(s.newInstruction("a"))
+	instance1.Dependencies, err = s.manager.depsMngr.GetAndSetDeps(instance1)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(NewInstanceIDSet(instance1.Dependencies), gocheck.DeepEquals, expected)
+	c.Check(depsNode.writes.Contains(instance1.InstanceID), gocheck.Equals, true)
+
+	// acknowledge
+	err = s.manager.depsMngr.ReportAcknowledged(instance1)
+	c.Check(depsNode.acknowledged.Contains(instance0.InstanceID), gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+
+	// instance 2
+	expected.Add(instance1.InstanceID)
+	instance2 := s.manager.makeInstance(s.newInstruction("a"))
+	instance2.Dependencies, err = s.manager.depsMngr.GetAndSetDeps(instance2)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(NewInstanceIDSet(instance2.Dependencies), gocheck.DeepEquals, expected)
+	c.Check(depsNode.writes.Contains(instance2.InstanceID), gocheck.Equals, true)
+
+	// execute
+	err = s.manager.depsMngr.ReportExecuted(instance0)
+	c.Check(depsNode.executed.Contains(instance0.InstanceID), gocheck.Equals, true)
+	c.Assert(err, gocheck.IsNil)
+
+	// instance 3
+	expected.Add(instance2.InstanceID)
+	instance3 := s.manager.makeInstance(s.newInstruction("a"))
+	instance3.Dependencies, err = s.manager.depsMngr.GetAndSetDeps(instance3)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(NewInstanceIDSet(instance3.Dependencies), gocheck.DeepEquals, expected)
+	c.Check(depsNode.writes.Contains(instance3.InstanceID), gocheck.Equals, true)
+
+	// instance 4
+	expected.Add(instance3.InstanceID)
+	expected.Remove(instance0.InstanceID)
+	instance4 := s.manager.makeInstance(s.newInstruction("a"))
+	instance4.Dependencies, err = s.manager.depsMngr.GetAndSetDeps(instance4)
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(NewInstanceIDSet(instance4.Dependencies), gocheck.DeepEquals, expected)
+	c.Check(depsNode.writes.Contains(instance4.InstanceID), gocheck.Equals, true)
+}
+
 type DependenciesTest struct {
 	baseDependencyTest
 }
