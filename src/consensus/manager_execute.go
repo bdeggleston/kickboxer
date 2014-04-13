@@ -60,6 +60,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	// build a directed graph
 	targetDeps := instance.getDependencies()
 	targetDepSet := NewInstanceIDSet(targetDeps)
+
 	// allocating 0 length maps greatly reduced the number of GC pauses
 	// and sped up execution by 15-18%
 	depMap := make(map[InstanceID]*Instance)
@@ -162,12 +163,6 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 
 	// lock both
 	synchronizedApply := func() (store.Value, error) {
-		if status := instance.getStatus(); status == INSTANCE_EXECUTED {
-			return nil, nil
-		} else if status != INSTANCE_COMMITTED {
-			return nil, fmt.Errorf("instance not committed")
-		}
-
 		instance.lock.Lock()
 		defer instance.lock.Unlock()
 		if status := instance.Status; status == INSTANCE_EXECUTED {
