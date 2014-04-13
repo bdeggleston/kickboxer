@@ -311,51 +311,52 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 			var success bool
 			var ballotErr bool
 			var commitEvent <- chan bool
-			for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
-				prepareStart := time.Now()
-				defer m.statsTiming("execute.phase.prepare.time", prepareStart)
-				m.statsInc("execute.phase.prepare.count", 1)
+			attemptPrepare:
+				for i:=0; i<BALLOT_FAILURE_RETRIES; i++ {
+					prepareStart := time.Now()
+					defer m.statsTiming("execute.phase.prepare.time", prepareStart)
+					m.statsInc("execute.phase.prepare.count", 1)
 
-				ballotErr = false
-				if err = m.preparePhase(inst); err != nil {
-					if _, ok := err.(BallotError); ok {
-						// refresh the local instance pointer and
-						// assign the commit event so a goroutine is not
-						// spun up for each attempt
-						inst = m.instances.Get(inst.InstanceID)
-						if commitEvent == nil {
-							commitEvent = inst.getCommitEvent().getChan()
+					ballotErr = false
+					if err = m.preparePhase(inst); err != nil {
+						if _, ok := err.(BallotError); ok {
+							// refresh the local instance pointer and
+							// assign the commit event so a goroutine is not
+							// spun up for each attempt
+							inst = m.instances.Get(inst.InstanceID)
+							if commitEvent == nil {
+								commitEvent = inst.getCommitEvent().getChan()
+							}
+
+							logger.Info("Prepare failed with BallotError, waiting to try again")
+							ballotErr = true
+
+							// wait on broadcast event or timeout
+							waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(i + 1)
+							waitTime += uint64(rand.Uint32()) % (waitTime / 2)
+							logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
+							timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
+							select {
+							case <- commitEvent:
+								// another goroutine committed
+								// the instance
+								success = true
+								break attemptPrepare
+							case <-timeoutEvent:
+								// continue with the prepare
+							}
+
+						} else {
+							m.statsInc("execute.phase.prepare.error", 1)
+							logger.Warning("Execute prepare failed with error: %v", err)
+							errors <- err
+							break attemptPrepare
 						}
-
-						logger.Info("Prepare failed with BallotError, waiting to try again")
-						ballotErr = true
-
-						// wait on broadcast event or timeout
-						waitTime := BALLOT_FAILURE_WAIT_TIME * uint64(i + 1)
-						waitTime += uint64(rand.Uint32()) % (waitTime / 2)
-						logger.Info("Prepare failed with BallotError, waiting for %v ms to try again", waitTime)
-						timeoutEvent := getTimeoutEvent(time.Duration(waitTime) * time.Millisecond)
-						select {
-						case <- commitEvent:
-							// another goroutine committed
-							// the instance
-							success = true
-							break
-						case <-timeoutEvent:
-							// continue with the prepare
-						}
-
 					} else {
-						m.statsInc("execute.phase.prepare.error", 1)
-						logger.Warning("Execute prepare failed with error: %v", err)
-						errors <- err
-						break
+						success = true
+						break attemptPrepare
 					}
-				} else {
-					success = true
-					break
 				}
-			}
 			if !success && ballotErr {
 				errors <- fmt.Errorf("Prepare failed to commit instance in %v tries", BALLOT_FAILURE_RETRIES)
 			}
