@@ -110,10 +110,6 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		return nil
 	}
 
-	// add ALL instances to the dependency graph, there may
-	// be instances higher upstream that change the ordering
-	// of instances down here.
-	// TODO: figure out why that is
 	prepStart := time.Now()
 	if err := addInstance(instance); err != nil {
 		return nil, err
