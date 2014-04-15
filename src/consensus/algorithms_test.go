@@ -21,7 +21,7 @@ func (sc *tarjanChecker) Check(params []interface {}, names []string) (result bo
 	if !ok {
 		return false, "first arg is not [][]InstanceID"
 	}
-	expected, ok := params[0].([][]InstanceID)
+	expected, ok := params[1].([][]InstanceID)
 	if !ok {
 		return false, "second arg is not [][]InstanceID"
 	}
@@ -79,14 +79,15 @@ func (t *TarjanTest) makeIds(num int) []InstanceID {
 // tests that the graph 0 -> 1 -> 2 -> 3 -> 4 returns 4 components
 func (t *TarjanTest) TestNonStronglyConnectedGraph(c *gocheck.C) {
 	ids := t.makeIds(5)
-	expected := [][]InstanceID{}
+	expected := make([][]InstanceID, 5)
 	for i := range ids {
 		if i < 4 {
 			t.graph[ids[i]] = []InstanceID{ids[i+1]}
 		} else {
 			t.graph[ids[i]] = []InstanceID{}
 		}
-		expected = append(expected, []InstanceID{ids[i]})
+		// nodes should be sorted in reverse topological order
+		expected[4-i] = []InstanceID{ids[i]}
 	}
 
 	actual := tarjanConnect(t.graph)
@@ -116,11 +117,11 @@ func (t *TarjanTest) TestStronglyConnected1(c *gocheck.C) {
 	t.graph[ids[11]] = []InstanceID{}
 
 	expected := [][]InstanceID{
-		[]InstanceID{ids[0]},
-		[]InstanceID{ids[1], ids[2], ids[3], ids[4], ids[5], ids[6]},
+		[]InstanceID{ids[11]},
 		[]InstanceID{ids[7], ids[8], ids[9]},
 		[]InstanceID{ids[10]},
-		[]InstanceID{ids[11]},
+		[]InstanceID{ids[1], ids[2], ids[3], ids[4], ids[5], ids[6]},
+		[]InstanceID{ids[0]},
 	}
 
 	actual := tarjanConnect(t.graph)
