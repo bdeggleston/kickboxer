@@ -39,15 +39,14 @@ func (sc *tarjanChecker) Check(params []interface {}, names []string) (result bo
 		expectedSet[i] = NewInstanceIDSet(expected[i])
 	}
 
-	acheck:
-		for i, a := range actualSet {
-			for _, e := range expectedSet {
-				if a.Equal(e) {
-					continue acheck
-				}
-			}
+	// the tarjan algorithm should also return the components
+	// as a reverse topological sort of the connected components,
+	// so we will check them in order
+	for i:=0; i<size; i++ {
+		if !actualSet[i].Equal(expectedSet[i]) {
 			return false, fmt.Sprintf("%v not found\n%v\n!=\n%v", actualSet[i],  actual, expected)
 		}
+	}
 
 	return true, ""
 }
