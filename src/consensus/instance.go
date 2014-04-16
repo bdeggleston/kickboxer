@@ -516,6 +516,12 @@ func (i *Instance) setDeps(reason string, deps []InstanceID) {
 	}
 }
 
+func (i *Instance) setStronglyConnectedIds(iids []InstanceID) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	i.StronglyConnected = NewInstanceIDSet(iids)
+}
+
 // returns a copy of the instance
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()

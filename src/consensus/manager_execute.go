@@ -51,6 +51,108 @@ func (i *iidSorter) Swap(x, y int) {
 	i.iids[x], i.iids[y] = i.iids[y], i.iids[x]
 }
 
+// record the strongly connected components on the instances.
+// As instances are executed, they will stop being added to the depGraph for sorting.
+// However, if an instance that's not added to the dep graph is part of a strongly
+// connected component, it can affect the execution order by breaking the component.
+//
+// a strongly connected component is recorded on an instance if:
+//	1) a strongly connected component has more than 1 id
+//	2) all instances are committed
+//	3) all instance dependencies (and their dependencies) are committed/executed
+func (m *Manager) recordStronglyConnectedComponents(component []InstanceID, depMap map[InstanceID]*Instance) error {
+	strongSet := NewInstanceIDSet(component)
+	componentDeps := NewInstanceIDSet([]InstanceID{})
+	componentInstances := make([]*Instance, 0, len(component))
+	statusMap := make(map[InstanceID]InstanceStatus)
+
+	checkComponent := func(iid InstanceID) bool {
+		if instance := depMap[iid]; instance == nil {
+			return false
+		} else {
+			instance.lock.RLock()
+			defer instance.lock.RUnlock()
+
+			if instance.StronglyConnected.Size() > 1 {
+				return false
+			}
+
+			status := instance.getStatus()
+			statusMap[iid] = status
+			if status < INSTANCE_COMMITTED {
+				return false
+			}
+			deps := NewInstanceIDSet(instance.getDependencies())
+			componentDeps.Combine(deps.Difference(strongSet))
+
+			componentInstances = append(componentInstances, instance)
+		}
+		return true
+	}
+
+	// check that all the instances are reachable and committed
+	// then get their dependencies
+	for _, iid := range component {
+		if !checkComponent(iid) {
+			return nil
+		}
+	}
+
+	// recursively find component dependencies
+	// returns false if recording this component should
+	// be aborted
+	var getComponentDeps func(InstanceIDSet) bool
+	getComponentDeps = func(deps InstanceIDSet) bool {
+		newDeps := NewInstanceIDSet([]InstanceID{})
+		for _, iid := range deps.List() {
+			instance := depMap[iid]
+			if instance == nil {
+				instance = m.instances.Get(iid)
+			}
+			if instance == nil {
+				return false
+			}
+
+			if status := instance.getStatus(); status >= INSTANCE_EXECUTED {
+				// all of this instances dependencies must be committed
+				// and executed, so we don't need to look at any of them
+				continue
+			} else if status < INSTANCE_COMMITTED {
+				// we can't reliably record strong components if a dependency
+				// hasn't been committed, so return
+				return false
+			}
+			newDeps.Add(instance.getDependencies()...)
+		}
+
+		// ignore previously visited instances
+		newDeps.Subtract(strongSet)
+		newDeps.Subtract(deps)
+		if newDeps.Size() > 0 {
+			return getComponentDeps(newDeps)
+		}
+		return true
+	}
+
+	// don't explore interdependencies within
+	// the current strongly connected component
+	componentDeps.Subtract(strongSet)
+
+	if !getComponentDeps(componentDeps) {
+		return nil
+	}
+
+	for _, instance := range componentInstances {
+		instance.StronglyConnected = strongSet
+	}
+
+	if err := m.Persist(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
 func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
@@ -66,6 +168,9 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	depMap := make(map[InstanceID]*Instance)
 	depGraph := make(map[InstanceID][]InstanceID)
 	depMap = m.instances.GetMap(depMap, targetDeps)
+
+	requiredInstances := NewInstanceIDSet([]InstanceID{})
+
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
 		deps := inst.getDependencies()
@@ -84,13 +189,21 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 					_, exists := depGraph[dep]
 					notExecuted := depMap[dep].getStatus() < INSTANCE_EXECUTED
 					targetDep := targetDepSet.Contains(dep)
-					connected = connected || exists || notExecuted || targetDep
+					required := requiredInstances.Contains(inst.InstanceID)
+					connected = connected || exists || notExecuted || targetDep || required
 				}
 				if !connected {
 					return nil
 				}
 			}
 		}
+
+		// add strongly connected components to
+		// the set of required instances
+		inst.lock.RLock()
+		requiredInstances.Combine(inst.StronglyConnected)
+		inst.lock.RUnlock()
+
 		depGraph[inst.InstanceID] = deps
 		for _, iid := range deps {
 			// don't add instances that are already in the graph,
@@ -134,6 +247,10 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		if m.instances.Get(iid) == nil {
 			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 		}
+	}
+
+	for _, strongComponent := range tSorted {
+		m.recordStronglyConnectedComponents(strongComponent, depMap)
 	}
 
 	return exOrder, nil

@@ -394,6 +394,10 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 	}
 }
 
+func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInExOrder(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
 // tests that, as large strongly connected components are executed, their execution ordering
 // is not affected by the dependency graph excluding some executed instances
 func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(c *gocheck.C) {
@@ -437,6 +441,24 @@ func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(
 			c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("Iteration: %v:%v", i, j))
 		}
 	}
+}
+
+func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSuccess(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
+// tests that recordStronglyConnectedComponents bails out if the components already have
+// components recorded on them
+func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsExistingSet(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
+func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedComponent(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
+func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedDep(c *gocheck.C) {
+	c.Fatal("implement")
 }
 
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
