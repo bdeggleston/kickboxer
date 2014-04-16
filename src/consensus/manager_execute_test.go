@@ -406,7 +406,7 @@ func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(
 	instances := make([]*Instance, 0)
 	for i:=0; i<10; i++ {
 		instance := s.manager.makeInstance(getBasicInstruction())
-		err := s.manager.preAcceptInstance(instance, true)
+		err := s.manager.commitInstance(instance, true)
 		c.Assert(err, gocheck.IsNil)
 		if prevInstance == nil {
 			instance.Dependencies = []InstanceID{}
@@ -444,7 +444,39 @@ func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSuccess(c *gocheck.C) {
-	c.Fatal("implement")
+	s.manager = NewManager(s.manager.cluster)
+	var prevInstance *Instance
+	instances := make([]*Instance, 0)
+	depMap := make(map[InstanceID]*Instance)
+	component := make([]InstanceID, 0)
+	for i:=0; i<10; i++ {
+		instance := s.manager.makeInstance(getBasicInstruction())
+		err := s.manager.commitInstance(instance, true)
+		c.Assert(err, gocheck.IsNil)
+		if prevInstance == nil {
+			instance.Dependencies = []InstanceID{}
+		} else {
+			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
+		}
+		instance.Sequence = uint64(i)
+		instances = append(instances, instance)
+		prevInstance = instance
+
+		depMap[instance.InstanceID] = instance
+		component = append(component, instance.InstanceID)
+	}
+	expectedSet := NewInstanceIDSet(component)
+
+	// add the last instance as a dependency of the first instance
+	instances[0].Dependencies = []InstanceID{instances[9].InstanceID}
+
+	err := s.manager.recordStronglyConnectedComponents(component, depMap)
+	c.Assert(err, gocheck.IsNil)
+
+	for _, instance := range instances {
+		c.Check(instance.StronglyConnected, gocheck.DeepEquals, expectedSet)
+	}
+
 }
 
 // tests that recordStronglyConnectedComponents bails out if the components already have
