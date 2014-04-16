@@ -363,6 +363,14 @@ type Instance struct {
 	// log of dependency changes, used for debugging
 	DepsLog []DepsLog
 
+	// the set of strongly connected instances for this
+	// instance. This allows the execution ordering to
+	// avoid visiting every instance since the beginning
+	// of time, but also prevent reordering of large,
+	// partially executed strongly connected subgraphs
+	// * not message serialized *
+	StronglyConnected InstanceIDSet
+
 	// indicates the time that we can stop waiting
 	// for a commit on this command, and force one
 	// * not message serialized *
