@@ -394,6 +394,52 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 	}
 }
 
+// tests that, as large strongly connected components are executed, their execution ordering
+// is not affected by the dependency graph excluding some executed instances
+func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(c *gocheck.C) {
+	s.manager = NewManager(s.manager.cluster)
+	var prevInstance *Instance
+	instances := make([]*Instance, 0)
+	for i:=0; i<10; i++ {
+		instance := s.manager.makeInstance(getBasicInstruction())
+		err := s.manager.preAcceptInstance(instance, true)
+		c.Assert(err, gocheck.IsNil)
+		if prevInstance == nil {
+			instance.Dependencies = []InstanceID{}
+		} else {
+			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
+		}
+		instance.Sequence = uint64(i)
+		instances = append(instances, instance)
+		prevInstance = instance
+	}
+
+	// add the last instance as a dependency of the first instance
+//	instances[0].Dependencies = append(instances[0].Dependencies, instances[9].InstanceID)
+	instances[0].Dependencies = []InstanceID{instances[9].InstanceID}
+
+	expected := make([]InstanceID, len(instances))
+	for i, instance := range instances {
+		expected[i] = instance.InstanceID
+	}
+
+	actual, err := s.manager.getExecutionOrder(instances[9])
+	c.Assert(err, gocheck.IsNil)
+
+	c.Check(actual, gocheck.DeepEquals, expected)
+
+	for i, toExecute := range instances {
+		toExecute.Status = INSTANCE_EXECUTED
+
+		for j, instance := range instances[i:] {
+			actual, err := s.manager.getExecutionOrder(instance)
+			c.Assert(err, gocheck.IsNil)
+
+			c.Check(actual, gocheck.DeepEquals, expected[i:], gocheck.Commentf("Iteration: %v:%v", i, j))
+		}
+	}
+}
+
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	s.commitInstances()
 	rejectInst := s.manager.instances.Get(s.expectedOrder[0])
