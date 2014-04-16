@@ -250,7 +250,9 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	}
 
 	for _, strongComponent := range tSorted {
-		m.recordStronglyConnectedComponents(strongComponent, depMap)
+		if len(strongComponent) > 1 {
+			m.recordStronglyConnectedComponents(strongComponent, depMap)
+		}
 	}
 
 	return exOrder, nil
