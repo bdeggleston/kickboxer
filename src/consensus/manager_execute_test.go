@@ -398,6 +398,11 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 	c.Fatal("implement")
 }
 
+// tests that components of 1 are not recorded
+func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *gocheck.C) {
+	c.Fatal("implement")
+}
+
 // tests that, as large strongly connected components are executed, their execution ordering
 // is not affected by the dependency graph excluding some executed instances
 func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(c *gocheck.C) {
