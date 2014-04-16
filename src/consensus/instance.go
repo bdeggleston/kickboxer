@@ -3,6 +3,7 @@ package consensus
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -191,6 +192,10 @@ func (i InstanceIDSet) String() string {
 	}
 	s += "}"
 	return s
+}
+
+func (i InstanceIDSet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.List())
 }
 
 type InstanceMap struct {
