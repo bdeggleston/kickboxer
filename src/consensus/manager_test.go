@@ -156,9 +156,10 @@ func (s *ManagerTest) TestGetOrSetExistingInstance(c *gocheck.C) {
 }
 
 // tests that new instances passed into get or set adds the instance
-// to the dependency manager
+// to the dependency manager if their status is above preaccepted
 func (s *ManagerTest) TestGetOrSetNewInstanceAddsToDepsManager(c *gocheck.C) {
 	instance := makeInstance(node.NewNodeId(), []InstanceID{})
+	instance.Status = INSTANCE_ACCEPTED
 	depsNode := s.manager.depsMngr.deps.get("a")
 	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, false)
 
@@ -166,6 +167,20 @@ func (s *ManagerTest) TestGetOrSetNewInstanceAddsToDepsManager(c *gocheck.C) {
 	c.Assert(existed, gocheck.Equals, false)
 
 	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, true)
+}
+
+// tests that new instances passed into get or set don't add the instance
+// to the dependency manager if the status is preaccepted or below
+func (s *ManagerTest) TestGetOrSetPreacceptedNewInstanceSkipsDepsManager(c *gocheck.C) {
+	instance := makeInstance(node.NewNodeId(), []InstanceID{})
+	instance.Status = INSTANCE_PREACCEPTED
+	depsNode := s.manager.depsMngr.deps.get("a")
+	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, false)
+
+	_, existed := s.manager.getOrSetInstance(instance)
+	c.Assert(existed, gocheck.Equals, false)
+
+	c.Assert(depsNode.writes.Contains(instance.InstanceID), gocheck.Equals, false)
 }
 
 // tests that get or set sets new instances to committed if the
