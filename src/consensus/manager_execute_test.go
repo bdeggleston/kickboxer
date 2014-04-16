@@ -415,7 +415,6 @@ func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(
 	}
 
 	// add the last instance as a dependency of the first instance
-//	instances[0].Dependencies = append(instances[0].Dependencies, instances[9].InstanceID)
 	instances[0].Dependencies = []InstanceID{instances[9].InstanceID}
 
 	expected := make([]InstanceID, len(instances))
@@ -435,7 +434,7 @@ func (s *ExecuteDependencyChainTest) TestLongStronglyConnectedComponentOrdering(
 			actual, err := s.manager.getExecutionOrder(instance)
 			c.Assert(err, gocheck.IsNil)
 
-			c.Check(actual, gocheck.DeepEquals, expected[i:], gocheck.Commentf("Iteration: %v:%v", i, j))
+			c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("Iteration: %v:%v", i, j))
 		}
 	}
 }
