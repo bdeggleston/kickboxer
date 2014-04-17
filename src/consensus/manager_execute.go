@@ -131,6 +131,7 @@ func (m *Manager) recordStronglyConnectedComponents(component []InstanceID, depM
 		// prevent infinite loops
 		newDeps.Subtract(componentDeps)
 		componentDeps.Combine(newDeps)
+
 		if newDeps.Size() > 0 {
 			return getComponentDeps(newDeps)
 		}

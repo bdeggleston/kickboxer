@@ -370,7 +370,7 @@ func (m *Manager) makeInstance(instruction store.Instruction) *Instance {
 func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 	for _, inst := range instances {
 		if instance, existed := m.getOrSetInstance(inst); !existed {
-			func(){
+			err := func() error {
 				instance.lock.Lock()
 				defer instance.lock.Unlock()
 				switch instance.Status {
@@ -390,8 +390,13 @@ func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 				default:
 					panic(fmt.Errorf("Unknown status: %v", instance.Status))
 				}
+
+				if err := m.depsMngr.AddDependency(instance); err != nil {
+					return err
+				}
+				return nil
 			}()
-			if err := m.depsMngr.AddDependency(instance); err != nil {
+			if err != nil {
 				return err
 			}
 		}
