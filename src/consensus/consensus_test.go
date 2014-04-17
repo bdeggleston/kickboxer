@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/pprof"
 	"sort"
@@ -105,6 +106,15 @@ func (s *ConsensusQueryBenchmarks) SetUpSuite(c *gocheck.C) {
 			s.keys[i] = fmt.Sprint(i)
 		}
 	}
+
+	// catch signals so we get a nice stack
+	// trace when killing a hung test
+	interruptChan := make(chan os.Signal)
+	go func() {
+		sig := <- interruptChan
+		panic(fmt.Sprintf("Signal %v received", sig.String()))
+	}()
+	signal.Notify(interruptChan, os.Interrupt)
 }
 
 func (s *ConsensusQueryBenchmarks) SetUpTest(c *gocheck.C) {
