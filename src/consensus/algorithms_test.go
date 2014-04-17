@@ -156,3 +156,42 @@ func (t *TarjanTest) TestStronglyConnected2(c *gocheck.C) {
 	actual := tarjanConnect(t.graph)
 	c.Check(actual, TarjanCheck, expected)
 }
+
+type TarjanBenchmark struct {
+	graph map[InstanceID][]InstanceID
+}
+
+var _ = gocheck.Suite(&TarjanBenchmark{})
+
+func (t *TarjanBenchmark) SetUpSuite(c *gocheck.C) {
+	t.graph = make(map[InstanceID][]InstanceID)
+	ids := make([]InstanceID, 12)
+	for i := range ids {
+		ids[i] = NewInstanceID()
+	}
+	t.graph[ids[0]] = []InstanceID{ids[1]}
+	t.graph[ids[1]] = []InstanceID{ids[2]}
+	t.graph[ids[2]] = []InstanceID{ids[3], ids[5]}
+	t.graph[ids[3]] = []InstanceID{ids[6], ids[10]}
+	t.graph[ids[4]] = []InstanceID{ids[1]}
+	t.graph[ids[5]] = []InstanceID{ids[4]}
+	t.graph[ids[6]] = []InstanceID{ids[5], ids[7]}
+	t.graph[ids[7]] = []InstanceID{ids[8]}
+	t.graph[ids[8]] = []InstanceID{ids[9], ids[11]}
+	t.graph[ids[9]] = []InstanceID{ids[7]}
+	t.graph[ids[10]] = []InstanceID{}
+	t.graph[ids[11]] = []InstanceID{}
+}
+
+func (t *TarjanBenchmark) BenchmarkTarjan(c *gocheck.C) {
+	for i:=0; i<c.N; i++ {
+		tarjanConnect(t.graph)
+	}
+}
+
+func (t *TarjanBenchmark) BenchmarkTarjanOld(c *gocheck.C) {
+	for i:=0; i<c.N; i++ {
+		TarjanSort(t.graph)
+	}
+}
+
