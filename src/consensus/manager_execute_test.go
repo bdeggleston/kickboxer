@@ -798,6 +798,18 @@ func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
 	c.Assert(val, gocheck.IsNil)
 }
 
+// tests that an error is returned if a dependency is not committed
+func (s *ExecuteDependencyChainTest) TestUncommittedDependencyFailure(c *gocheck.C) {
+	uncommittedInst := s.manager.instances.Get(s.expectedOrder[0])
+	uncommittedInst.Status = INSTANCE_PREACCEPTED
+	targetInst := s.manager.instances.Get(s.expectedOrder[5])
+
+	val, err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
+
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(val, gocheck.IsNil)
+}
+
 type ExecuteApplyInstanceTest struct {
 	baseManagerTest
 }
