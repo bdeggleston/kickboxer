@@ -116,7 +116,7 @@ func (t *TarjanTest) TestStronglyConnected1(c *gocheck.C) {
 	t.graph[ids[10]] = []InstanceID{}
 	t.graph[ids[11]] = []InstanceID{}
 
-	expected := [][]InstanceID{
+	expectedComponents := [][]InstanceID{
 		[]InstanceID{ids[11]},
 		[]InstanceID{ids[7], ids[8], ids[9]},
 		[]InstanceID{ids[10]},
@@ -124,8 +124,22 @@ func (t *TarjanTest) TestStronglyConnected1(c *gocheck.C) {
 		[]InstanceID{ids[0]},
 	}
 
-	actual := tarjanConnect(t.graph)
-	c.Check(actual, TarjanCheck, expected)
+	actualComponents := tarjanConnect(t.graph)
+
+	// since the given graph has several potential topsorts, we just need to check
+	// that the correct strongly connected components have been identified
+	c.Check(len(actualComponents), gocheck.Equals, len(expectedComponents))
+	componentCheck:
+		for _, expectedComponent := range expectedComponents {
+			expected := NewInstanceIDSet(expectedComponent)
+			for _, actualComponent := range actualComponents {
+				actual := NewInstanceIDSet(actualComponent)
+				if expected.Equal(actual) {
+					continue componentCheck
+				}
+			}
+			c.Fatalf("Component %v not found in %v", expectedComponent, actualComponents)
+		}
 }
 
 // test the graph on the tarjan wikipedia page
