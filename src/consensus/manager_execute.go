@@ -235,7 +235,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 
 	// sort with tarjan's algorithm
 	sortStart := time.Now()
-	tSorted := TarjanSort(depGraph)
+	tSorted := tarjanConnect(depGraph)
 	m.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
 	subSortStart := time.Now()
 	exOrder := make([]InstanceID, 0, len(depGraph))

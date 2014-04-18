@@ -208,10 +208,3 @@ func (t *TarjanBenchmark) BenchmarkTarjan(c *gocheck.C) {
 	}
 }
 
-func (t *TarjanBenchmark) BenchmarkTarjanOld(c *gocheck.C) {
-	// baseline: 7248 ns/op
-	for i:=0; i<c.N; i++ {
-		TarjanSort(t.graph)
-	}
-}
-
