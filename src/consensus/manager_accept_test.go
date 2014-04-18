@@ -30,7 +30,6 @@ func (s *AcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	originalBallot := replicaInstance.MaxBallot
 
 	s.manager.instances.Add(replicaInstance)
-	s.manager.inProgress.Add(replicaInstance)
 	s.manager.maxSeq = replicaInstance.Sequence
 
 	// sanity checks
@@ -72,15 +71,11 @@ func (s *AcceptInstanceTest) TestNewInstanceSuccess(c *gocheck.C) {
 
 	// sanity checks
 	c.Assert(s.manager.instances.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
 
 	err := s.manager.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(s.manager.instances.Contains(leaderInstance), gocheck.Equals, true)
-	c.Check(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, true)
-	c.Check(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
 
 	replicaInstance := s.manager.instances.Get(leaderInstance.InstanceID)
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
@@ -100,22 +95,12 @@ func (s *AcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 	replicaInstance.Status = INSTANCE_COMMITTED
 
 	s.manager.instances.Add(replicaInstance)
-	s.manager.committed.Add(replicaInstance)
 
 	leaderInstance, _ := replicaInstance.Copy()
 	leaderInstance.Status = INSTANCE_ACCEPTED
 
-	// sanity checks
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-
 	err := s.manager.acceptInstance(leaderInstance, false)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
-
-	// check set memberships haven't changed
-	c.Check(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-	c.Check(s.manager.committed.Contains(leaderInstance), gocheck.Equals, true)
-	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
 // if an instance is being accepted twice
@@ -135,8 +120,6 @@ func (s *AcceptInstanceTest) TestRepeatAccept(c *gocheck.C ) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
-	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when

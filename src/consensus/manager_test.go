@@ -103,7 +103,6 @@ func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	err = s.manager.addMissingInstances(preAccepted)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Contains(preAccepted), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(preAccepted), gocheck.Equals, true)
 	c.Assert(preAccepted.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
 
 	// accepted
@@ -112,7 +111,6 @@ func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	err = s.manager.addMissingInstances(accepted)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Contains(accepted), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(accepted), gocheck.Equals, true)
 	c.Assert(accepted.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 
 	// committed
@@ -121,7 +119,6 @@ func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	err = s.manager.addMissingInstances(committed)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Contains(committed), gocheck.Equals, true)
-	c.Assert(s.manager.committed.Contains(committed), gocheck.Equals, true)
 	c.Assert(committed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 
 	// executed
@@ -130,7 +127,6 @@ func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	err = s.manager.addMissingInstances(executed)
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Contains(executed), gocheck.Equals, true)
-	c.Assert(s.manager.committed.Contains(executed), gocheck.Equals, true)
 	c.Assert(len(s.manager.executed), gocheck.Equals, 0)
 	c.Assert(executed.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }

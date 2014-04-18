@@ -37,10 +37,6 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
-	// sanity checks
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, true)
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
-
 	c.Assert(len(replicaInstance.Dependencies), gocheck.Equals, 4)
 	c.Assert(replicaInstance.Sequence, gocheck.Equals, uint64(3))
 	c.Assert(s.manager.maxSeq, gocheck.Equals, uint64(3))
@@ -49,10 +45,6 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	oldStatCommitCount := s.manager.stats.(*mockStatter).counters["commit.instance.count"]
 	err := s.manager.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
-
-	// test bookkeeping
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, true)
 
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 	c.Check(replicaInstance.MaxBallot, gocheck.Equals, originalBallot)
@@ -83,16 +75,12 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 
 	// sanity checks
 	c.Assert(s.manager.instances.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
 
 
 	err := s.manager.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.manager.instances.Contains(leaderInstance), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, true)
 
 	replicaInstance := s.manager.instances.Get(leaderInstance.InstanceID)
 
@@ -119,16 +107,12 @@ func (s *CommitInstanceTest) TestCommitExecutedFailure(c *gocheck.C) {
 	leaderInstance.Status = INSTANCE_ACCEPTED
 
 	// sanity checks
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.manager.executed[len(s.manager.executed) - 1] == replicaInstance.InstanceID, gocheck.Equals, true)
 
 	err := s.manager.commitInstance(leaderInstance, false)
 	c.Assert(err, gocheck.FitsTypeOf, InvalidStatusUpdateError{})
 
 	// check set memberships haven't changed
-	c.Assert(s.manager.committed.Contains(leaderInstance), gocheck.Equals, false)
-	c.Assert(s.manager.inProgress.Contains(leaderInstance), gocheck.Equals, false)
 	c.Assert(s.manager.executed[len(s.manager.executed) - 1] == replicaInstance.InstanceID, gocheck.Equals, true)
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
@@ -150,8 +134,6 @@ func (s *CommitInstanceTest) TestRepeatCommit(c *gocheck.C ) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.manager.committed.Get(instance.InstanceID), gocheck.Equals, instance)
-	c.Assert(s.manager.committed.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that instances with a commitNotify Cond object

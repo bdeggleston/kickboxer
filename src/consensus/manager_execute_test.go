@@ -875,7 +875,6 @@ func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 	s.manager.commitInstance(instance, false)
 
 	// sanity check
-	c.Check(s.manager.committed, instMapContainsKey, iid)
 	c.Check(s.manager.executed, gocheck.Not(instIdSliceContains), iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 
@@ -883,7 +882,6 @@ func (s *ExecuteApplyInstanceTest) TestBookKeeping(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// check expected state
-	c.Check(s.manager.committed, gocheck.Not(instMapContainsKey), iid)
 	c.Check(s.manager.executed, instIdSliceContains, iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
@@ -895,7 +893,6 @@ func (s *ExecuteApplyInstanceTest) TestUncommittedFailure(c *gocheck.C) {
 	s.manager.acceptInstance(instance, false)
 
 	// sanity check
-	c.Check(s.manager.inProgress, instMapContainsKey, iid)
 	c.Check(s.manager.executed, gocheck.Not(instIdSliceContains), iid)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_ACCEPTED)
 

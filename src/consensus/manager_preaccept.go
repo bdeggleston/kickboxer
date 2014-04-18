@@ -44,7 +44,6 @@ func (m *Manager) preAcceptInstance(inst *Instance, incrementBallot bool) error 
 		return err
 	}
 
-	m.inProgress.Add(instance)
 	m.updateSeq(instance.getSeq())
 	if err := m.Persist(); err != nil {
 		m.statsInc("preaccept.instance.error", 1)

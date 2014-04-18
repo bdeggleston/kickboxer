@@ -159,8 +159,6 @@ type Manager struct {
 	stats    statsd.Statter
 
 	instances    *InstanceMap
-	inProgress   *InstanceMap
-	committed    *InstanceMap
 
 	executed     []InstanceID
 	executedLock sync.RWMutex
@@ -177,8 +175,6 @@ func NewManager(cluster cluster.Cluster) *Manager {
 		cluster:  cluster,
 		stats:    stats,
 		instances:  NewInstanceMap(),
-		inProgress: NewInstanceMap(),
-		committed:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
 	}
 
@@ -377,16 +373,13 @@ func (m *Manager) addMissingInstancesUnsafe(instances ...*Instance) error {
 				case INSTANCE_PREACCEPTED:
 					m.statsInc("manager.missing_instance.preaccept", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-					m.inProgress.Add(instance)
 				case INSTANCE_ACCEPTED:
 					m.statsInc("manager.missing_instance.accept", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
-					m.inProgress.Add(instance)
 				case INSTANCE_COMMITTED, INSTANCE_EXECUTED:
 					m.statsInc("manager.missing_instance.commit", 1)
 					logger.Debug("adding missing instance %v with status %v", instance.InstanceID, instance.Status)
 					instance.Status = INSTANCE_COMMITTED
-					m.committed.Add(instance)
 				default:
 					panic(fmt.Errorf("Unknown status: %v", instance.Status))
 				}

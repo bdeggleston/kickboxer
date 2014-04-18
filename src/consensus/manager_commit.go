@@ -50,11 +50,6 @@ func (m *Manager) commitInstance(inst *Instance, incrementBallot bool) error {
 
 	m.updateSeq(instance.getSeq())
 
-	// update manager bookeeping
-	m.instances.Add(instance)
-	m.committed.Add(instance)
-	m.inProgress.Remove(instance)
-
 	if err := m.depsMngr.ReportAcknowledged(instance); err != nil {
 		return err
 	}

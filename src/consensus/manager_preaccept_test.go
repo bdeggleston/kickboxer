@@ -26,16 +26,12 @@ func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 
 	// sanity check
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, false)
-	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, false)
-	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
 	seq := s.manager.maxSeq
 	err := s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
 	c.Check(instance.Sequence, gocheck.Equals, seq + 1)
 	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot)
@@ -61,8 +57,6 @@ func (s *PreAcceptInstanceTest) TestHigherStatusFailure(c *gocheck.C) {
 
 	// sanity check
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.manager.inProgress.Contains(instance), gocheck.Equals, true)
-	c.Assert(s.manager.committed.Contains(instance), gocheck.Equals, false)
 
 	err = s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.NotNil)
@@ -88,8 +82,6 @@ func (s *PreAcceptInstanceTest) TestRepeatPreaccept(c *gocheck.C ) {
 	c.Assert(err, gocheck.IsNil)
  	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
-	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Equals, instance)
-	c.Assert(s.manager.inProgress.Get(instance.InstanceID), gocheck.Not(gocheck.Equals), repeat)
 }
 
 // tests that the noop flag is recognized when

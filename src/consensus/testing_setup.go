@@ -37,7 +37,6 @@ func setupDeps(manager *Manager) {
 		instance.Sequence = seq
 		instance.Dependencies, _ = manager.getInstanceDeps(instance)
 		manager.instances.Add(instance)
-		manager.committed.Add(instance)
 	}
 	for i := 0; i < 4; i++ {
 		seq++
@@ -50,7 +49,6 @@ func setupDeps(manager *Manager) {
 		instance.Sequence = seq
 		instance.Dependencies, _ = manager.getInstanceDeps(instance)
 		manager.instances.Add(instance)
-		manager.inProgress.Add(instance)
 	}
 }
 
