@@ -31,7 +31,7 @@ func (s *baseIntegrationTest) waitForStatus(iid InstanceID, status InstanceStatu
 	for _, manager := range s.managers {
 		if instance := manager.instances.Get(iid); instance == nil {
 			runtime.Gosched()
-		} else if instance.getStatus() != INSTANCE_PREACCEPTED {
+		} else if instance.getStatus() != status {
 			runtime.Gosched()
 		}
 	}
@@ -353,7 +353,7 @@ func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
 	err = s.manager.preparePhase(instance)
 	s.waitForStatus(instance.InstanceID, INSTANCE_COMMITTED)
 	c.Assert(err, gocheck.IsNil)
-	// ballot +3: prepare, acceptm and commit messages
+	// ballot +3: prepare, accept and commit messages
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 3)
 	c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_COMMITTED)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
