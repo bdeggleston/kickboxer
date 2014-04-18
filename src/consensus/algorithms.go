@@ -2,72 +2,90 @@ package consensus
 
 // implementation of tarjan's strongly connected components algorithm
 // give it a directed graph, and it will return a list of instance
-// id sets, grouped into strongly connected components
-func tarjanConnect(graph map[InstanceID][]InstanceID) [][]InstanceID {
-	idx := 0
-	stacked := make(map[InstanceID]bool, len(graph))
-	lowlinks := make(map[InstanceID]int, len(graph))
-	index := make(map[InstanceID]int, len(graph))
-	output := make([][]InstanceID, 0)
-	stack := make([]InstanceID, 0, len(graph))
+// id sets, grouped into strongly connected components, and sorted in
+// reverse topological order of the components
+func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
+	// at least one component will be returned
+	output := make([][]InstanceID, 0, 1)
 
-	min := func(x, y int) int {
-		if x < y {
-			return x
-		}
-		return y
+	type vertex struct {
+		id InstanceID
+		out []InstanceID
+		index int
+		lowlink int
+		stacked bool
 	}
 
-	var strongConnect func(InstanceID)
-	strongConnect = func(v InstanceID) {
-		idx++
+	graph := make(map[InstanceID]*vertex, len(graphMap))
+	vertices := make([]*vertex, len(graphMap))
+	i := 0
+	for iid, out := range graphMap {
+		v := &vertex{id:iid, out:out}
+		graph[iid] = v
+		vertices[i] = v
+		i++
+	}
 
-		index[v] = idx
-		lowlinks[v] = idx
+	index := 0
+	stack := make([]*vertex, 0, len(vertices))
 
-		stacked[v] = true
+	var strongConnect func(*vertex)
+	strongConnect = func(v *vertex) {
+		index++
+
+		v.index = index
+		v.lowlink = index
+		v.stacked = true
+
+
+		initialStackSize := len(stack)
 		stack = append(stack, v)
 
 		// look at the out vertices
-		for _, w := range graph[v] {
-			if index[w] == 0 {
+		var w *vertex
+		for _, id := range v.out {
+			w = graph[id]
+			if w.index == 0 {
 				// vertex hasn't been visited yet
 				strongConnect(w)
-				lowlinks[v] = min(lowlinks[v], lowlinks[w])
-			} else if stacked[w] {
+				if w.lowlink < v.lowlink {
+					v.lowlink = w.lowlink
+				}
+			} else if w.stacked {
 				// vertex is in the stack, so is part of the
 				// current strongly connected component
-				lowlinks[v] = min(lowlinks[v], lowlinks[w])
+				if w.lowlink < v.lowlink {
+					v.lowlink = w.lowlink
+				}
 			}
 		}
 
 		// if this is the root for the current component
-		if index[v] == lowlinks[v] {
+		if v.index == v.lowlink {
 			// pop vertices off the stack until we get to
 			// the current vertex, and add them to the new
 			// strongly connected component
-			component := make([]InstanceID, 0, 1)
+			currentStackSize := len(stack)
+			component := make([]InstanceID, 0, currentStackSize - initialStackSize)
 			i := len(stack) - 1
-			var w InstanceID
-			for v != w {
+			w = nil
+			for w == nil || v.id != w.id {
 				w = stack[i]
 				stack = stack[:i]
-				component = append(component, w)
+				component = append(component, w.id)
 				i--
 			}
 			output = append(output, component)
 		}
 
-		stacked[v] = false
+		v.stacked = false
 	}
 
-	for v := range graph {
-		if index[v] == 0 {
+	// iterate over the vertice
+	for _, v := range vertices {
+		if v.index == 0 {
 			strongConnect(v)
 		}
 	}
 	return output
 }
-
-// TODO: for the topological sort, panic if there is more than 1 root node
-// TODO: for the topological sort, make sure that the sorting is deterministic, and only one solution will be calculated for the same graph

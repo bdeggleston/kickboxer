@@ -184,12 +184,18 @@ func (t *TarjanBenchmark) SetUpSuite(c *gocheck.C) {
 }
 
 func (t *TarjanBenchmark) BenchmarkTarjan(c *gocheck.C) {
+	// baseline: 12651 ns/op
+	// removing maps, using structs: 6061 ns/op
+	// using if, not min func: 5817 ns/op
+	// allocating an output array with initial cap of 1: 5719 ns/op
+	// allocating a component slice based on how much the stack grew: 5256 ns/op
 	for i:=0; i<c.N; i++ {
 		tarjanConnect(t.graph)
 	}
 }
 
 func (t *TarjanBenchmark) BenchmarkTarjanOld(c *gocheck.C) {
+	// baseline: 7248 ns/op
 	for i:=0; i<c.N; i++ {
 		TarjanSort(t.graph)
 	}
