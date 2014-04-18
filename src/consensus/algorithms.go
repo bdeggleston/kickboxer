@@ -45,7 +45,9 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 		var w *vertex
 		for _, id := range v.out {
 			w = graph[id]
-			if w.index == 0 {
+			if w == nil {
+				continue
+			} else if w.index == 0 {
 				// vertex hasn't been visited yet
 				strongConnect(w)
 				if w.lowlink < v.lowlink {

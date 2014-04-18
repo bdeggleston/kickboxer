@@ -94,6 +94,25 @@ func (t *TarjanTest) TestNonStronglyConnectedGraph(c *gocheck.C) {
 	c.Check(actual, TarjanCheck, expected)
 }
 
+// tests that missing vertices are skipped
+func (t *TarjanTest) TestMissingVertex(c *gocheck.C) {
+	ids := t.makeIds(5)
+	expected := make([][]InstanceID, 5)
+	for i := range ids {
+		if i < 4 {
+			t.graph[ids[i]] = []InstanceID{ids[i+1]}
+		} else {
+			t.graph[ids[i]] = []InstanceID{}
+		}
+		// nodes should be sorted in reverse topological order
+		expected[4-i] = []InstanceID{ids[i]}
+	}
+
+	t.graph[ids[0]] = append(t.graph[ids[0]], NewInstanceID())
+	actual := tarjanConnect(t.graph)
+	c.Check(actual, TarjanCheck, expected)
+}
+
 // tests that the graph:
 //         4 <- 5 <- 6 -------> 7 -> 8 -> 11
 //         \    ^   ^           ^    \
