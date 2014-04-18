@@ -311,6 +311,7 @@ func (s *PrepareIntegrationTest) TestPrepareBallotFailure(c *gocheck.C) {
 // tests that a prepare phase that receives prepare
 // responses with accepted instances works as expected
 func (s *PrepareIntegrationTest) TestPrepareAccept(c *gocheck.C) {
+	// TODO: fails 1/3 of the time when run with the entire suite
 	var err error
 
 	// make and accept the instance across the cluster
