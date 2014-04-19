@@ -190,6 +190,26 @@ func (t *TarjanTest) TestStronglyConnected2(c *gocheck.C) {
 	c.Check(actual, TarjanCheck, expected)
 }
 
+// test the graph on the tarjan wikipedia page
+//  2 <-> 1
+//  \   ^
+//  v  /
+//   0
+//
+// produces the components [[0,1,2]]
+func (t *TarjanTest) TestStronglyConnected3(c *gocheck.C) {
+	ids := t.makeIds(3)
+	t.graph[ids[0]] = []InstanceID{ids[1]}
+	t.graph[ids[1]] = []InstanceID{ids[2]}
+	t.graph[ids[2]] = []InstanceID{ids[0], ids[1]}
+
+	actual := tarjanConnect(t.graph)
+	expected := NewInstanceIDSet(ids)
+	c.Assert(len(actual), gocheck.Equals, 1)
+	c.Check(NewInstanceIDSet(actual[0]), gocheck.DeepEquals, expected)
+
+}
+
 type TarjanBenchmark struct {
 	graph map[InstanceID][]InstanceID
 }
