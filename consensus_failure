@@ -1,0 +1,2 @@
+#! /bin/bash
+ipython -i -- pydebug/debug.py $@

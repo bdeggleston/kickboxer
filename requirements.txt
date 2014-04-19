@@ -1,0 +1,5 @@
+# requirements for python debug
+argparse==1.2.1
+tarjan==0.1.2
+graphviz==0.2.2
+pygraphml==1.0
