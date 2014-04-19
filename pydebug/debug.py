@@ -71,11 +71,11 @@ class Instance(object):
     def in_deps(self):
         return [instances.get(d) for d in self._in_deps]
 
-    def depends_on(self, iid):
-        return iid in self._deps
+    def depends_on(self, *iids):
+        return [iid in self._deps for iid in iids]
 
-    def is_dependency_of(self, iid):
-        return iid in self._in_deps
+    def is_dependency_of(self, *iids):
+        return [iid in self._in_deps for iid in iids]
 
     @property
     def is_strongly_connected(self):
@@ -118,11 +118,19 @@ def _component_cmp(x, y):
     else:
         return -1 if xID.bytes < yID.bytes else 1
 
+strong_map = {}
+for component in tsorted:
+    if len(component) > 1:
+        cset = set(component)
+        for iid in cset:
+            strong_map[iid] = cset
+
+
 expected_execution_order = sum([sorted(c, cmp=_component_cmp) for c in tsorted], [])
 
 minlen = min(len(execution_order), len(expected_execution_order))
 
-def evaluate_consistency(history=2):
+def check_consistency(history=5):
     for i, (actual, expected) in enumerate(zip(execution_order[:minlen], expected_execution_order[:minlen])):
         if actual != expected:
             print "execution inconsistency at", i
@@ -135,7 +143,22 @@ def evaluate_consistency(history=2):
 
             break
 
-evaluate_consistency()
+check_consistency()
+
+print ""
+print ""
+
+def check_strong_connections():
+    for iid, component in strong_map.items():
+        instance = instances[iid]
+        if instance.strongly_connected != component:
+            if instance.status >= COMMITTED:
+                print "strongly connected inconsistency for", iid
+                print "  expected:", component
+                print "       got:", instances[iid].strongly_connected
+                print ""
+
+check_strong_connections()
 
 instance = instances.get(argv.instance)
 if instance:
