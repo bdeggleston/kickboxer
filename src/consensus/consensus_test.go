@@ -308,6 +308,43 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 								panic(err)
 							}
 						}
+
+						e0 := make([]*Instance, len(s.nodes))
+						e1 := make([]*Instance, len(s.nodes))
+						for j, n := range s.nodes {
+							e0[j] = n.manager.instances.Get(expected.InstanceID)
+							e1[j] = n.manager.instances.Get(actual.InstanceID)
+						}
+
+						js, err = json.Marshal(e0)
+						if err != nil {
+							panic(err)
+						}
+						f, err := os.Create(fmt.Sprintf("%v/%v.e0.json", exportPath, key))
+						_, err = f.Write(js)
+						if err != nil {
+							panic(err)
+						}
+						err = f.Close()
+						if err != nil {
+							panic(err)
+						}
+
+						js, err = json.Marshal(e1)
+						if err != nil {
+							panic(err)
+						}
+						f, err = os.Create(fmt.Sprintf("%v/%v.e1.json", exportPath, key))
+						_, err = f.Write(js)
+						if err != nil {
+							panic(err)
+						}
+						err = f.Close()
+						if err != nil {
+							panic(err)
+						}
+
+
 					}
 
 					e0 := make([]*Instance, len(s.nodes))
