@@ -169,6 +169,7 @@ func (s *ConsensusQueryBenchmarks) messageHandler(mn *mockNode, msg message.Mess
 
 // checks that all of the queries were executed in the same order, per key
 func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
+	exportPath := fmt.Sprintf("%v/debug/%v", os.Getenv("GOPATH"), time.Now().Format(time.RFC3339))
 	for _, n := range s.nodes {
 		n.cluster.lock.Lock()
 	}
@@ -214,8 +215,8 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 			}
 		}
 		mInstances := nodeInstructions[maxIdx][key]
-		for i, imap := range nodeInstructions {
-			if i == maxIdx {
+		for replicaNum, imap := range nodeInstructions {
+			if replicaNum == maxIdx {
 				continue
 			}
 			instances := imap[key]
@@ -252,7 +253,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					if err != nil {
 						panic(err)
 					}
-					fmt.Println("expected")
+					fmt.Println("expected", maxIdx)
 					fmt.Println(string(js))
 
 					fmt.Println("")
@@ -260,17 +261,44 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					if err != nil {
 						panic(err)
 					}
-					fmt.Println("actual")
+					fmt.Println("actual", replicaNum)
 					fmt.Println(string(js))
 
 					if *benchExport {
+						if err := os.MkdirAll(exportPath, os.ModePerm); err != nil {
+							panic(err)
+						}
 						// export full execution history for key, for each node
-						for i, nodeKeyInstructions := range nodeInstructions {
+						for j, nodeKeyInstructions := range nodeInstructions {
+
 							js, err = json.Marshal(nodeKeyInstructions[key])
 							if err != nil {
 								panic(err)
 							}
-							f, err := os.Create(fmt.Sprintf("%v:%v.json", key, i))
+							f, err := os.Create(fmt.Sprintf("%v/%v:%v.execution.json", exportPath, key, j))
+							_, err = f.Write(js)
+							if err != nil {
+								panic(err)
+							}
+							err = f.Close()
+							if err != nil {
+								panic(err)
+							}
+						}
+
+						// export full instruction set for failed key, for each node
+						for j, n := range s.nodes {
+							instances := make([]*Instance, 0)
+							for _, instance := range n.manager.instances.Instances() {
+								if instance.Command.Key == key {
+									instances = append(instances, instance)
+								}
+							}
+							js, err = json.Marshal(instances)
+							if err != nil {
+								panic(err)
+							}
+							f, err := os.Create(fmt.Sprintf("%v/%v:%v.instances.json", exportPath, key, j))
 							_, err = f.Write(js)
 							if err != nil {
 								panic(err)
@@ -284,9 +312,9 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 
 					e0 := make([]*Instance, len(s.nodes))
 					e1 := make([]*Instance, len(s.nodes))
-					for i, n := range s.nodes {
-						e0[i] = n.manager.instances.Get(expected.InstanceID)
-						e1[i] = n.manager.instances.Get(actual.InstanceID)
+					for j, n := range s.nodes {
+						e0[j] = n.manager.instances.Get(expected.InstanceID)
+						e1[j] = n.manager.instances.Get(actual.InstanceID)
 					}
 
 					fmt.Println("")

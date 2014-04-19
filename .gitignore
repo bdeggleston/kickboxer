@@ -9,6 +9,9 @@ out/
 _obj
 _test
 
+# Debug data
+debug/
+
 # Dependencies
 code.google.*/
 github.*/
