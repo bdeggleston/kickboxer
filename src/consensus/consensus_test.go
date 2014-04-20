@@ -112,6 +112,7 @@ func (s *ConsensusQueryBenchmarks) SetUpSuite(c *gocheck.C) {
 	interruptChan := make(chan os.Signal)
 	go func() {
 		sig := <- interruptChan
+		fmt.Println("num goroutines: ", runtime.NumGoroutine())
 		panic(fmt.Sprintf("Signal %v received", sig.String()))
 	}()
 	signal.Notify(interruptChan, os.Interrupt)
@@ -170,6 +171,7 @@ func (s *ConsensusQueryBenchmarks) messageHandler(mn *mockNode, msg message.Mess
 // checks that all of the queries were executed in the same order, per key
 func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 	exportPath := fmt.Sprintf("%v/debug/%v", os.Getenv("GOPATH"), time.Now().Format(time.RFC3339))
+	exported := false
 	for _, n := range s.nodes {
 		n.cluster.lock.Lock()
 	}
@@ -191,7 +193,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 		for _, iid := range n.manager.executed {
 			instance := n.manager.instances.Get(iid)
 			instructions := imap[getKey(instance)]
-			if instructions == nil {
+			if len(instructions) == 0 {
 				instructions = make([]*Instance, 0, *benchQueries / *benchNumKeys)
 			}
 			instructions = append(instructions, instance)
@@ -265,6 +267,7 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 					fmt.Println(string(js))
 
 					if *benchExport {
+						exported = true
 						if err := os.MkdirAll(exportPath, os.ModePerm); err != nil {
 							panic(err)
 						}
@@ -377,6 +380,9 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 	}
 	if badKeys > 0 {
 		fmt.Println("Bad Keys: ", badKeys)
+	}
+	if exported {
+		fmt.Println("Export path: ", exportPath)
 	}
 }
 
