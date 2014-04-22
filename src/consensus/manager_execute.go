@@ -159,7 +159,7 @@ func (m *Manager) recordStronglyConnectedComponents(component []InstanceID, depM
 
 // topologically sorts instance dependencies, grouped by strongly
 // connected components
-func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
+func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, uncommitted []InstanceID, err error) {
 	start := time.Now()
 	defer m.statsTiming("execute.dependencies.order.time", start)
 
@@ -173,11 +173,23 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	depGraph := make(map[InstanceID][]InstanceID)
 	depMap = m.instances.GetMap(depMap, targetDeps)
 
+	uncommittedSet := NewInstanceIDSet([]InstanceID{})
+
 	requiredInstances := NewInstanceIDSet([]InstanceID{})
 
 	var addInstance func(*Instance) error
 	addInstance = func(inst *Instance) error {
-		deps := inst.getDependencies()
+
+		// the status and dependencies must be recorded in the same
+		// lock context. Otherwise, we'll get uncommitted deps, the
+		// instance will be committed with new deps, and our dep graph
+		// will be inaccurate in ~0.001% of queries.
+		inst.lock.RLock()
+		deps := inst.Dependencies
+		status := inst.Status
+		stronglyConnected := inst.StronglyConnected
+		inst.lock.RUnlock()
+
 		depMap = m.instances.GetMap(depMap, deps)
 
 		// if the instance is already executed, and it's not a dependency
@@ -186,7 +198,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		// make it part of a strongly connected subgraph of at least one
 		// unexecuted instance, and will therefore affect the execution
 		// ordering
-		if inst.getStatus() == INSTANCE_EXECUTED {
+		if status == INSTANCE_EXECUTED {
 			if !targetDepSet.Contains(inst.InstanceID) {
 				connected := false
 				for _, dep := range deps {
@@ -200,13 +212,14 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 					return nil
 				}
 			}
+		} else if status < INSTANCE_COMMITTED {
+			// record uncomitted instances
+			uncommittedSet.Add(inst.InstanceID)
 		}
 
 		// add strongly connected components to
 		// the set of required instances
-		inst.lock.RLock()
-		requiredInstances.Combine(inst.StronglyConnected)
-		inst.lock.RUnlock()
+		requiredInstances.Combine(stronglyConnected)
 
 		depGraph[inst.InstanceID] = deps
 		for _, iid := range deps {
@@ -229,7 +242,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 
 	prepStart := time.Now()
 	if err := addInstance(instance); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	m.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
@@ -238,7 +251,8 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 	tSorted := tarjanConnect(depGraph)
 	m.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
 	subSortStart := time.Now()
-	exOrder := make([]InstanceID, 0, len(depGraph))
+
+	exOrder = make([]InstanceID, 0, len(depGraph))
 	for _, iids := range tSorted {
 		sorter := &iidSorter{depMap: depMap, iids:iids}
 		sort.Sort(sorter)
@@ -249,7 +263,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 
 	for _, iid := range exOrder {
 		if m.instances.Get(iid) == nil {
-			return nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+			return nil, nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 		}
 	}
 
@@ -259,19 +273,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) ([]InstanceID, error) {
 		}
 	}
 
-	return exOrder, nil
-}
-
-func (m *Manager) getUncommittedInstances(iids []InstanceID) []*Instance {
-	instances := make([]*Instance, 0)
-	for _, iid := range iids {
-		instance := m.instances.Get(iid)
-		if instance.getStatus() < INSTANCE_COMMITTED {
-			instances = append(instances, instance)
-		}
-	}
-
-	return instances
+	return exOrder, uncommittedSet.List(), nil
 }
 
 // executes an instance against the store
@@ -404,21 +406,22 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 	m.statsInc("execute.phase.count", 1)
 
 	logger.Debug("Execute phase started")
-	// get dependency instance ids, sorted in execution order
-	exOrder, err := m.getExecutionOrder(instance)
+	// get dependency instance ids, sorted in execution order, and a list of uncommitted instances
+	var exOrder []InstanceID
+	var uncommitted []InstanceID
+	var err error
+	exOrder, uncommitted, err = m.getExecutionOrder(instance)
 	if err != nil {
 		return nil, err
 	}
-
-	// prepare uncommitted instances
-	var uncommitted []*Instance
-	uncommitted = m.getUncommittedInstances(exOrder)
 
 	for len(uncommitted) > 0 {
 		logger.Info("Execute, %v uncommitted on %v: %+v", len(uncommitted), m.GetLocalID(), uncommitted)
 		wg := sync.WaitGroup{}
 		wg.Add(len(uncommitted))
 		errors := make(chan error, len(uncommitted))
+
+		uncommittedMap := m.instances.GetMap(nil, uncommitted)
 		prepare := func(inst *Instance) {
 			var err error
 			var success bool
@@ -475,8 +478,8 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 			}
 			wg.Done()
 		}
-		for _, inst := range uncommitted {
-			go prepare(inst)
+		for _, iid := range uncommitted {
+			go prepare(uncommittedMap[iid])
 		}
 		wg.Wait()
 
@@ -495,11 +498,10 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 		// have run a preaccept phase for it, changing the
 		// dependency chain, so the exOrder and uncommitted
 		// list need to be updated before continuing
-		exOrder, err = m.getExecutionOrder(instance)
+		exOrder, uncommitted, err = m.getExecutionOrder(instance)
 		if err != nil {
 			return nil, err
 		}
-		uncommitted = m.getUncommittedInstances(exOrder)
 	}
 
 	logger.Debug("Executing dependency chain")
