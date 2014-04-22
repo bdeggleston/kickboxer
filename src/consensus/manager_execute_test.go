@@ -113,7 +113,7 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 		instance.commitTimeout = time.Now().Add(time.Duration(-1) * time.Millisecond)
 	}
 	s.toExecute = s.manager.instances.Get(s.expectedOrder[2])
-	exOrder, err := s.manager.getExecutionOrder(s.toExecute)
+	exOrder, uncommitted, err := s.manager.getExecutionOrder(s.toExecute)
 	c.Assert(err, gocheck.IsNil)
 	// commit all but the first instance
 	for _, iid := range exOrder[1:] {
@@ -121,8 +121,10 @@ func (s *ExecuteInstanceTest) SetUpTest(c *gocheck.C) {
 		err := s.manager.commitInstance(instance, false)
 		c.Assert(err, gocheck.IsNil)
 	}
+	exOrder, uncommitted, err = s.manager.getExecutionOrder(s.toExecute)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 1)
 	s.toPrepare = s.manager.instances.Get(exOrder[0])
-	c.Assert(len(s.manager.getUncommittedInstances(exOrder)), gocheck.Equals, 1)
 }
 
 func (s *ExecuteInstanceTest) TearDownTest(c *gocheck.C) {
@@ -275,8 +277,9 @@ func (s *ExecuteDependencyChainTest) TestDependencyOrdering(c *gocheck.C) {
 	s.commitInstances()
 
 	lastInstance := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
-	actual, err := s.manager.getExecutionOrder(lastInstance)
+	actual, uncommitted, err := s.manager.getExecutionOrder(lastInstance)
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 0)
 	c.Assert(actual, gocheck.DeepEquals, s.expectedOrder)
 }
 
@@ -300,8 +303,9 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 		} else {
 			expected = s.expectedOrder[:3]
 		}
-		actual, err := s.manager.getExecutionOrder(instance)
+		actual, uncommitted, err := s.manager.getExecutionOrder(instance)
 		c.Assert(err, gocheck.IsNil)
+		c.Assert(len(uncommitted), gocheck.Equals, 0)
 		if c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("iid %v", i)) {
 			c.Logf("iid %v, ok", i)
 		}
@@ -327,8 +331,9 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *
 	}
 
 	for i, instance := range instances {
-		actual, err := s.manager.getExecutionOrder(instance)
+		actual, uncommitted, err := s.manager.getExecutionOrder(instance)
 		c.Assert(err, gocheck.IsNil)
+		c.Assert(len(uncommitted), gocheck.Equals, 0)
 		c.Assert(actual, gocheck.DeepEquals, expected[:i+1], gocheck.Commentf("instance %v", i))
 	}
 }
@@ -340,8 +345,9 @@ func (s *ExecuteDependencyChainTest) TestMissingDependencyOrder(c *gocheck.C) {
 
 	lastInstance := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 1])
 	lastInstance.Dependencies = append(lastInstance.Dependencies, NewInstanceID())
-	actual, err := s.manager.getExecutionOrder(lastInstance)
+	actual, uncommitted, err := s.manager.getExecutionOrder(lastInstance)
 	c.Assert(actual, gocheck.IsNil)
+	c.Assert(uncommitted, gocheck.IsNil)
 	c.Assert(err, gocheck.NotNil)
 }
 
@@ -419,8 +425,9 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 	// add the last instance as a dependency of the first instance
 	instances[0].Dependencies = []InstanceID{instances[2].InstanceID}
 
-	exOrder, err := s.manager.getExecutionOrder(instances[2])
+	exOrder, uncommitted, err := s.manager.getExecutionOrder(instances[2])
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 0)
 	c.Check(exOrder, gocheck.DeepEquals, component)
 
 	for i, instance := range instances {
@@ -468,8 +475,9 @@ func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponent
 		expected[i] = instance.InstanceID
 	}
 
-	actual, err := s.manager.getExecutionOrder(instances[9])
+	actual, uncommitted, err := s.manager.getExecutionOrder(instances[9])
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 0)
 
 	c.Check(actual, gocheck.DeepEquals, expected)
 
@@ -477,8 +485,9 @@ func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponent
 		toExecute.Status = INSTANCE_EXECUTED
 
 		for j, instance := range instances[i:] {
-			actual, err := s.manager.getExecutionOrder(instance)
+			actual, uncommitted, err := s.manager.getExecutionOrder(instance)
 			c.Assert(err, gocheck.IsNil)
+			c.Assert(len(uncommitted), gocheck.Equals, 0)
 
 			c.Check(actual, gocheck.DeepEquals, expected, gocheck.Commentf("Iteration: %v:%v", i, j))
 		}
@@ -519,12 +528,6 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSucces
 		c.Check(instance.StronglyConnected, gocheck.DeepEquals, expectedSet)
 	}
 
-}
-
-// tests that recordStronglyConnectedComponents bails out if the components already have
-// components recorded on them
-func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsExistingSet(c *gocheck.C) {
-	c.Fatal("implement")
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedComponent(c *gocheck.C) {
