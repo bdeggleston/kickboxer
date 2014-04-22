@@ -437,11 +437,13 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 
 // tests that components of 1 are not recorded
 func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *gocheck.C) {
+	var err error
 	s.manager = NewManager(s.manager.cluster)
 	instance := s.manager.makeInstance(getBasicInstruction())
-	depMap := map[InstanceID]*Instance{instance.InstanceID: instance}
+	err = s.manager.commitInstance(instance, true)
+	c.Assert(err, gocheck.IsNil)
 
-	err := s.manager.recordStronglyConnectedComponents([]InstanceID{instance.InstanceID}, depMap)
+	_, _, err = s.manager.getExecutionOrder(instance)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(instance.StronglyConnected.Size(), gocheck.Equals, 0)
@@ -521,7 +523,8 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSucces
 	// add the last instance as a dependency of the first instance
 	instances[0].Dependencies = []InstanceID{instances[9].InstanceID}
 
-	err := s.manager.recordStronglyConnectedComponents(component, depMap)
+	_, _, err := s.manager.getExecutionOrder(instances[9])
+//	err := s.manager.recordStronglyConnectedComponents(component, depMap)
 	c.Assert(err, gocheck.IsNil)
 
 	for _, instance := range instances {
@@ -561,8 +564,9 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 	// connect instance 2 to instance 4
 	instances[0].Dependencies = append(instances[0].Dependencies, instances[2].InstanceID)
 
-	err := s.manager.recordStronglyConnectedComponents(component, depMap)
+	_, uncommitted, err := s.manager.getExecutionOrder(instances[2])
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 1)
 
 	// tests that none of the instance have any strongly connected components set
 	for i, instance := range instances {
@@ -605,8 +609,9 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 	// connect instance 2 to instance 4
 	instances[2].Dependencies = append(instances[2].Dependencies, instances[4].InstanceID)
 
-	err := s.manager.recordStronglyConnectedComponents(component, depMap)
+	_, uncommitted, err := s.manager.getExecutionOrder(instances[4])
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(len(uncommitted), gocheck.Equals, 1)
 
 	// tests that none of the instance have any strongly connected components set
 	for i, instance := range instances {
