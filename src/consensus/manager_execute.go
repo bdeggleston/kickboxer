@@ -158,6 +158,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 		m.Persist()
 	}
 
+	hasUncommitted := uncommittedSet.Size() > 0
 	exOrder = make([]InstanceID, 0, len(depGraph))
 	for _, scc := range tSorted {
 		sorter := &iidSorter{depMap: depMap, iids:scc}
@@ -166,7 +167,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 
 		// record components only if there's more than one,
 		// and there are no uncommitted dependencies
-		if len(scc) > 1 && uncommittedSet.Size() == 0 {
+		if len(scc) > 1 && hasUncommitted {
 			for _, iid := range scc {
 				recordSCC(depMap[iid], scc)
 			}
