@@ -176,8 +176,10 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 	m.statsTiming("execute.dependencies.order.sort.time", sortStart)
 
 	for _, iid := range exOrder {
-		if m.instances.Get(iid) == nil {
-			return nil, nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+		if depMap[iid] == nil {
+			if m.instances.Get(iid) == nil {
+				return nil, nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
+			}
 		}
 	}
 
