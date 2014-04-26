@@ -14,6 +14,7 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 		index int
 		lowlink int
 		stacked bool
+		visited bool
 	}
 
 	graph := make(map[InstanceID]*vertex, len(graphMap))
@@ -31,11 +32,13 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 
 	var strongConnect func(*vertex)
 	strongConnect = func(v *vertex) {
+		// min index will be 1
 		index++
 
 		v.index = index
 		v.lowlink = index
 		v.stacked = true
+		v.visited = true
 
 
 		initialStackSize := len(stack)
@@ -43,11 +46,11 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 
 		// look at the out vertices
 		var w *vertex
-		for _, id := range v.out {
-			w = graph[id]
+		for _, iid := range v.out {
+			w = graph[iid]
 			if w == nil {
 				continue
-			} else if w.index == 0 {
+			} else if !w.visited {
 				// vertex hasn't been visited yet
 				strongConnect(w)
 				if w.lowlink < v.lowlink {
@@ -56,8 +59,8 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 			} else if w.stacked {
 				// vertex is in the stack, so is part of the
 				// current strongly connected component
-				if w.lowlink < v.lowlink {
-					v.lowlink = w.lowlink
+				if w.index < v.lowlink {
+					v.lowlink = w.index
 				}
 			}
 		}
@@ -71,21 +74,20 @@ func tarjanConnect(graphMap map[InstanceID][]InstanceID) [][]InstanceID {
 			component := make([]InstanceID, 0, currentStackSize - initialStackSize)
 			i := len(stack) - 1
 			w = nil
-			for w == nil || v.id != w.id {
+			for v != w {
 				w = stack[i]
 				stack = stack[:i]
+				w.stacked = false
 				component = append(component, w.id)
 				i--
 			}
 			output = append(output, component)
 		}
-
-		v.stacked = false
 	}
 
-	// iterate over the vertice
+	// iterate over the vertices
 	for _, v := range vertices {
-		if v.index == 0 {
+		if !v.visited {
 			strongConnect(v)
 		}
 	}

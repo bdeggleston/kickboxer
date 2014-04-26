@@ -95,7 +95,7 @@ func (t *TarjanTest) TestNonStronglyConnectedGraph(c *gocheck.C) {
 }
 
 // tests that missing vertices are skipped
-func (t *TarjanTest) TestMissingVertex(c *gocheck.C) {
+func (t *TarjanTest) TestMissingVertex1(c *gocheck.C) {
 	ids := t.makeIds(5)
 	expected := make([][]InstanceID, 5)
 	for i := range ids {
@@ -111,6 +111,18 @@ func (t *TarjanTest) TestMissingVertex(c *gocheck.C) {
 	t.graph[ids[0]] = append(t.graph[ids[0]], NewInstanceID())
 	actual := tarjanConnect(t.graph)
 	c.Check(actual, TarjanCheck, expected)
+}
+
+func (t *TarjanTest) TestMissingVertex2(c *gocheck.C) {
+	ids := t.makeIds(3)
+	t.graph[ids[2]] = []InstanceID{NewInstanceID(), ids[0], ids[1], NewInstanceID()}
+	t.graph[ids[0]] = []InstanceID{NewInstanceID(), ids[1], NewInstanceID()}
+	t.graph[ids[1]] = []InstanceID{NewInstanceID(), ids[2], NewInstanceID()}
+
+	actual := tarjanConnect(t.graph)
+	expected := NewInstanceIDSet(ids)
+	c.Assert(len(actual), gocheck.Equals, 1)
+	c.Check(NewInstanceIDSet(actual[0]), gocheck.DeepEquals, expected)
 }
 
 // tests that the graph:
@@ -207,7 +219,45 @@ func (t *TarjanTest) TestStronglyConnected3(c *gocheck.C) {
 	expected := NewInstanceIDSet(ids)
 	c.Assert(len(actual), gocheck.Equals, 1)
 	c.Check(NewInstanceIDSet(actual[0]), gocheck.DeepEquals, expected)
+}
 
+// tests that a strongly connected graph, where components have
+// to get through previously visited components to get to the
+// graph root works properly
+//
+// This test demonstrates a hard to detect bug, where vertices
+// were being marked 'off-stack' after they were first visited,
+// not when they were actually removed from the stack
+func (t *TarjanTest) TestStronglyConnected4(c *gocheck.C) {
+	root := NewInstanceID()
+	lvl1 := t.makeIds(10)
+	lvl2 := t.makeIds(10)
+
+	// the root points to all level1 vertices
+	t.graph[root] = lvl1
+
+	// each lvl1 vertex points to all lvl2 vertices,
+	// but non of the lvl2 vertices
+	for _, iid := range lvl1 {
+		t.graph[iid] = lvl2
+	}
+
+	// and all lvl2 vertices point back to the root
+	for _, iid := range lvl2 {
+		t.graph[iid] = []InstanceID{root}
+	}
+
+	component := make([]InstanceID, 0, len(lvl1) + len(lvl2) + 1)
+	component = append(component, root)
+	component = append(component, lvl1...)
+	component = append(component, lvl2...)
+
+	expected := [][]InstanceID{
+		component,
+	}
+
+	actual := tarjanConnect(t.graph)
+	c.Check(actual, TarjanCheck, expected)
 }
 
 type TarjanBenchmark struct {
