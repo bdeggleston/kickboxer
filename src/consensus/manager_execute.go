@@ -89,7 +89,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 		// if the instance is already executed, and it's not a dependency
 		// of the target execution instance, only add it to the dep graph
 		// if it's connected to an uncommitted instance, since that will
-		// make it part of a strongly connected subgraph of at least one
+		// make it part of a strongly connected component of at least one
 		// unexecuted instance, and will therefore affect the execution
 		// ordering
 		if status == INSTANCE_EXECUTED {
@@ -140,7 +140,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 	}
 	m.statsTiming("execute.dependencies.order.sort.prep.time", prepStart)
 
-	// sort with tarjan's algorithm
+	// identify the strongly connected components and reverse topologically sort them
 	sortStart := time.Now()
 	tSorted := tarjanConnect(depGraph)
 	m.statsTiming("execute.dependencies.order.sort.tarjan.time", sortStart)
@@ -150,12 +150,15 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 	// As instances are executed, they will stop being added to the depGraph for sorting.
 	// However, if an instance that's not added to the dep graph is part of a strongly
 	// connected component, it can affect the execution order by breaking the component.
-	recordSCC := func(inst *Instance, scc []InstanceID) {
+	recordSCC := func(inst *Instance, scc []InstanceID) error {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
 		// TODO: just use an array
 		inst.StronglyConnected = NewInstanceIDSet(scc)
-		m.Persist()
+		if err := m.Persist(); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	hasUncommitted := uncommittedSet.Size() > 0
@@ -169,7 +172,9 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 		// and there are no uncommitted dependencies
 		if len(scc) > 1 && hasUncommitted {
 			for _, iid := range scc {
-				recordSCC(depMap[iid], scc)
+				if err := recordSCC(depMap[iid], scc); err != nil {
+					return nil, nil, err
+				}
 			}
 		}
 	}
