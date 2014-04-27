@@ -170,7 +170,7 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 
 		// record components only if there's more than one,
 		// and there are no uncommitted dependencies
-		if len(scc) > 1 && hasUncommitted {
+		if len(scc) > 1 && !hasUncommitted {
 			for _, iid := range scc {
 				if err := recordSCC(depMap[iid], scc); err != nil {
 					return nil, nil, err
