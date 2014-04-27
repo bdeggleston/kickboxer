@@ -181,11 +181,24 @@ func (m *Manager) getExecutionOrder(instance *Instance) (exOrder []InstanceID, u
 	m.statsTiming("execute.dependencies.order.sort.sub_graph.time", subSortStart)
 	m.statsTiming("execute.dependencies.order.sort.time", sortStart)
 
+	// TODO: will this ever actually find nil instances? they're checked for in the addInstance function
+	// and doing this here causes a race condition if the node shows up
 	for _, iid := range exOrder {
 		if depMap[iid] == nil {
 			if m.instances.Get(iid) == nil {
 				return nil, nil, fmt.Errorf("getExecutionOrder: Unknown instance id: %v", iid)
 			}
+		}
+	}
+
+	if PAXOS_DEBUG {
+		exSet := NewInstanceIDSet(exOrder)
+		if diff := requiredInstances.Difference(exSet); diff.Size() > 0 {
+			instanceOut := ""
+			for _, iid := range diff.List() {
+				instanceOut = fmt.Sprintf("%v%v\n", instanceOut, m.instances.Get(iid))
+			}
+			logger.Critical(fmt.Sprintf("execution order is missing required instances:\n%v\n%v", diff, instanceOut))
 		}
 	}
 

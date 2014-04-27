@@ -651,6 +651,10 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 	if i.Status > INSTANCE_COMMITTED {
 		logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
 		return NewInvalidStatusUpdateError(i, INSTANCE_COMMITTED)
+	} else if PAXOS_DEBUG && i.Status == INSTANCE_COMMITTED {
+		if !NewInstanceIDSet(i.Dependencies).Equal(NewInstanceIDSet(inst.Dependencies)) || i.Sequence != inst.Sequence {
+			logger.Critical("%v already committed with different seq/deps", i.InstanceID)
+		}
 	}
 
 	if inst != nil && inst != i {
