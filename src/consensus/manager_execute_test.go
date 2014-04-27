@@ -236,27 +236,6 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_COMMITTED)
 }
 
-// tests that if a prepare phase removes an instance from the target
-// instance's dependency graph, it's not executed
-func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
-	managerPreparePhase = func(manager *Manager, instance *Instance) error {
-		s.preparePhaseCalls++
-		manager.commitInstance(instance, false)
-		return nil
-	}
-
-	val, err := s.manager.executeInstance(s.toExecute)
-	for i:=0; i<20; i++ {
-		runtime.Gosched()
-	}
-	c.Assert(val, gocheck.NotNil)
-	c.Assert(err, gocheck.IsNil)
-	c.Check(s.preparePhaseCalls, gocheck.Equals, 1)
-
-	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_COMMITTED)
-	c.Check(s.toExecute.Status, gocheck.Equals, INSTANCE_EXECUTED)
-}
-
 type ExecuteDependencyChainTest struct {
 	baseExecutionTest
 }
