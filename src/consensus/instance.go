@@ -690,9 +690,6 @@ func (i *Instance) NumBytesLimitedUnsafe() int {
 	numBytes += 4  // num dependencies header
 	numBytes += types.UUID_NUM_BYTES * len(i.Dependencies)
 
-	// sequence
-	numBytes += 8
-
 	// status
 	numBytes += 1
 
