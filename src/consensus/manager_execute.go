@@ -29,19 +29,14 @@ func (i *iidSorter) Less(x, y int) bool {
 	i0 := i.depMap[i.iids[x]]
 	i1 := i.depMap[i.iids[y]]
 
-	// first check the sequence#
-	if i0s, i1s := i0.getSeq(), i1.getSeq(); i0s != i1s {
-		return i0s < i1s
+	// first check the embedded timestamp
+	t0 := i0.InstanceID.Time()
+	t1 := i1.InstanceID.Time()
+	if t0 != t1 {
+		return t0 < t1
 	} else {
-		// then the embedded timestamp
-		t0 := i0.InstanceID.Time()
-		t1 := i1.InstanceID.Time()
-		if t0 != t1 {
-			return t0 < t1
-		} else {
-			// finally the lexicographic comparison
-			return bytes.Compare(i0.InstanceID.Bytes(), i1.InstanceID.Bytes()) == -1
-		}
+		// finally the lexicographic comparison
+		return bytes.Compare(i0.InstanceID.Bytes(), i1.InstanceID.Bytes()) == -1
 	}
 	return false
 }

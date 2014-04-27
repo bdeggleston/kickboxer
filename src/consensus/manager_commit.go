@@ -48,8 +48,6 @@ func (m *Manager) commitInstance(inst *Instance, incrementBallot bool) error {
 		return err
 	}
 
-	m.updateSeq(instance.getSeq())
-
 	if err := m.depsMngr.ReportAcknowledged(instance); err != nil {
 		return err
 	}
