@@ -467,8 +467,8 @@ func (s *ConsensusQueryBenchmarks) runBenchmark(numQueries int, c *gocheck.C) {
 	start := time.Now()
 
 	// print a status update every n queries
-	statusUpdateInterval := numQueries / 10
-	statusUpdateInterval2 := numQueries / 100
+	statusUpdateInterval := 10000
+	statusUpdateInterval2 := 1000
 	for i:=0; i<numQueries; i++ {
 		// adjust wait time for drift
 		expectedTime := start.Add(waitTime * time.Duration(i))
