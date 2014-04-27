@@ -335,9 +335,6 @@ type Instance struct {
 	// execution of this instance depends on
 	Dependencies []InstanceID
 
-	// the sequence number of this instance (like an array index)
-	Sequence uint64
-
 	// the current status of this instance
 	Status InstanceStatus
 
@@ -472,12 +469,6 @@ func (i *Instance) getBallot() uint32 {
 	return i.MaxBallot
 }
 
-func (i *Instance) getSeq() uint64 {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
-	return i.Sequence
-}
-
 func (i *Instance) getSuccessors() []node.NodeId {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
@@ -538,7 +529,6 @@ func (i *Instance) Copy() (*Instance, error) {
 		Successors: make([]node.NodeId, len(i.Successors)),
 		Command: i.Command.Copy(),
 		Dependencies: make([]InstanceID, len(i.Dependencies)),
-		Sequence: i.Sequence,
 		Status: i.Status,
 		MaxBallot: i.MaxBallot,
 		Noop: i.Noop,
@@ -555,7 +545,7 @@ func (i *Instance) Copy() (*Instance, error) {
 
 // merges sequence and dependencies onto this instance, and returns
 // true/false to indicate if there were any changes
-func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) (bool, error) {
+func (i *Instance) mergeAttributes(deps []InstanceID) (bool, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -563,10 +553,6 @@ func (i *Instance) mergeAttributes(seq uint64, deps []InstanceID) (bool, error) 
 		return false, fmt.Errorf("attributes can only be merged on instances with preaccepted status, %v", i.Status)
 	}
 	changes := false
-	if seq > i.Sequence {
-		changes = true
-		i.Sequence = seq
-	}
 	iSet := NewInstanceIDSet(i.Dependencies)
 	oSet := NewInstanceIDSet(deps)
 	if !iSet.Equal(oSet) {
@@ -600,7 +586,6 @@ func (i *Instance) preaccept(inst *Instance, incrementBallot bool) error {
 		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_PREACCEPTED
-	i.Sequence = i.manager.getNextSeq()
 	if deps, err := i.manager.getInstanceDeps(i); err != nil {
 		return err
 	} else {
@@ -626,7 +611,6 @@ func (i *Instance) accept(inst *Instance, incrementBallot bool) error {
 		inst.lock.RLock()
 		i.setDeps("accept", inst.Dependencies)
 
-		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
 			i.MaxBallot = inst.MaxBallot
@@ -652,7 +636,7 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		logger.Debug("Commit: Can't commit instance %v with status %v", inst.InstanceID, inst.Status)
 		return NewInvalidStatusUpdateError(i, INSTANCE_COMMITTED)
 	} else if PAXOS_DEBUG && i.Status == INSTANCE_COMMITTED {
-		if !NewInstanceIDSet(i.Dependencies).Equal(NewInstanceIDSet(inst.Dependencies)) || i.Sequence != inst.Sequence {
+		if !NewInstanceIDSet(i.Dependencies).Equal(NewInstanceIDSet(inst.Dependencies)) {
 			logger.Critical("%v already committed with different seq/deps", i.InstanceID)
 		}
 	}
@@ -663,7 +647,6 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		// so copy the seq & deps onto the existing instance
 		i.setDeps("commit", inst.Dependencies)
 
-		i.Sequence = inst.Sequence
 		i.Noop = inst.Noop
 		if inst.MaxBallot > i.MaxBallot {
 			i.MaxBallot = inst.MaxBallot
@@ -752,7 +735,6 @@ func (i *Instance) SerializeLimitedUnsafe(buf *bufio.Writer) error {
 		if err := (&i.Dependencies[idx]).WriteBuffer(buf); err != nil { return err }
 	}
 
-	if err := binary.Write(buf, binary.LittleEndian, &i.Sequence); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &i.Status); err != nil { return err }
 	if err := binary.Write(buf, binary.LittleEndian, &i.MaxBallot); err != nil { return err }
 
@@ -792,7 +774,6 @@ func (i *Instance) DeserializeLimited(buf *bufio.Reader) error {
 	}
 	i.setDeps("deserialize", deps)
 
-	if err := binary.Read(buf, binary.LittleEndian, &i.Sequence); err != nil { return err }
 	if err := binary.Read(buf, binary.LittleEndian, &i.Status); err != nil { return err }
 	if err := binary.Read(buf, binary.LittleEndian, &i.MaxBallot); err != nil { return err }
 
