@@ -144,7 +144,6 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		Successors: []node.NodeId{node.NewNodeId(), node.NewNodeId(), node.NewNodeId()},
 		Command: store.NewInstruction("set", "a", []string{"b", "c"}, time.Now()),
 		Dependencies: []InstanceID{NewInstanceID(), NewInstanceID()},
-		Sequence: uint64(11),
 		Status: INSTANCE_ACCEPTED,
 		MaxBallot: uint32(500),
 		Noop: true,
@@ -181,11 +180,11 @@ func (s *InstanceTest) TestMergeAttributesBadStatus(c *gocheck.C) {
 	instance := makeInstance(node.NewNodeId(), []InstanceID{})
 
 	instance.Status = INSTANCE_PREACCEPTED
-	_, err = instance.mergeAttributes(instance.Sequence, []InstanceID{})
+	_, err = instance.mergeAttributes([]InstanceID{})
 	c.Assert(err, gocheck.IsNil)
 
 	instance.Status = INSTANCE_ACCEPTED
-	_, err = instance.mergeAttributes(instance.Sequence, []InstanceID{})
+	_, err = instance.mergeAttributes([]InstanceID{})
 	c.Assert(err, gocheck.NotNil)
 
 }
