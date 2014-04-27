@@ -81,13 +81,6 @@ func (s *ManagerTest) TestInstanceCreation(c *gocheck.C) {
 	c.Check(actual, gocheck.DeepEquals, expected)
 }
 
-func (s *ManagerTest) TestGetNextSeq(c *gocheck.C) {
-	s.manager.maxSeq = 5
-	nextSeq := s.manager.getNextSeqUnsafe()
-
-	c.Assert(nextSeq, gocheck.Equals, uint64(6))
-}
-
 // tests that the addMissingInstance method works properly
 func (s *ManagerTest) TestAddMissingInstance(c *gocheck.C) {
 	var err error

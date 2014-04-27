@@ -27,14 +27,12 @@ func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 	// sanity check
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, false)
 
-	seq := s.manager.maxSeq
 	err := s.manager.preAcceptInstance(instance, false)
 	c.Assert(err, gocheck.IsNil)
 
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
 
 	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot)
-	c.Check(s.manager.maxSeq, gocheck.Equals, seq + 1)
 }
 
 func (s *PreAcceptInstanceTest) TestBallotIncrement(c *gocheck.C) {
@@ -354,8 +352,6 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 		return iids, nil
 	}
 
-	s.manager.maxSeq = 3
-
 	instructions := getBasicInstruction()
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
@@ -393,7 +389,6 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	managerGetInstanceDeps = func(_ *Manager, _ *Instance) ([]InstanceID, error) {
 		return iids, nil
 	}
-	s.manager.maxSeq = 3
 
 	// get expected deps, and modify so the request handler will update
 	instruction := getBasicInstruction()
@@ -449,8 +444,6 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 		copy(deps, iids)
 		return deps, nil
 	}
-
-	s.manager.maxSeq = 3
 
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),

@@ -163,9 +163,6 @@ type Manager struct {
 	executed     []InstanceID
 	executedLock sync.RWMutex
 
-	maxSeq       uint64
-	maxSeqLock   sync.RWMutex
-
 	depsMngr  *dependencyManager
 }
 
@@ -305,43 +302,6 @@ var managerGetInstanceDeps = func(m *Manager, instance *Instance) ([]InstanceID,
 
 func (m *Manager) getInstanceDeps(instance *Instance) ([]InstanceID, error) {
 	return managerGetInstanceDeps(m, instance)
-}
-
-// TODO: delete
-// returns the next available sequence number for a new instance
-// this method doesn't implement any locking or persistence
-func (m *Manager) getNextSeqUnsafe() uint64 {
-	return m.getNextSeq()
-}
-
-// returns the next available sequence number for a new instance
-// this method doesn't implement any locking or persistence
-func (m *Manager) getNextSeq() uint64 {
-	m.maxSeqLock.Lock()
-	defer m.maxSeqLock.Unlock()
-	m.maxSeq++
-	return m.maxSeq
-}
-
-// updates the manager's sequence number, if the given
-// number is higher
-func (m *Manager) updateSeq(seq uint64) error {
-	existing := func() uint64 {
-		m.maxSeqLock.RLock()
-		defer m.maxSeqLock.RUnlock()
-		return m.maxSeq
-	}()
-
-	if existing < seq {
-		func() {
-			m.maxSeqLock.Lock()
-			defer m.maxSeqLock.Unlock()
-			if m.maxSeq < seq {
-				m.maxSeq = seq
-			}
-		}()
-	}
-	return nil
 }
 
 // creates a bare epaxos instance from the given instructions

@@ -61,8 +61,6 @@ func (s *CommitInstanceTest) TestBallotIncrement(c *gocheck.C) {
 // added to the instances and committed set, and
 // persisted if the instance hasn't been seen before
 func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
-	s.manager.maxSeq = 3
-
 	leaderInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
 
 	// sanity checks
