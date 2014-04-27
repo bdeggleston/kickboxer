@@ -28,18 +28,13 @@ var _ = gocheck.Suite(&CommitInstanceTest{})
 // already been executed
 func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	replicaInstance := makeInstance(s.manager.GetLocalID(), makeDependencies(4))
-	s.manager.maxSeq = 3
-	replicaInstance.Sequence = s.manager.maxSeq
 	s.manager.acceptInstance(replicaInstance, false)
 	originalBallot := replicaInstance.MaxBallot
 
 	leaderInstance, _ := replicaInstance.Copy()
-	leaderInstance.Sequence++
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
 	c.Assert(len(replicaInstance.Dependencies), gocheck.Equals, 4)
-	c.Assert(replicaInstance.Sequence, gocheck.Equals, uint64(3))
-	c.Assert(s.manager.maxSeq, gocheck.Equals, uint64(3))
 	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, true)
 
 	oldStatCommitCount := s.manager.stats.(*mockStatter).counters["commit.instance.count"]
@@ -49,8 +44,6 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(replicaInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 	c.Check(replicaInstance.MaxBallot, gocheck.Equals, originalBallot)
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 5)
-	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(4))
-	c.Check(s.manager.maxSeq, gocheck.Equals, uint64(4))
 	c.Check(s.manager.stats.(*mockStatter).counters["commit.instance.count"], gocheck.Equals, oldStatCommitCount + 1)
 	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, false)
 	c.Check(replicaInstance.executeTimeout.After(time.Now()), gocheck.Equals, true)
@@ -71,7 +64,6 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 	s.manager.maxSeq = 3
 
 	leaderInstance := makeInstance(node.NewNodeId(), makeDependencies(4))
-	leaderInstance.Sequence = s.manager.maxSeq + 2
 
 	// sanity checks
 	c.Assert(s.manager.instances.Contains(leaderInstance), gocheck.Equals, false)
@@ -87,8 +79,6 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 	c.Check(replicaInstance.Status, gocheck.Equals,  INSTANCE_COMMITTED)
 	c.Check(leaderInstance.Status, gocheck.Equals, INSTANCE_COMMITTED)
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 4)
-	c.Check(replicaInstance.Sequence, gocheck.Equals, uint64(5))
-	c.Check(s.manager.maxSeq, gocheck.Equals, uint64(5))
 }
 
 // tests that an instance is not marked as committed,
@@ -96,8 +86,6 @@ func (s *CommitInstanceTest) TestNewSuccessCase(c *gocheck.C) {
 // been executed
 func (s *CommitInstanceTest) TestCommitExecutedFailure(c *gocheck.C) {
 	replicaInstance := makeInstance(s.manager.GetLocalID(), makeDependencies(4))
-	s.manager.maxSeq = 3
-	replicaInstance.Sequence = s.manager.maxSeq
 	replicaInstance.Status = INSTANCE_EXECUTED
 
 	s.manager.instances.Add(replicaInstance)
@@ -286,7 +274,6 @@ func (s *CommitReplicaTest) TestHandleNewSuccess(c *gocheck.C) {
 	leaderInstance := makeInstance(leaderID, []InstanceID{})
 	leaderInstance.Dependencies, err = s.manager.getInstanceDeps(leaderInstance)
 	c.Assert(err, gocheck.IsNil)
-	leaderInstance.Sequence += 5
 
 	request := &CommitRequest{
 		Instance: leaderInstance,

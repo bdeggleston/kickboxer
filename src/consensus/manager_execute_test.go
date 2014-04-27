@@ -74,8 +74,6 @@ func (s *baseExecutionTest) SetUpTest(c *gocheck.C) {
 	i5 := addInst()
 	addDeps(i3, i4, i5)
 	addDeps(i4, i5)
-	i3.Sequence = i5.Sequence
-	i4.Sequence = i5.Sequence
 }
 
 
@@ -242,7 +240,6 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 // instance's dependency graph, it's not executed
 func (s *ExecuteInstanceTest) TestPrepareExOrderChange(c *gocheck.C) {
 	managerPreparePhase = func(manager *Manager, instance *Instance) error {
-		instance.Sequence += 5
 		s.preparePhaseCalls++
 		manager.commitInstance(instance, false)
 		return nil
@@ -415,7 +412,6 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 		} else {
 			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
 		}
-		instance.Sequence = uint64(i)
 		instances = append(instances, instance)
 		prevInstance = instance
 		component = append(component, instance.InstanceID)
@@ -464,7 +460,6 @@ func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponent
 		} else {
 			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
 		}
-		instance.Sequence = uint64(i)
 		instances = append(instances, instance)
 		prevInstance = instance
 	}
@@ -511,7 +506,6 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSucces
 		} else {
 			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
 		}
-		instance.Sequence = uint64(i)
 		instances = append(instances, instance)
 		prevInstance = instance
 
@@ -554,7 +548,6 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 		} else {
 			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
 		}
-		instance.Sequence = uint64(i)
 		instances = append(instances, instance)
 		prevInstance = instance
 
@@ -598,7 +591,6 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 		} else {
 			instance.Dependencies = []InstanceID{prevInstance.InstanceID}
 		}
-		instance.Sequence = uint64(i)
 		instances = append(instances, instance)
 		prevInstance = instance
 

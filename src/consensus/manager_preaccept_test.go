@@ -33,7 +33,6 @@ func (s *PreAcceptInstanceTest) TestSuccessCase(c *gocheck.C) {
 
 	c.Assert(s.manager.instances.Contains(instance), gocheck.Equals, true)
 
-	c.Check(instance.Sequence, gocheck.Equals, seq + 1)
 	c.Check(instance.MaxBallot, gocheck.Equals, originalBallot)
 	c.Check(s.manager.maxSeq, gocheck.Equals, seq + 1)
 }
@@ -234,7 +233,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 	for i := 0; i < 4; i++ {
 		s.instance.Dependencies = append(s.instance.Dependencies, NewInstanceID())
 	}
-	s.instance.Sequence = 3
 	expected := NewInstanceIDSet(s.instance.Dependencies)
 
 	// setup remote instance seq & deps
@@ -242,7 +240,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	remoteInstance1.Dependencies = s.instance.Dependencies[1:]
 	remoteInstance1.Dependencies = append(remoteInstance1.Dependencies, NewInstanceID())
-	remoteInstance1.Sequence++
 	expected.Add(remoteInstance1.Dependencies...)
 
 	remoteInstance2, err := s.instance.Copy()
@@ -250,14 +247,11 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 	remoteInstance2.Dependencies = s.instance.Dependencies[2:]
 	remoteInstance2.Dependencies = append(remoteInstance2.Dependencies, NewInstanceID())
 	remoteInstance2.Dependencies = append(remoteInstance2.Dependencies, NewInstanceID())
-	remoteInstance2.Sequence++
 	expected.Add(remoteInstance2.Dependencies...)
 
 	// sanity checks
 	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
 	c.Assert(len(remoteInstance1.Dependencies), gocheck.Equals, 4)
-	c.Assert(s.instance.Sequence, gocheck.Equals, uint64(3))
-	c.Assert(remoteInstance1.Sequence, gocheck.Equals, uint64(4))
 
 	//
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
@@ -278,7 +272,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributes(c *gocheck.C) {
 
 	actual := NewInstanceIDSet(s.instance.Dependencies)
 	c.Check(actual, gocheck.DeepEquals, expected)
-	c.Check(s.instance.Sequence, gocheck.Equals, remoteInstance2.Sequence)
 }
 
 func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
@@ -286,7 +279,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 	for i := 0; i < 4; i++ {
 		s.instance.Dependencies = append(s.instance.Dependencies, NewInstanceID())
 	}
-	s.instance.Sequence = 3
 	expected := NewInstanceIDSet(s.instance.Dependencies)
 
 	// setup remote instance seq & deps
@@ -295,8 +287,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 	// sanity checks
 	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
 	c.Assert(len(remoteInstance.Dependencies), gocheck.Equals, 4)
-	c.Assert(s.instance.Sequence, gocheck.Equals, uint64(3))
-	c.Assert(remoteInstance.Sequence, gocheck.Equals, uint64(3))
 
 	responses := []*PreAcceptResponse{&PreAcceptResponse{
 		Accepted:         true,
@@ -311,7 +301,6 @@ func (s *PreAcceptLeaderTest) TestMergeAttributesNoChanges(c *gocheck.C) {
 	c.Assert(len(s.instance.Dependencies), gocheck.Equals, 4)
 
 	actual := NewInstanceIDSet(s.instance.Dependencies)
-	c.Check(s.instance.Sequence, gocheck.Equals, uint64(3))
 	c.Check(expected.Equal(actual), gocheck.Equals, true)
 }
 
@@ -372,7 +361,6 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 		InstanceID:   NewInstanceID(),
 		LeaderID:     node.NewNodeId(),
 		Command:      instructions,
-		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	instance.Dependencies, _ = s.manager.getInstanceDeps(instance)
@@ -392,7 +380,6 @@ func (s *PreAcceptReplicaTest) TestHandleIdenticalAttrs(c *gocheck.C) {
 	actualDeps := NewInstanceIDSet(localInstance.Dependencies)
 
 	c.Assert(expectedDeps.Equal(actualDeps), gocheck.Equals, true)
-	c.Check(localInstance.Sequence, gocheck.Equals, uint64(4))
 	c.Check(localInstance.DependencyMatch, gocheck.Equals, true)
 	c.Check(len(response.MissingInstances), gocheck.Equals, 0)
 }
@@ -424,7 +411,6 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 		LeaderID:     node.NewNodeId(),
 		Command:      instruction,
 		Dependencies: leaderDeps,
-		Sequence:     3,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	c.Assert(instance, gocheck.NotNil)
@@ -445,7 +431,6 @@ func (s *PreAcceptReplicaTest) TestHandleDifferentAttrs(c *gocheck.C) {
 	actualDeps := NewInstanceIDSet(responseInst.Dependencies)
 	c.Assert(actualDeps, gocheck.DeepEquals, expectedDeps)
 
-	c.Check(responseInst.Sequence, gocheck.Equals, uint64(4))
 	c.Check(responseInst.DependencyMatch, gocheck.Equals, false)
 
 	// check that handle pre-accept returns any missing
@@ -472,7 +457,6 @@ func (s *PreAcceptReplicaTest) TestHandleNewAttrs(c *gocheck.C) {
 		LeaderID:     node.NewNodeId(),
 		Command:      getBasicInstruction(),
 		Dependencies: []InstanceID{},
-		Sequence:     s.manager.maxSeq + 1,
 		Status:       INSTANCE_PREACCEPTED,
 	}
 	replicaDeps, _ := managerGetInstanceDeps(nil, nil)
