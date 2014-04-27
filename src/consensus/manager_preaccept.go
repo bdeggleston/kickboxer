@@ -44,7 +44,6 @@ func (m *Manager) preAcceptInstance(inst *Instance, incrementBallot bool) error 
 		return err
 	}
 
-	m.updateSeq(instance.getSeq())
 	if err := m.Persist(); err != nil {
 		m.statsInc("preaccept.instance.error", 1)
 		return err
@@ -135,7 +134,7 @@ func (m *Manager) mergePreAcceptAttributes(instance *Instance, responses []*PreA
 	logger.Debug("Merging preaccept attributes from %v responses", len(responses))
 	changes := false
 	for i, response := range responses {
-		mergeChanges, err := instance.mergeAttributes(response.Instance.Sequence, response.Instance.Dependencies)
+		mergeChanges, err := instance.mergeAttributes(response.Instance.Dependencies)
 		if err != nil {
 			return changes, err
 		}
@@ -215,7 +214,6 @@ func (m *Manager) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse
 	logger.Debug("PreAccept message received for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 	logger.Debug("Processing PreAccept message for %v, ballot: %v", request.Instance.InstanceID, request.Instance.MaxBallot)
 
-	extSeq := request.Instance.Sequence
 	extDeps := NewInstanceIDSet(request.Instance.Dependencies)
 
 	if instance := m.instances.Get(request.Instance.InstanceID); instance != nil {
@@ -245,7 +243,7 @@ func (m *Manager) HandlePreAccept(request *PreAcceptRequest) (*PreAcceptResponse
 	// check agreement on seq and deps with leader
 	instance := m.instances.Get(request.Instance.InstanceID)
 	newDeps := NewInstanceIDSet(instance.Dependencies)
-	instance.DependencyMatch = extSeq == instance.Sequence && extDeps.Equal(newDeps)
+	instance.DependencyMatch = extDeps.Equal(newDeps)
 
 	if err := m.Persist(); err != nil {
 		return nil, err
