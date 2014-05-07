@@ -173,8 +173,6 @@ var managerPreAcceptPhase = func(m *Manager, instance *Instance) (acceptRequired
 
 	// add missing instances
 	addMissingInstances := func() error {
-//		m.depsLock.Lock()
-//		defer m.depsLock.Unlock()
 		for _, response := range paResponses {
 			if len(response.MissingInstances) > 0 {
 				if err := m.addMissingInstancesUnsafe(response.MissingInstances...); err != nil {
@@ -184,6 +182,7 @@ var managerPreAcceptPhase = func(m *Manager, instance *Instance) (acceptRequired
 		}
 		return nil
 	}
+
 	if err := addMissingInstances(); err != nil {
 		return false, err
 	}
