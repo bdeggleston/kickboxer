@@ -49,6 +49,13 @@ func NewInstanceID() InstanceID {
 	return InstanceID{types.NewUUID1()}
 }
 
+type InstanceResult struct {
+	val store.Value
+	err error
+}
+
+type InstanceResultChan (chan InstanceResult)
+
 type DepsLog struct {
 	Reason string
 	Deps []InstanceID
@@ -98,6 +105,9 @@ type Instance struct {
 	// depends on writes. If false, it will depend on reads
 	// and writes
 	ReadOnly bool
+
+	// channels that clients are waiting on for results
+	ResultListeners []InstanceResultChan
 
 	// log of dependency changes, used for debugging
 	DepsLog []DepsLog

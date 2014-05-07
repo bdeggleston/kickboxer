@@ -221,20 +221,6 @@ func (m *Manager) GetLocalID() node.NodeId {
 	return m.cluster.GetID()
 }
 
-func (m *Manager) Query(instruction store.Instruction) (store.Value, error) {
-
-	if !m.checkLocalKeyEligibility(instruction.Key) {
-		// need to iterate over the possible replicas, allowing for
-		// some to be down
-		panic("Forward to eligible replica not implemented yet")
-	} else {
-		val, err := m.ExecuteQuery(instruction)
-		return val, err
-	}
-
-	return nil, nil
-}
-
 func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
 	switch request := msg.(type) {
 	case *PreAcceptRequest:
@@ -425,3 +411,18 @@ func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, erro
 
 	return m.executeInstance(instance)
 }
+
+func (m *Manager) Query(instruction store.Instruction) (store.Value, error) {
+
+	if !m.checkLocalKeyEligibility(instruction.Key) {
+		// need to iterate over the possible replicas, allowing for
+		// some to be down
+		panic("Forward to eligible replica not implemented yet")
+	} else {
+		val, err := m.ExecuteQuery(instruction)
+		return val, err
+	}
+
+	return nil, nil
+}
+
