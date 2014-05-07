@@ -6,6 +6,7 @@ package consensus
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -808,7 +809,7 @@ func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	c.Check(s.cluster.values["a"].value, gocheck.Equals, 5)
 }
 
-//
+// tests that noop instances aren't applied to the store
 func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 	instance := s.manager.makeInstance(s.getInstruction(5))
 	instance.Status = INSTANCE_COMMITTED
@@ -818,6 +819,31 @@ func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 	c.Assert(val, gocheck.IsNil)
 	c.Check(instance.Noop, gocheck.Equals, true)
 	c.Check(len(s.cluster.instructions), gocheck.Equals, 0)
+}
+
+// tests that goroutines listening on an instance are
+// notified of the result when it executes
+func (s *ExecuteApplyInstanceTest) TestResultListenerBroadcast(c *gocheck.C) {
+	instance := s.manager.makeInstance(s.getInstruction(5))
+	instance.Status = INSTANCE_COMMITTED
+
+	var result InstanceResult
+	resultListener := NewInstanceResultChan()
+	instance.ResultListeners = append(instance.ResultListeners, resultListener)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func(){
+		result = <- resultListener
+		wg.Done()
+	}()
+	val, err := s.manager.applyInstance(instance)
+	wg.Wait()
+
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(val, gocheck.NotNil)
+	c.Assert(result.err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.Equals, val)
 }
 
 // tests the executing an instance against the store

@@ -248,6 +248,11 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 		}
 		m.statsInc("execute.instance.success.count", 1)
 
+		// notify listeners of query result
+		for _, listener := range instance.ResultListeners {
+			listener <- InstanceResult{val:val, err:err}
+		}
+
 		return val, err
 	}
 

@@ -56,6 +56,15 @@ type InstanceResult struct {
 
 type InstanceResultChan (chan InstanceResult)
 
+// returns a new InstanceResultChan
+func NewInstanceResultChan() InstanceResultChan {
+	// make the channel buffered by 1 so
+	// the executor doesn't block forever
+	// if no one is listening on the channel
+	// yet / anymore
+	return make(chan InstanceResult, 1)
+}
+
 type DepsLog struct {
 	Reason string
 	Deps []InstanceID
