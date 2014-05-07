@@ -3,7 +3,6 @@ package consensus
 import (
 	"bufio"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"

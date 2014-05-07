@@ -1,4 +1,10 @@
 package consensus
+
+import (
+	"encoding/json"
+	"sync"
+)
+
 //
 type InstanceIDSet map[InstanceID]bool
 
