@@ -298,6 +298,7 @@ func (s *PrepareIntegrationTest) TestPreparePreAccept(c *gocheck.C) {
 	s.waitForStatus(instance.InstanceID, INSTANCE_COMMITTED)
 	c.Assert(err, gocheck.IsNil)
 	// ballot +3: prepare, preaccept, and commit messages
+	// TODO: this fails 10% of the time, obtained ballot 3, expected 4
 	c.Assert(instance.getBallot(), gocheck.Equals, localBallot1 + 3)
 	c.Assert(instance.getStatus(), gocheck.Equals, INSTANCE_COMMITTED)
 	c.Assert(s.manager.instances.Get(instance.InstanceID), gocheck.Equals, instance)
