@@ -372,19 +372,16 @@ func (m *Manager) updateInstanceBallotFromResponses(instance *Instance, response
 // executes a serialized query against the cluster this method designates the node
 // it's called on as the command leader for the given query. Should only be called
 // once per client query
-func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, error) {
+func (m *Manager) ExecutePaxos(instance *Instance) {
 	start := time.Now()
 	defer m.statsTiming("manager.client.query.time", start)
 	m.statsInc("manager.client.query.count", 1)
-
-	// create epaxos instance, and preaccept locally
-	instance := m.makeInstance(instruction)
 
 	logger.Debug("Beginning preaccept leader phase for: %v", instance.InstanceID)
 	// run pre-accept
 	acceptRequired, err := m.preAcceptPhase(instance)
 	if err != nil {
-		return nil, err
+		logger.Info("Error running preaccept phase instance: %v", err)
 	}
 
 	logger.Debug("Preaccept leader phase completed for: %v", instance.InstanceID)
@@ -395,7 +392,7 @@ func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, erro
 		// were different from what was sent to them. Run the multi-paxos
 		// accept phase
 		if err := m.acceptPhase(instance); err != nil {
-			return nil, err
+			logger.Info("Error running accept phase instance: %v", err)
 		}
 		logger.Debug("Accept leader phase completed for: %v", instance.InstanceID)
 	}
@@ -405,22 +402,31 @@ func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, erro
 	// matched what was sent to them, or the correcting accept phase was successful
 	// commit this instance
 	if err := m.commitPhase(instance); err != nil {
-		return nil, err
+		logger.Info("Error running commit phase instance: %v", err)
 	}
 	logger.Debug("Commit leader phase completed for: %v", instance.InstanceID)
 
-	return m.executeInstance(instance)
+	m.executeInstance(instance)
 }
 
-func (m *Manager) Query(instruction store.Instruction) (store.Value, error) {
+func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, error) {
 
 	if !m.checkLocalKeyEligibility(instruction.Key) {
 		// need to iterate over the possible replicas, allowing for
 		// some to be down
 		panic("Forward to eligible replica not implemented yet")
-	} else {
-		val, err := m.ExecuteQuery(instruction)
-		return val, err
+	}
+
+	// create epaxos instance, and preaccept locally
+	instance := m.makeInstance(instruction)
+	resultListener := NewInstanceResultChan()
+
+	go m.ExecutePaxos(instance)
+
+	var result InstanceResult
+	select {
+	case result = <-resultListener:
+		return result.val, result.err
 	}
 
 	return nil, nil
