@@ -829,7 +829,7 @@ func (s *ExecuteApplyInstanceTest) TestResultListenerBroadcast(c *gocheck.C) {
 
 	var result InstanceResult
 	resultListener := NewInstanceResultChan()
-	instance.ResultListeners = append(instance.ResultListeners, resultListener)
+	instance.addListener(resultListener)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)

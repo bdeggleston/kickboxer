@@ -274,6 +274,12 @@ func (i *Instance) setStronglyConnectedIds(iids []InstanceID) {
 	i.StronglyConnected = NewInstanceIDSet(iids)
 }
 
+func (i *Instance) addListener(listener InstanceResultChan) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	i.ResultListeners = append(i.ResultListeners, listener)
+}
+
 // returns a copy of the instance
 func (i *Instance) Copy() (*Instance, error) {
 	i.lock.RLock()

@@ -266,6 +266,7 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 	logger.Debug("Execute: success: %v on %v", instance.InstanceID, m.GetLocalID())
 	return val, nil
 }
+
 // executes the dependencies up to the given instance
 func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
 	var val store.Value
