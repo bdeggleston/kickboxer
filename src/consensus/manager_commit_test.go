@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"sync"
-	"time"
 )
 
 import (
@@ -34,7 +33,6 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	leaderInstance.Dependencies = append(leaderInstance.Dependencies, NewInstanceID())
 
 	c.Assert(len(replicaInstance.Dependencies), gocheck.Equals, 4)
-	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, true)
 
 	oldStatCommitCount := s.manager.stats.(*mockStatter).counters["commit.instance.count"]
 	err := s.manager.commitInstance(leaderInstance, false)
@@ -44,8 +42,6 @@ func (s *CommitInstanceTest) TestExistingSuccessCase(c *gocheck.C) {
 	c.Check(replicaInstance.MaxBallot, gocheck.Equals, originalBallot)
 	c.Check(len(replicaInstance.Dependencies), gocheck.Equals, 5)
 	c.Check(s.manager.stats.(*mockStatter).counters["commit.instance.count"], gocheck.Equals, oldStatCommitCount + 1)
-	c.Check(replicaInstance.executeTimeout.IsZero(), gocheck.Equals, false)
-	c.Check(replicaInstance.executeTimeout.After(time.Now()), gocheck.Equals, true)
 }
 
 func (s *CommitInstanceTest) TestBallotIncrement(c *gocheck.C) {

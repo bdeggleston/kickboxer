@@ -148,7 +148,6 @@ func (s *InstanceSerializationTest) TestSerialization(c *gocheck.C) {
 		MaxBallot: uint32(500),
 		Noop: true,
 		commitTimeout: time.Now(),
-		executeTimeout: time.Now(),
 		DependencyMatch: true,
 		ReadOnly: true,
 	}

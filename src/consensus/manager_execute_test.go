@@ -197,7 +197,6 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 
 	s.patchPreparePhase(NewBallotError("nope"), false)
 
-	s.toExecute.getExecuteEvent()
 	var err error
 	listener := s.toExecute.addListener()
 	go func() { err = s.manager.executeInstance(s.toExecute) }()
@@ -208,8 +207,6 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	cerr := s.manager.commitInstance(s.toPrepare, false)
 	c.Assert(cerr, gocheck.IsNil)
 	s.toPrepare.broadcastCommitEvent()
-
-	s.toExecute.getExecuteEvent().wait()
 
 	result := <- listener
 	c.Assert(err, gocheck.IsNil)
@@ -730,32 +727,6 @@ func (s *ExecuteApplyInstanceTest) TestResultListenerBroadcast(c *gocheck.C) {
 	c.Assert(val, gocheck.NotNil)
 	c.Assert(result.err, gocheck.IsNil)
 	c.Assert(result.val, gocheck.Equals, val)
-}
-
-// tests the executing an instance against the store
-// broadcasts to an existing notify instance, and
-// removes it from the executeNotify map
-func (s *ExecuteApplyInstanceTest) TestNotifyHandling(c *gocheck.C) {
-	instance := s.manager.makeInstance(s.getInstruction(5))
-	s.manager.commitInstance(instance, false)
-	instance.getExecuteEvent()
-
-	broadcast := false
-	broadcastListener := func() {
-		instance.getExecuteEvent().wait()
-		broadcast = true
-	}
-	go broadcastListener()
-	runtime.Gosched() // yield goroutine
-
-	c.Check(broadcast, gocheck.Equals, false)
-	c.Check(instance.executeEvent, gocheck.NotNil)
-
-	_, err := s.manager.applyInstance(instance)
-	runtime.Gosched() // yield goroutine
-	c.Assert(err, gocheck.IsNil)
-
-	c.Check(broadcast, gocheck.Equals, true)
 }
 
 // tests that apply instance marks the instance as

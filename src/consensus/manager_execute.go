@@ -260,8 +260,6 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	// wake up any goroutines waiting on this instance
-	instance.broadcastExecuteEvent()
 
 	logger.Debug("Execute: success: %v on %v", instance.InstanceID, m.GetLocalID())
 	return val, nil

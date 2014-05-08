@@ -134,11 +134,6 @@ type Instance struct {
 	// * not message serialized *
 	commitTimeout time.Time
 
-	// indicates the time that we can stop waiting for the
-	// the command to be executed by ExecuteQuery
-	// * not message serialized *
-	executeTimeout time.Time
-
 	// locking
 	lock sync.RWMutex
 
@@ -149,7 +144,6 @@ type Instance struct {
 	// events that wait on commit/execute so dependent
 	// threads are notified immediately
 	commitEvent *event
-	executeEvent *event
 
 	// the instance's parent manager
 	manager *Manager
@@ -170,35 +164,6 @@ func (i *Instance) broadcastCommitEvent() {
 	if i.commitEvent != nil {
 		i.commitEvent.broadcast()
 	}
-}
-
-func (i *Instance) getExecuteEvent() *event {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-	if i.executeEvent == nil {
-		i.executeEvent = newEvent()
-	}
-	return i.executeEvent
-}
-
-func (i *Instance) broadcastExecuteEvent() {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
-	if i.executeEvent != nil {
-		i.executeEvent.broadcast()
-	}
-}
-
-func (i *Instance) getExecuteTimeout() time.Time {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
-	return i.executeTimeout
-}
-
-func (i *Instance) getExecuteTimeoutEvent() <-chan time.Time {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
-	return getTimeoutEvent(i.executeTimeout.Sub(time.Now()))
 }
 
 func (i *Instance) getCommitTimeout() time.Time {
@@ -298,7 +263,6 @@ func (i *Instance) Copy() (*Instance, error) {
 		Noop: i.Noop,
 		DependencyMatch: i.DependencyMatch,
 		commitTimeout: i.commitTimeout,
-		executeTimeout: i.executeTimeout,
 		manager: i.manager,
 	}
 	copy(newInst.Successors, i.Successors)
@@ -418,7 +382,6 @@ func (i *Instance) commit(inst *Instance, incrementBallot bool) error {
 		inst.lock.RUnlock()
 	}
 	i.Status = INSTANCE_COMMITTED
-	i.executeTimeout = makeExecuteTimeout()
 
 	if incrementBallot {
 		i.MaxBallot++
@@ -564,8 +527,8 @@ func (i *Instance) NumBytes() int {
 	defer i.lock.RUnlock()
 	numBytes := i.NumBytesLimitedUnsafe()
 
-	// commit and execute timeouts
-	numBytes += serializer.NumTimeBytes() * 2
+	// commit timeout
+	numBytes += serializer.NumTimeBytes() * 1
 
 	return numBytes
 }
@@ -575,7 +538,6 @@ func (i *Instance) Serialize(buf *bufio.Writer) error {
 	defer i.lock.RUnlock()
 	if err := i.SerializeLimitedUnsafe(buf); err != nil { return err }
 	if err := serializer.WriteTime(buf, i.commitTimeout); err != nil { return err }
-	if err := serializer.WriteTime(buf, i.executeTimeout); err != nil { return err }
 
 	return nil
 }
@@ -584,9 +546,6 @@ func (i *Instance) Deserialize(buf *bufio.Reader) error {
 	if err := i.DeserializeLimited(buf); err != nil { return err }
 	if val, err := serializer.ReadTime(buf); err != nil { return err } else {
 		i.commitTimeout = val
-	}
-	if val, err := serializer.ReadTime(buf); err != nil { return err } else {
-		i.executeTimeout = val
 	}
 	return nil
 }
