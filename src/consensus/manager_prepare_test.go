@@ -3,6 +3,7 @@ package consensus
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -872,20 +873,15 @@ func (s *SuccessorPreparePhaseTest) TestSuccessorCommitEvent(c *gocheck.C) {
 	}
 	var proceed bool
 	var err error
-	var returned bool
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		proceed, err = managerDeferToSuccessor(s.manager, s.instance)
-		returned = true
+		wg.Done()
 	}()
 	runtime.Gosched()
 	s.instance.broadcastCommitEvent()
-	for i:=0; i<20; i++ {
-		if !returned {
-			runtime.Gosched()
-		} else {
-			break
-		}
-	}
+	wg.Wait()
 
 	c.Assert(err, gocheck.IsNil)
 	c.Check(proceed, gocheck.Equals, true)
