@@ -13,7 +13,6 @@ import (
 	"message"
 	"node"
 	"runtime"
-	"store"
 )
 
 type CommitInstanceTest struct {
@@ -296,9 +295,9 @@ func (s *CommitReplicaTest) TestHandleCommitAsyncExecute(c *gocheck.C) {
 	defer func() { managerExecuteInstance = oldExecute }()
 
 	executeCalled := false
-	managerExecuteInstance = func(m *Manager, i *Instance) (store.Value, error) {
+	managerExecuteInstance = func(m *Manager, i *Instance) error {
 		executeCalled = true
-		return nil, nil
+		return nil
 	}
 
 	instance := s.manager.makeInstance(getBasicInstruction())

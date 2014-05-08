@@ -16,7 +16,6 @@ import (
 
 import (
 	"node"
-	"store"
 )
 
 type baseExecutionTest struct {
@@ -144,9 +143,14 @@ func (s *ExecuteInstanceTest) patchPreparePhase(err error, commit bool) {
 // instance in the instance's dependency graph
 func (s *ExecuteInstanceTest) TestExplicitPrepare(c *gocheck.C) {
 	s.patchPreparePhase(nil, true)
-	val, err := s.manager.executeInstance(s.toExecute)
-	c.Assert(val, gocheck.NotNil)
+	listener := s.toExecute.addListener()
+	err := s.manager.executeInstance(s.toExecute)
 	c.Assert(err, gocheck.IsNil)
+
+
+	result := <-listener
+	c.Assert(result.err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.NotNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
 
 	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -168,10 +172,14 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetry(c *gocheck.C) {
 		s.preparePhaseCalls++
 		return nil
 	}
+	listener := s.toExecute.addListener()
 
-	val, err := s.manager.executeInstance(s.toExecute)
-	c.Assert(val, gocheck.NotNil)
+	err := s.manager.executeInstance(s.toExecute)
 	c.Assert(err, gocheck.IsNil)
+
+	result := <-listener
+	c.Assert(result.err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.NotNil)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 2)
 
 	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -190,9 +198,9 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	s.patchPreparePhase(NewBallotError("nope"), false)
 
 	s.toExecute.getExecuteEvent()
-	var val store.Value
 	var err error
-	go func() { val, err = s.manager.executeInstance(s.toExecute) }()
+	listener := s.toExecute.addListener()
+	go func() { err = s.manager.executeInstance(s.toExecute) }()
 	runtime.Gosched()
 
 	// 'commit' and notify while prepare waits
@@ -202,8 +210,12 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 	s.toPrepare.broadcastCommitEvent()
 
 	s.toExecute.getExecuteEvent().wait()
-	c.Assert(val, gocheck.NotNil)
+
+	result := <- listener
 	c.Assert(err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.NotNil)
+	c.Assert(result.err, gocheck.IsNil)
+
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
 
 	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -214,10 +226,11 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareRetryCondAbort(c *gocheck.C) {
 // a non ballot related error
 func (s *ExecuteInstanceTest) TestExplicitPrepareFailure(c *gocheck.C) {
 	s.patchPreparePhase(fmt.Errorf("negative"), false)
-	c.Log("TestExplicitPrepareFailure")
-	val, err := s.manager.executeInstance(s.toExecute)
-	c.Assert(val, gocheck.IsNil)
+	listener := s.toExecute.addListener()
+	err := s.manager.executeInstance(s.toExecute)
 	c.Assert(err, gocheck.NotNil)
+
+	c.Assert(len(listener), gocheck.Equals, 0)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, 1)
 
 	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
@@ -228,9 +241,11 @@ func (s *ExecuteInstanceTest) TestExplicitPrepareFailure(c *gocheck.C) {
 // failures than the BALLOT_FAILURE_RETRIES value
 func (s *ExecuteInstanceTest) TestExplicitPrepareBallotFailure(c *gocheck.C) {
 	s.patchPreparePhase(NewBallotError("nope"), false)
-	val, err := s.manager.executeInstance(s.toExecute)
-	c.Assert(val, gocheck.IsNil)
+	listener := s.toExecute.addListener()
+	err := s.manager.executeInstance(s.toExecute)
 	c.Assert(err, gocheck.NotNil)
+
+	c.Assert(len(listener), gocheck.Equals, 0)
 	c.Assert(s.preparePhaseCalls, gocheck.Equals, BALLOT_FAILURE_RETRIES)
 
 	c.Check(s.toPrepare.Status, gocheck.Equals, INSTANCE_PREACCEPTED)
@@ -342,16 +357,18 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 		instance := s.manager.instances.Get(iid)
 		instance.LeaderID = remoteID
 	}
+	resultListener := targetInst.addListener()
 
-	val, err := s.manager.executeInstance(targetInst)
-
+	err := s.manager.executeInstance(targetInst)
 	c.Assert(err, gocheck.IsNil)
+
+	result := <-resultListener
+	c.Assert(result.err, gocheck.IsNil)
+	val := result.val
 	c.Assert(val, gocheck.NotNil)
 
 	// check stats
-	c.Check(s.manager.stats.(*mockStatter).counters["execute.remote.success.count"], gocheck.Equals, int64(4))
-	c.Check(s.manager.stats.(*mockStatter).counters["execute.local.success.count"], gocheck.Equals, int64(1))
-	c.Check(s.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
+	c.Check(s.manager.stats.(*mockStatter).counters["execute.instance.success.count"], gocheck.Equals, int64(5))
 
 	// check returned value
 	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
@@ -591,157 +608,26 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 	}
 }
 
+// tests that noop instances are not applied to the store
 func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	s.commitInstances()
 	rejectInst := s.manager.instances.Get(s.expectedOrder[0])
 	rejectInst.Noop = true
 	targetInst := s.manager.instances.Get(s.expectedOrder[1])
+	resultListener := targetInst.addListener()
 
-	val, err := s.manager.executeInstance(targetInst)
+
+	err := s.manager.executeInstance(targetInst)
+
+	result := <-resultListener
 
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(val, gocheck.NotNil)
-	c.Check(val.(*intVal).value, gocheck.Equals, 1)
+	c.Assert(result.err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.NotNil)
+	c.Check(result.val.(*intVal).value, gocheck.Equals, 1)
 
 	// check the number of instructions
 	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
-}
-
-// tests the execution of dependency chains when all of the target dependencies
-// have are past their execution grace period
-func (s *ExecuteDependencyChainTest) TestTimedOutLocalDependencySuccess(c *gocheck.C) {
-	s.commitInstances()
-	targetInst := s.manager.instances.Get(s.expectedOrder[len(s.expectedOrder) - 2])
-
-	for i, iid := range s.expectedOrder {
-		if i > (s.maxIdx - 2) { break }
-		instance := s.manager.instances.Get(iid)
-		instance.executeTimeout = time.Now().Add(time.Duration(-1) * time.Second)
-	}
-
-	val, err := s.manager.executeInstance(targetInst)
-
-	c.Assert(err, gocheck.IsNil)
-	c.Assert(val, gocheck.NotNil)
-
-	// check stats
-	stats := s.manager.stats.(*mockStatter)
-	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(4))
-	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
-	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(5))
-
-	// check returned value
-	c.Assert(&intVal{}, gocheck.FitsTypeOf, val)
-	c.Check(4, gocheck.Equals, val.(*intVal).value)
-
-	// check the number of instructions
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, len(s.expectedOrder) - 1)
-
-	// check all the instances, instructions, etc
-	for i:=0; i<len(s.expectedOrder); i++ {
-		instance := s.manager.instances.Get(s.expectedOrder[i])
-
-		if i == len(s.expectedOrder) - 1 {
-			// unexecuted instance
-			c.Check(instance.Status, gocheck.Equals, INSTANCE_COMMITTED)
-
-		} else {
-			// executed instances
-			c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
-			instruction := s.cluster.instructions[i]
-			c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
-		}
-	}
-}
-
-// tests that, if a dependency's grace period has not passed, execute dependency chain
-// will wait on it's notify cond. If another gorouting does not executes the instance
-// before the wait period times out, the called executeDependencyChain will execute it,
-// and continue executing instances
-func (s *ExecuteDependencyChainTest) TestLocalDependencyTimeoutSuccess(c *gocheck.C) {
-	s.commitInstances()
-	depInst := s.manager.instances.Get(s.expectedOrder[0])
-	depInst.executeTimeout = time.Now().Add(time.Duration(10) * time.Millisecond)
-	targetInst := s.manager.instances.Get(s.expectedOrder[1])
-
-	val, err := s.manager.executeInstance(targetInst)
-
-	c.Assert(err, gocheck.IsNil)
-	c.Assert(val, gocheck.NotNil)
-
-	// check stats
-	stats := s.manager.stats.(*mockStatter)
-	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(2))
-
-	// check the number of instructions
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, 2)
-
-	// check all the instances, instructions, etc
-	for i:=0; i<2; i++ {
-		instance := s.manager.instances.Get(s.expectedOrder[i])
-
-		// executed instances
-		c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
-		instruction := s.cluster.instructions[i]
-		c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
-	}
-}
-
-// tests that, if a dependency's grace period has not passed, execute dependency chain
-// will wait on it's notify cond. If another gorouting executes the instance before
-// the wait period times out, the called executeDependencyChain will skip it, and
-// continue executing instances
-func (s *ExecuteDependencyChainTest) TestLocalDependencyBroadcastSuccess(c *gocheck.C) {
-	s.commitInstances()
-	depInst := s.manager.instances.Get(s.expectedOrder[0])
-	depInst.executeTimeout = time.Now().Add(time.Duration(1) * time.Minute)
-	targetInst := s.manager.instances.Get(s.expectedOrder[1])
-
-	var val store.Value
-	var err error
-
-	depInst.getExecuteEvent()
-
-	go func() { val, err = s.manager.executeInstance(targetInst) }()
-	runtime.Gosched()  // yield
-
-	// goroutine should be waiting
-	c.Check(s.manager.stats.(*mockStatter).counters["execute.instance.apply.count"], gocheck.Equals, int64(0))
-
-	// release wait
-	depInst.broadcastExecuteEvent()
-	for i:=0; i<20; i++ {
-		if val == nil {
-			runtime.Gosched()
-		} else {
-			break
-		}
-	}
-
-	c.Assert(err, gocheck.IsNil)
-	c.Check(val, gocheck.NotNil)
-
-	// check stats
-	stats := s.manager.stats.(*mockStatter)
-	c.Check(stats.counters["execute.local.wait.event.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.local.timeout.count"], gocheck.Equals, int64(0))
-	c.Check(stats.counters["execute.local.timeout.wait.count"], gocheck.Equals, int64(0))
-	c.Check(stats.counters["execute.local.success.count"], gocheck.Equals, int64(1))
-	c.Check(stats.counters["execute.instance.apply.count"], gocheck.Equals, int64(1))
-
-	// depInst should not have been executed, by receiving the broadcastEvent,
-	// it should have assumed that another goroutine executed the instance
-	c.Check(depInst.Status, gocheck.Equals, INSTANCE_COMMITTED)
-
-	// check the number of instructions
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
-
-	// the target instance should have been executed though
-	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
 }
 
 // tests that instances are not executed twice
@@ -754,11 +640,14 @@ func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 		instance := s.manager.instances.Get(s.expectedOrder[i])
 		instance.Status = INSTANCE_EXECUTED
 	}
+	resultListener := targetInst.addListener()
 
-	val, err := s.manager.executeInstance(targetInst)
-
+	err := s.manager.executeInstance(targetInst)
 	c.Assert(err, gocheck.IsNil)
-	c.Assert(val, gocheck.NotNil)
+
+	result := <-resultListener
+	c.Assert(result.err, gocheck.IsNil)
+	c.Assert(result.val, gocheck.NotNil)
 
 	// the target instance should have been executed
 	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
@@ -772,10 +661,9 @@ func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 func (s *ExecuteDependencyChainTest) TestUncommittedFailure(c *gocheck.C) {
 	targetInst := s.manager.instances.Get(s.expectedOrder[0])
 
-	val, err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
+	err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
 
 	c.Assert(err, gocheck.NotNil)
-	c.Assert(val, gocheck.IsNil)
 }
 
 // tests that an error is returned if a dependency is not committed
@@ -784,10 +672,9 @@ func (s *ExecuteDependencyChainTest) TestUncommittedDependencyFailure(c *gocheck
 	uncommittedInst.Status = INSTANCE_PREACCEPTED
 	targetInst := s.manager.instances.Get(s.expectedOrder[5])
 
-	val, err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
+	err := s.manager.executeDependencyChain(s.expectedOrder, targetInst)
 
 	c.Assert(err, gocheck.NotNil)
-	c.Assert(val, gocheck.IsNil)
 }
 
 type ExecuteApplyInstanceTest struct {
@@ -828,8 +715,7 @@ func (s *ExecuteApplyInstanceTest) TestResultListenerBroadcast(c *gocheck.C) {
 	instance.Status = INSTANCE_COMMITTED
 
 	var result InstanceResult
-	resultListener := NewInstanceResultChan()
-	instance.addListener(resultListener)
+	resultListener := instance.addListener()
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)

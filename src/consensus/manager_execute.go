@@ -268,57 +268,25 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 }
 
 // executes the dependencies up to the given instance
-func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) (store.Value, error) {
-	var val store.Value
-	var err error
-
+func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) error {
 	// don't execute instances 'out from under' client requests. Use the
 	// execution grace period first, check the leader id, if it'm not this
 	// node, go ahead and execute it if it is, wait for the execution timeout
 	imap := make(map[InstanceID]*Instance)
 	imap = m.instances.GetMap(imap, iids)
 	for _, iid := range iids {
-		val = nil
-		err = nil
 		instance := imap[iid]
 		switch instance.getStatus() {
 		case INSTANCE_COMMITTED:
 			//
-			if instance.InstanceID == target.InstanceID {
-				// execute
-				val, err = m.applyInstance(instance)
-				if err != nil { return nil, err }
-				m.statsInc("execute.local.success.count", 1)
-			} else if instance.LeaderID != m.GetLocalID() {
-				// execute
-				val, err = m.applyInstance(instance)
-				if err != nil { return nil, err }
-				m.statsInc("execute.remote.success.count", 1)
-			} else {
-				// wait for the execution grace period to end
-				if time.Now().After(instance.executeTimeout) {
-					val, err = m.applyInstance(instance)
-					if err != nil { return nil, err }
-					m.statsInc("execute.local.timeout.count", 1)
-				} else {
-
-					select {
-					case <- instance.getExecuteEvent().getChan():
-						// instance was executed by another goroutine
-						m.statsInc("execute.local.wait.event.count", 1)
-					case <- instance.getExecuteTimeoutEvent():
-						// execution timed out
-						val, err = m.applyInstance(instance)
-						if err != nil { return nil, err }
-						m.statsInc("execute.local.timeout.count", 1)
-						m.statsInc("execute.local.timeout.wait.count", 1)
-					}
-				}
+			if _, err := m.applyInstance(instance); err != nil {
+				m.statsInc("execute.instance.error.count", 1)
+				return err
 			}
 		case INSTANCE_EXECUTED:
 			continue
 		default:
-			return nil, fmt.Errorf("Uncommitted dependencies should be handled before calling executeDependencyChain")
+			return fmt.Errorf("Uncommitted dependencies should be handled before calling executeDependencyChain")
 		}
 
 		// only execute up to the target instance
@@ -327,10 +295,10 @@ func (m *Manager) executeDependencyChain(iids []InstanceID, target *Instance) (s
 		}
 	}
 
-	return val, nil
+	return nil
 }
 
-var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, error) {
+var managerExecuteInstance = func(m *Manager, instance *Instance) error {
 	start := time.Now()
 	defer m.statsTiming("execute.phase.time", start)
 	m.statsInc("execute.phase.count", 1)
@@ -342,7 +310,7 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 	var err error
 	exOrder, uncommitted, err = m.getExecutionOrder(instance)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for len(uncommitted) > 0 {
@@ -417,7 +385,7 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 		var err error
 		select {
 		case err = <- errors:
-			return nil, err
+			return err
 		default:
 			// everything's ok, continue
 		}
@@ -430,23 +398,23 @@ var managerExecuteInstance = func(m *Manager, instance *Instance) (store.Value, 
 		// list need to be updated before continuing
 		exOrder, uncommitted, err = m.getExecutionOrder(instance)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	logger.Debug("Executing dependency chain")
-	val, err := m.executeDependencyChain(exOrder, instance)
+	err = m.executeDependencyChain(exOrder, instance)
 	if err != nil {
 		logger.Error("Execute: executeDependencyChain: %v", err)
 	}
 	logger.Debug("Execution phase completed")
-	return val, err
+	return err
 }
 
 // applies an instance to the store
 // first it will resolve all dependencies, then wait for them to commit/reject, or force them
 // to do one or the other. Then it will execute it's committed dependencies, then execute itself
-func (m *Manager) executeInstance(instance *Instance) (store.Value, error) {
+func (m *Manager) executeInstance(instance *Instance) error {
 	return managerExecuteInstance(m, instance)
 }
 
