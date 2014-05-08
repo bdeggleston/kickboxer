@@ -419,7 +419,7 @@ func (m *Manager) ExecuteQuery(instruction store.Instruction) (store.Value, erro
 
 	// create epaxos instance, and preaccept locally
 	instance := m.makeInstance(instruction)
-	resultListener := NewInstanceResultChan()
+	resultListener := instance.addListener()
 
 	go m.ExecutePaxos(instance)
 

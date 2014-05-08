@@ -274,10 +274,12 @@ func (i *Instance) setStronglyConnectedIds(iids []InstanceID) {
 	i.StronglyConnected = NewInstanceIDSet(iids)
 }
 
-func (i *Instance) addListener(listener InstanceResultChan) {
+func (i *Instance) addListener() InstanceResultChan {
 	i.lock.Lock()
 	defer i.lock.Unlock()
+	listener := NewInstanceResultChan()
 	i.ResultListeners = append(i.ResultListeners, listener)
+	return listener
 }
 
 // returns a copy of the instance
