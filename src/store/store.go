@@ -34,9 +34,6 @@ type Store interface {
 	// the values on inaccurate nodes
 	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
 
-	// determines if the given command returns a value
-	ReturnsValue(cmd string) bool
-
 	// returns an array of keys used by consensus to determine
 	// which instructions the given instruction set will interfere
 	// with. Basically, think of the given instructions as operating
@@ -46,7 +43,11 @@ type Store interface {
 	//
 	// the instance will gain dependencies on instances in the parent and
 	// child keys, but not on siblings.
-	InterferingKeys(instruction *Instruction) []string
+	InterferingKeys(instruction Instruction) []string
+
+	IsReadOnly(instruction Instruction) bool
+
+	IsWriteOnly(instruction Instruction) bool
 
 	// ----------- data import / export -----------
 

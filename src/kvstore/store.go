@@ -37,6 +37,8 @@ type KVStore struct {
 
 }
 
+var _ = store.Store(&KVStore{})
+
 func NewKVStore() *KVStore {
 	r := &KVStore{
 		data:make(map[string] store.Value),
@@ -65,9 +67,10 @@ func (s *KVStore) Stop() error {
 	return nil
 }
 
-func (s *KVStore) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+func (s *KVStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	switch cmd {
 	case GET:
 		//
@@ -75,18 +78,6 @@ func (s *KVStore) ExecuteRead(cmd string, key string, args []string) (store.Valu
 		rval, err := s.get(key)
 		if err != nil { return nil, err }
 		return rval, nil
-	default:
-		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
-	}
-
-	return nil, nil
-}
-
-func (s *KVStore) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	switch cmd {
 	case SET:
 		if err := s.validateSet(key, args, timestamp); err != nil { return nil, err }
 		return s.set(key, args[0], timestamp), nil
@@ -132,16 +123,16 @@ func (s *KVStore) Reconcile(key string, values map[string] store.Value) (store.V
 	return nil, make(map[string][]*store.Instruction), nil
 }
 
-func (s *KVStore) IsReadCommand(cmd string) bool {
-	switch strings.ToUpper(cmd) {
+func (s *KVStore) IsReadOnly(instruction store.Instruction) bool {
+	switch strings.ToUpper(instruction.Cmd) {
 	case GET:
 		return true
 	}
 	return false
 }
 
-func (s *KVStore) IsWriteCommand(cmd string) bool {
-	switch strings.ToUpper(cmd) {
+func (s *KVStore) IsWriteOnly(instruction store.Instruction) bool {
+	switch strings.ToUpper(instruction.Cmd) {
 	case SET, DEL:
 		return true
 	}
@@ -154,6 +145,10 @@ func (s *KVStore) ReturnsValue(cmd string) bool {
 		return true
 	}
 	return false
+}
+
+func (s *KVStore) InterferingKeys(instruction store.Instruction) []string {
+	return []string{instruction.Key}
 }
 
 // ----------- data import / export -----------

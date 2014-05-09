@@ -22,7 +22,7 @@ var isWrite = []struct {
 func TestIsWriteCmd(t *testing.T) {
 	r := &KVStore{}
 	for _, c := range isWrite {
-		if result := r.IsWriteCommand(c.cmd); result != c.result {
+		if result := r.IsWriteOnly(store.Instruction{Cmd:c.cmd}); result != c.result {
 			if result {
 				t.Errorf("%v erroneously identified as a write", c.cmd)
 			} else {
@@ -35,7 +35,7 @@ func TestIsWriteCmd(t *testing.T) {
 func TestIsReadCmd(t *testing.T) {
 	r := &KVStore{}
 	for _, c := range isWrite {
-		if result := r.IsReadCommand(c.cmd); result != !c.result {
+		if result := r.IsReadOnly(store.Instruction{Cmd:c.cmd}); result != !c.result {
 			if result {
 				t.Errorf("%v erroneously identified as a read", c.cmd)
 			} else {
@@ -45,16 +45,11 @@ func TestIsReadCmd(t *testing.T) {
 	}
 }
 
-func TestInterfaceIsImplemented(t *testing.T) {
-	t.Skipf("Not working yet!")
-	func(s store.Store) { _ = s }(&KVStore{})
-}
-
 // ----------- data import / export -----------
 
 func TestGetRawKeySuccess(t *testing.T) {
 	r := setupKVStore()
-	expected, err := r.ExecuteWrite("SET", "a", []string{"b"}, time.Now())
+	expected, err := r.ExecuteQuery("SET", "a", []string{"b"}, time.Now())
 	if err != nil {
 		t.Fatalf("Unexpected error executing set: %v", err)
 	}

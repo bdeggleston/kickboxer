@@ -11,7 +11,7 @@ func TestGet(t *testing.T) {
 	expected := NewString("b", time.Now())
 	r.data["a"] = expected
 
-	val, err := r.ExecuteRead("GET", "a", []string{})
+	val, err := r.ExecuteQuery("GET", "a", []string{}, time.Time{})
 	if err != nil {
 		t.Fatalf("Unexpected error on read: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestGetValidation(t *testing.T) {
 	r := setupKVStore()
 
 	// too many args
-	val, err := r.ExecuteRead("GET", "a", []string{"b"})
+	val, err := r.ExecuteQuery("GET", "a", []string{"b"}, time.Time{})
 	if val != nil {
 		t.Errorf("Unexpected non-nil value")
 	}
