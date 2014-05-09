@@ -10,6 +10,7 @@ import (
 )
 
 import (
+	"node"
 	"store"
 )
 
@@ -45,23 +46,18 @@ func (e *NodeError) Error() string {
 
 // the basic node interface
 // TODO: rename ClusterNode, inherit from node.Node
-type Node interface {
+type ClusterNode interface {
+	node.Node
+
 	Name() string
 	GetAddr() string
 	GetToken() Token
-	GetId() NodeId
 	GetDatacenterId() DatacenterId
 	GetStatus() NodeStatus
 
 	Start() error
 	Stop() error
 	IsStarted() bool
-
-	// executes a read instruction against the node's store
-	ExecuteRead(cmd string, key string, args []string) (store.Value, error)
-
-	// executes a write instruction against the node's store
-	ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
 }
 
 // the baseNode defines all of the properties
@@ -93,6 +89,8 @@ type LocalNode struct {
 	store store.Store
 	isStarted bool
 }
+
+var _ = ClusterNode(&LocalNode{})
 
 func NewLocalNode(id NodeId, dcId DatacenterId, token Token, name string, store store.Store) (*LocalNode) {
 	//
@@ -149,6 +147,8 @@ type RemoteNode struct {
 
 	isStarted bool
 }
+
+var _ = ClusterNode(&RemoteNode{})
 
 var newRemoteNode = func(addr string, cluster *Cluster) (*RemoteNode) {
 	n := &RemoteNode{}
