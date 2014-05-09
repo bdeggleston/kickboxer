@@ -170,19 +170,6 @@ func ReadMessage(buf io.Reader) (Message, uint32, error) {
 	case STREAM_DATA_RESPONSE:
 		msg = &StreamDataResponse{}
 
-	case CONSENSUS_PRE_ACCEPT_REQUEST:
-		msg = &PreAcceptRequest{}
-	case CONSENSUS_PRE_ACCEPT_RESPONSE:
-		msg = &PreAcceptResponse{}
-	case CONSENSUS_COMMIT_REQUEST:
-		msg = &CommitRequest{}
-	case CONSENSUS_COMMIT_RESPONSE:
-		msg = &CommitResponse{}
-	case CONSENSUS_ACCEPT_REQUEST:
-		msg = &AcceptRequest{}
-	case CONSENSUS_ACCEPT_RESPONSE:
-		msg = &AcceptResponse{}
-
 	case close_connection:
 		msg = &closeConnection{}
 	default:
