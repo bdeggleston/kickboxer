@@ -31,7 +31,7 @@ func NewInstruction(cmd string, key string, args []string, timestamp time.Time) 
 }
 
 // instruction equality test
-func (i *Instruction) Equal(o *Instruction) bool {
+func (i *Instruction) Equal(o Instruction) bool {
 	if i.Cmd != o.Cmd { return false }
 	if i.Key != o.Key { return false }
 	if len(i.Args) != len(o.Args) { return false }
@@ -51,6 +51,10 @@ func (i *Instruction) Copy() Instruction {
 	}
 	copy(newInstr.Args, i.Args)
 	return newInstr
+}
+
+func (i *Instruction) IsZero() bool {
+	return i.Cmd == "" && i.Key == "" && len(i.Args) == 0 && i.Timestamp.IsZero()
 }
 
 // returns the expected number of bytes from serialization
