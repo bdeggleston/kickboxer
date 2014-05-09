@@ -15,6 +15,7 @@ import (
 
 import (
 	"kvstore"
+	"message"
 )
 
 // ----------------- cluster setup -----------------
@@ -273,9 +274,9 @@ func (c *biConn) Write(b []byte) (int, error) {
 // successor to the bi conn. a bit easier to work with
 type pgmConn struct {
 	fakeConn
-	incoming []Message
-	outgoing []Message
-	outputFactory func(*pgmConn) Message
+	incoming []message.Message
+	outgoing []message.Message
+	outputFactory func(*pgmConn) message.Message
 }
 
 func newPgmConn() *pgmConn {
@@ -310,19 +311,19 @@ func (c *pgmConn) Write(b []byte) (int, error) {
 	if err != nil { panic(err) }
 
 	if c.incoming == nil {
-		c.incoming = make([]Message, 0, 10)
+		c.incoming = make([]message.Message, 0, 10)
 	}
 	c.incoming = append(c.incoming, msg)
 	return num, err
 }
 
-func (c *pgmConn) getIncomingMessages() []Message {
+func (c *pgmConn) getIncomingMessages() []message.Message {
 	return c.incoming
 }
 
-func (c *pgmConn) addOutgoingMessage(m Message) {
+func (c *pgmConn) addOutgoingMessage(m message.Message) {
 	if c.outgoing == nil {
-		c.outgoing = make([]Message, 0, 10)
+		c.outgoing = make([]message.Message, 0, 10)
 	}
 	c.outgoing = append(c.outgoing, m)
 }
