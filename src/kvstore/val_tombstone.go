@@ -52,12 +52,12 @@ func (v *Tombstone) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
-func reconcileTombstone(key string, highValue *Tombstone, values map[string]store.Value) (*Tombstone, map[string][]*store.Instruction, error) {
+func reconcileTombstone(key string, highValue *Tombstone, values []store.Value) (*Tombstone, [][]store.Instruction, error) {
 	// create instructions for the unequal nodes
-	instructions := make(map[string][]*store.Instruction)
-	for nodeid, val := range values {
+	instructions := make([][]store.Instruction, len(values))
+	for i, val := range values {
 		if val != highValue {
-			instructions[nodeid] = []*store.Instruction{&store.Instruction{
+			instructions[i] = []store.Instruction{store.Instruction{
 				Cmd:"DEL",
 				Key:key,
 				Args:[]string{},

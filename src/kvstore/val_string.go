@@ -71,12 +71,12 @@ func (v *String) Deserialize(buf *bufio.Reader) error {
 	return nil
 }
 
-func reconcileString(key string, highValue *String, values map[string]store.Value) (*String, map[string][]*store.Instruction, error) {
+func reconcileString(key string, highValue *String, values []store.Value) (*String, [][]store.Instruction, error) {
 	// create instructions for the unequal nodes
-	instructions := make(map[string][]*store.Instruction)
-	for nodeid, val := range values {
+	instructions := make([][]store.Instruction, len(values))
+	for i, val := range values {
 		if !highValue.Equal(val) {
-			instructions[nodeid] = []*store.Instruction{&store.Instruction{
+			instructions[i] = []store.Instruction{store.Instruction{
 				Cmd:"SET",
 				Key:key,
 				Args:[]string{highValue.value},

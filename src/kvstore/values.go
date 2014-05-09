@@ -59,7 +59,7 @@ func baseValueEqual(v0, v1 store.Value) bool {
 // ----------- reconcile helpers -----------
 
 // returns the value with the highest timestamp
-func getHighValue(values map[string]store.Value) store.Value {
+func getHighValue(values []store.Value) store.Value {
 	var highTimestamp time.Time
 	var highValue store.Value
 	for _, val := range values {

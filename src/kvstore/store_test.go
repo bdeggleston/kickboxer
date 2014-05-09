@@ -115,10 +115,10 @@ func TestKeyExists(t *testing.T) {
 	testing_helpers.AssertEqual(t, "existing key", false, r.KeyExists("y"))
 }
 
-// tests that attempting to reconcile an empty map
+// tests that attempting to reconcile an empty array
 // returns an error
-func TestReconcilingEmptyMap(t *testing.T) {
-	vmap := map[string]store.Value {}
+func TestReconcilingEmptySlice(t *testing.T) {
+	vmap := []store.Value{}
 	ractual, adjustments, err := setupKVStore().Reconcile("k", vmap)
 
 	if err == nil {
@@ -134,7 +134,7 @@ func TestReconcilingEmptyMap(t *testing.T) {
 func TestReconcileSingleValue(t *testing.T) {
 	ts0 := time.Now()
 	expected := NewString("a", ts0)
-	vmap := map[string]store.Value { "0": expected }
+	vmap := []store.Value{expected}
 	ractual, adjustments, err := setupKVStore().Reconcile("k", vmap)
 
 	if err != nil {

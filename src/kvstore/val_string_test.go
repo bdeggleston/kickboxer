@@ -46,13 +46,9 @@ func TestStringMismatchReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	ts1 := ts0.Add(time.Duration(-3000))
 	expected := NewString("a", ts0)
-	vmap := map[string]store.Value {
-		"0": expected,
-		"1": NewString("b", ts1),
-		"2": expected,
-	}
+	values := []store.Value{expected, NewString("b", ts1), expected }
 
-	ractual, adjustments, err := setupKVStore().Reconcile("k", vmap)
+	ractual, adjustments, err := setupKVStore().Reconcile("k", values)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
@@ -62,12 +58,12 @@ func TestStringMismatchReconciliation(t *testing.T) {
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	assertEqualValue(t, "reconciled value", expected, actual)
-	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
+	testing_helpers.AssertEqual(t, "adjustment size", len(values), len(adjustments))
 
-	instructions, ok := adjustments["1"]
-	if !ok {
-		t.Fatalf("instruction set for '1' not found")
-	}
+	testing_helpers.AssertEqual(t, "num instructions", 0, len(adjustments[0]))
+	testing_helpers.AssertEqual(t, "num instructions", 0, len(adjustments[2]))
+
+	instructions := adjustments[1]
 	testing_helpers.AssertEqual(t, "num instructions", 1, len(instructions))
 
 	instruction := instructions[0]
@@ -83,12 +79,9 @@ func TestStringMultiTypeReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	ts1 := ts0.Add(time.Duration(-3000))
 	expected := NewString("a", ts0)
-	vmap := map[string]store.Value {
-		"0": expected,
-		"1": NewTombstone(ts1),
-	}
+	values := []store.Value {expected, NewTombstone(ts1)}
 
-	ractual, adjustments, err := setupKVStore().Reconcile("k", vmap)
+	ractual, adjustments, err := setupKVStore().Reconcile("k", values)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
@@ -98,12 +91,9 @@ func TestStringMultiTypeReconciliation(t *testing.T) {
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	assertEqualValue(t, "reconciled value", expected, actual)
-	testing_helpers.AssertEqual(t, "adjustment size", 1, len(adjustments))
+	testing_helpers.AssertEqual(t, "num instructions", 0, len(adjustments[0]))
 
-	instructions, ok := adjustments["1"]
-	if !ok {
-		t.Fatalf("instruction set for '1' not found")
-	}
+	instructions := adjustments[1]
 	testing_helpers.AssertEqual(t, "num instructions", 1, len(instructions))
 
 	instruction := instructions[0]
@@ -118,13 +108,9 @@ func TestStringMultiTypeReconciliation(t *testing.T) {
 func TestStringNoOpReconciliation(t *testing.T) {
 	ts0 := time.Now()
 	expected := NewString("a", ts0)
-	vmap := map[string]store.Value {
-		"0": expected,
-		"1": expected,
-		"2": expected,
-	}
+	values := []store.Value {expected, expected, expected}
 
-	ractual, adjustments, err := setupKVStore().Reconcile("k", vmap)
+	ractual, adjustments, err := setupKVStore().Reconcile("k", values)
 
 	if err != nil {
 		t.Fatalf("unexpected reconciliation error: %v", err)
@@ -134,7 +120,10 @@ func TestStringNoOpReconciliation(t *testing.T) {
 	if !ok { t.Fatalf("Unexpected return value type: %T", ractual) }
 
 	assertEqualValue(t, "reconciled value", expected, actual)
-	testing_helpers.AssertEqual(t, "adjustment size", 0, len(adjustments))
+	testing_helpers.AssertEqual(t, "adjustment size", len(values), len(adjustments))
+	for _, adjustment := range adjustments {
+		testing_helpers.AssertEqual(t, "adjustment size", 0, len(adjustment))
+	}
 }
 
 // tests the boolean value's equality method

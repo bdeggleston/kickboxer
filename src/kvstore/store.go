@@ -100,7 +100,7 @@ func (s *KVStore) ExecuteQuery(cmd string, key string, args []string, timestamp 
 // getting unfamiliar types, but can operate under the assumption that if
 // they're being called, the oldest timestamp of the given values belongs
 // to a value of it's type.
-func (s *KVStore) Reconcile(key string, values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
+func (s *KVStore) Reconcile(key string, values []store.Value) (store.Value, [][]store.Instruction, error) {
 	switch len(values){
 	case 0:
 		return nil, nil, fmt.Errorf("At least one value must be provided")
@@ -117,10 +117,10 @@ func (s *KVStore) Reconcile(key string, values map[string] store.Value) (store.V
 		case TOMBSTONE_VALUE:
 			return reconcileTombstone(key, highValue.(*Tombstone), values)
 		default:
-			return nil, make(map[string][]*store.Instruction), fmt.Errorf("Unknown value type: %T", highValue)
+			return nil, [][]store.Instruction{}, fmt.Errorf("Unknown value type: %T", highValue)
 		}
 	}
-	return nil, make(map[string][]*store.Instruction), nil
+	return nil, [][]store.Instruction{}, nil
 }
 
 func (s *KVStore) IsReadOnly(instruction store.Instruction) bool {
