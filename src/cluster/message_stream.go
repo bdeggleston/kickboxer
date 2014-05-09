@@ -5,6 +5,11 @@ import (
 	"encoding/binary"
 )
 
+import (
+	"message"
+	"serializer"
+)
+
 const (
 	STREAM_REQUEST = uint32(401)
 	STREAM_RESPONSE = uint32(402)
@@ -21,24 +26,36 @@ type StreamRequest struct { }
 func (m *StreamRequest) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamRequest) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamRequest) GetType() uint32 { return STREAM_REQUEST }
+func (m *StreamRequest) NumBytes() int { return 0 }
+
+var _ = message.Message(&StreamRequest{})
 
 // stream request acknowledgement
 type StreamResponse struct { }
 func (m *StreamResponse) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamResponse) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamResponse) GetType() uint32 { return STREAM_RESPONSE }
+func (m *StreamResponse) NumBytes() int { return 0 }
+
+var _ = message.Message(&StreamResponse{})
 
 // notifies a node that there is no more data to stream to it
 type StreamCompleteRequest struct { }
 func (m *StreamCompleteRequest) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamCompleteRequest) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamCompleteRequest) GetType() uint32 { return STREAM_COMPLETE_REQUEST }
+func (m *StreamCompleteRequest) NumBytes() int { return 0 }
+
+var _ = message.Message(&StreamCompleteRequest{})
 
 // stream completion request acknowledgement
 type StreamCompleteResponse struct { }
 func (m *StreamCompleteResponse) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamCompleteResponse) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamCompleteResponse) GetType() uint32 { return STREAM_COMPLETE_RESPONSE }
+func (m *StreamCompleteResponse) NumBytes() int { return 0 }
+
+var _ = message.Message(&StreamCompleteResponse{})
 
 type StreamData struct {
 	Key string
@@ -46,26 +63,31 @@ type StreamData struct {
 }
 
 func (m *StreamData) Serialize(buf *bufio.Writer) error {
-	if err := writeFieldBytes(buf, []byte(m.Key)); err != nil { return err }
-	if err := writeFieldBytes(buf, m.Data); err != nil { return err }
+	if err := serializer.WriteFieldBytes(buf, []byte(m.Key)); err != nil { return err }
+	if err := serializer.WriteFieldBytes(buf, m.Data); err != nil { return err }
 	if err := buf.Flush(); err != nil { return err }
 	return nil
 }
 
 func (m *StreamData) Deserialize(buf *bufio.Reader) error {
-	if b, err := readFieldBytes(buf); err != nil { return err } else {
+	if b, err := serializer.ReadFieldBytes(buf); err != nil { return err } else {
 		m.Key = string(b)
 	}
-	if b, err := readFieldBytes(buf); err != nil { return err } else {
+	if b, err := serializer.ReadFieldBytes(buf); err != nil { return err } else {
 		m.Data = b
 	}
 	return nil
 }
 
+// TODO: implement and fix
+func (m *StreamData) NumBytes() int { return 0 }
+
 // sends arbitrary byte data from one
 type StreamDataRequest struct {
 	Data []*StreamData
 }
+
+var _ = message.Message(&StreamDataRequest{})
 
 func (m *StreamDataRequest) Serialize(buf *bufio.Writer) error {
 	size := uint32(len(m.Data))
@@ -91,8 +113,14 @@ func (m *StreamDataRequest) Deserialize(buf *bufio.Reader) error {
 
 func (m *StreamDataRequest) GetType() uint32 { return STREAM_DATA_REQUEST }
 
+// TODO: implement and fix
+func (m *StreamDataRequest) NumBytes() int { return 0 }
+
 type StreamDataResponse struct {}
 func (m *StreamDataResponse) Serialize(*bufio.Writer) error { return nil }
 func (m *StreamDataResponse) Deserialize(*bufio.Reader) error { return nil }
 func (m *StreamDataResponse) GetType() uint32 { return STREAM_DATA_RESPONSE }
+func (m *StreamDataResponse) NumBytes() int { return 0 }
+
+var _ = message.Message(&StreamDataResponse{})
 
