@@ -147,7 +147,7 @@ func (s *KVStore) ReturnsValue(cmd string) bool {
 	return false
 }
 
-func (s *KVStore) InterferingKeys(instruction *store.Instruction) []string {
+func (s *KVStore) InterferingKeys(instruction store.Instruction) []string {
 	return []string{instruction.Key}
 }
 
