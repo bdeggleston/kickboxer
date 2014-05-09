@@ -32,7 +32,7 @@ type Store interface {
 
 	// reconciles multiple values and returns instructions for correcting
 	// the values on inaccurate nodes
-	Reconcile(key string, values map[string] Value) (Value, map[string][]*Instruction, error)
+	Reconcile(key string, values []Value) (Value, [][]Instruction, error)
 
 	// returns an array of keys used by consensus to determine
 	// which instructions the given instruction set will interfere
