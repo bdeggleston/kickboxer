@@ -6,6 +6,7 @@ import (
 )
 
 import (
+	"message"
 	"node"
 	"store"
 )
@@ -103,6 +104,11 @@ func (n *LocalNode) Stop() error {
 
 func (n *LocalNode) IsStarted() bool {
 	return n.isStarted
+}
+
+func (n *LocalNode) SendMessage(m message.Message) (message.Message, error) {
+	// TODO: find a more sane solution
+	panic("can't send messages to local nodes")
 }
 
 // executes a write instruction against the node's store
@@ -212,7 +218,7 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 	return conn, nil
 }
 
-func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
+func (n *RemoteNode) SendMessage(m message.Message) (message.Message, error) {
 
 	// get connection
 	conn, err := n.getConnection()
