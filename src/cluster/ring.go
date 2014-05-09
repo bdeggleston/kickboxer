@@ -7,6 +7,10 @@ import (
 	"sync"
 )
 
+import (
+	"node"
+)
+
 // implements sort.Interface
 type nodeSorter struct {
 	nodes []ClusterNode
@@ -32,7 +36,7 @@ type Ring struct {
 	lock *sync.RWMutex
 
 	// map of node ids to node objects
-	nodeMap map[NodeId] ClusterNode
+	nodeMap map[node.NodeId] ClusterNode
 
 	// nodes ordered by token
 	tokenRing []ClusterNode
@@ -44,7 +48,7 @@ type Ring struct {
 // creates and starts a ring
 func NewRing() *Ring {
 	return &Ring{
-		nodeMap:make(map[NodeId] ClusterNode),
+		nodeMap:make(map[node.NodeId] ClusterNode),
 		tokenRing:make([]ClusterNode, 0),
 		priorRing:make([]ClusterNode, 0),
 		lock:&sync.RWMutex{},
@@ -55,7 +59,7 @@ func (r *Ring) Size() int {
 	return len(r.tokenRing)
 }
 
-func (r *Ring) getNode(nid NodeId) (ClusterNode, error) {
+func (r *Ring) getNode(nid node.NodeId) (ClusterNode, error) {
 	node, ok := r.nodeMap[nid]
 	if !ok {
 		return nil, fmt.Errorf("No node found by node id: %v", nid)
@@ -65,7 +69,7 @@ func (r *Ring) getNode(nid NodeId) (ClusterNode, error) {
 }
 
 // gets a node by it's node id
-func (r *Ring) GetNode(nid NodeId) (ClusterNode, error) {
+func (r *Ring) GetNode(nid node.NodeId) (ClusterNode, error) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 

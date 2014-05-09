@@ -6,10 +6,6 @@ import (
 )
 
 import (
-	"code.google.com/p/go-uuid/uuid"
-)
-
-import (
 	"node"
 	"store"
 )
@@ -21,16 +17,6 @@ const (
 	NODE_UP 			= NodeStatus("UP")
 	NODE_DOWN 			= NodeStatus("DOWN")
 )
-
-type NodeId string
-
-func NewNodeId() NodeId {
-	return NodeId(uuid.NewUUID().String())
-}
-
-func (nid NodeId) IsNil() bool {
-	return nid == NodeId("")
-}
 
 type NodeError struct {
 	reason string
@@ -66,7 +52,7 @@ type baseNode struct {
 	name string
 	addr string
 	token Token
-	id NodeId
+	id node.NodeId
 	dcId DatacenterId
 	status NodeStatus
 }
@@ -77,7 +63,7 @@ func (n *baseNode) GetAddr() string { return n.addr }
 
 func (n *baseNode) GetToken() Token { return n.token }
 
-func (n *baseNode) GetId() NodeId { return n.id }
+func (n *baseNode) GetId() node.NodeId { return n.id }
 
 func (n *baseNode) GetDatacenterId() DatacenterId { return n.dcId }
 
@@ -155,7 +141,7 @@ func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
 }
 
 // creates a new remote node from info provided from the node
-func NewRemoteNodeInfo(id NodeId, dcId DatacenterId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
+func NewRemoteNodeInfo(id node.NodeId, dcId DatacenterId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
 	n = NewRemoteNode(addr, cluster)
 	n.id = id
 	n.dcId = dcId

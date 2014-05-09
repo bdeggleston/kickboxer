@@ -6,6 +6,10 @@ import (
 	"fmt"
 )
 
+import (
+	"node"
+)
+
 const (
 	CONNECTION_REQUEST = uint32(101)
 	CONNECTION_ACCEPTED_RESPONSE = uint32(102)
@@ -19,7 +23,7 @@ const (
 
 type PeerData struct {
 	// the id of the peer
-	NodeId NodeId
+	NodeId node.NodeId
 	// the name of the datacenter the peer belongs to
 	DCId DatacenterId
 	// the address of the requesting node
@@ -104,7 +108,7 @@ func (m *ConnectionRequest) GetType() uint32 { return CONNECTION_REQUEST }
 
 type ConnectionAcceptedResponse struct {
 	// the id of the requesting node
-	NodeId NodeId
+	NodeId node.NodeId
 	// the name of the datacenter the peer belongs to
 	DCId DatacenterId
 	// the name of the requesting node
@@ -144,7 +148,7 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	m.NodeId = NodeId(b)
+	m.NodeId = node.NodeId(b)
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
@@ -187,7 +191,7 @@ func (m *ConnectionRefusedResponse) GetType() uint32 { return CONNECTION_REFUSED
 // asks other nodes for peer info
 type DiscoverPeersRequest struct {
 	// the id of the requesting node
-	NodeId NodeId
+	NodeId node.NodeId
 }
 
 func (m *DiscoverPeersRequest) Serialize(buf *bufio.Writer) error {
@@ -215,7 +219,7 @@ func (m *DiscoverPeersRequest) Deserialize(buf *bufio.Reader) error {
 
 	b, err = readFieldBytes(buf)
 	if err != nil { return nil }
-	m.NodeId = NodeId(b)
+	m.NodeId = node.NodeId(b)
 	return nil
 }
 

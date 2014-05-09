@@ -13,6 +13,7 @@ import (
 )
 
 import (
+	"node"
 	"store"
 )
 
@@ -63,7 +64,7 @@ type Cluster struct {
 
 	name string
 	token Token
-	nodeId NodeId
+	nodeId node.NodeId
 	dcId DatacenterId
 	peerAddr string
 	peerServer *PeerServer
@@ -82,7 +83,7 @@ func NewCluster(
 	// the token of this local node
 	token Token,
 	// the id of this local node
-	nodeId NodeId,
+	nodeId node.NodeId,
 	// the name of the datacenter this node belongs to
 	dcId DatacenterId,
 	// the replication factor of the cluster
@@ -129,7 +130,7 @@ func NewCluster(
 }
 
 // info getters
-func (c* Cluster) GetNodeId() NodeId { return c.nodeId }
+func (c* Cluster) GetNodeId() node.NodeId { return c.nodeId }
 func (c* Cluster) GetDatacenterId() DatacenterId { return c.dcId }
 func (c* Cluster) GetToken() Token { return c.token }
 func (c* Cluster) GetName() string { return c.name }
@@ -492,7 +493,7 @@ func (c *Cluster) RemoveNode() error {
 // struct used to communicate query
 // results over channels
 type queryResponse struct {
-	nid NodeId
+	nid node.NodeId
 	val store.Value
 	err error
 }
@@ -536,7 +537,7 @@ func (ne nodeTimeoutError) Error() string { return string(ne) }
 // reconciles values and issues repair statements to other nodes
 func (c *Cluster) reconcileRead(
 	key string,
-	nodeMap map[NodeId]ClusterNode,
+	nodeMap map[node.NodeId]ClusterNode,
 	rchan chan queryResponse,
 	timeout time.Duration,
 ) {
