@@ -79,7 +79,7 @@ type LocalNode struct {
 
 var _ = ClusterNode(&LocalNode{})
 
-func NewLocalNode(id NodeId, dcId DatacenterId, token Token, name string, store store.Store) (*LocalNode) {
+func NewLocalNode(id node.NodeId, dcId DatacenterId, token Token, name string, store store.Store) (*LocalNode) {
 	//
 	n := &LocalNode{}
 	n.id = id

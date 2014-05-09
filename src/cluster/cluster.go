@@ -229,7 +229,7 @@ func (c* Cluster) discoverPeers() error {
 		if node.GetId() == c.GetNodeId() {
 			continue
 		}
-		response, _, err := node.sendMessage(request)
+		response, _, err := node.SendMessage(request)
 		if err != nil { return err }
 		peerMessage, ok := response.(*DiscoverPeerResponse)
 		if !ok {
@@ -320,7 +320,7 @@ func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]ClusterNode {
 func (c *Cluster) streamFromNode(n ClusterNode) error {
 	node := n.(*RemoteNode)
 	msg := &StreamRequest{}
-	_, mtype, err := node.sendMessage(msg)
+	_, mtype, err := node.SendMessage(msg)
 	if err != nil { return err }
 	if mtype != STREAM_RESPONSE {
 		return fmt.Errorf("Expected STREAM_RESPONSE, got: %v", mtype)
@@ -357,7 +357,7 @@ func (c *Cluster) streamToNode(n ClusterNode) error {
 			if err != nil { return err }
 			sd := &StreamData{Key:key, Data:valBytes}
 			msg := &StreamDataRequest{Data:[]*StreamData{sd}}
-			response , _, err := node.sendMessage(msg)
+			response , err := node.SendMessage(msg)
 			if err != nil { return err }
 			if response.GetType() != STREAM_DATA_RESPONSE {
 				return fmt.Errorf("Expected StreamDataResponse, got %T", response)
@@ -366,7 +366,7 @@ func (c *Cluster) streamToNode(n ClusterNode) error {
 	}
 
 	// notify remote node that streaming is completed
-	response, _, err := node.sendMessage(&StreamCompleteRequest{})
+	response, err := node.SendMessage(&StreamCompleteRequest{})
 	if err != nil { return err }
 	if response.GetType() != STREAM_COMPLETE_RESPONSE {
 		return fmt.Errorf("Expected StreamCompleteRequest, got %T", response)
