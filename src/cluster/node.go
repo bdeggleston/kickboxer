@@ -119,17 +119,8 @@ func (n *LocalNode) IsStarted() bool {
 	return n.isStarted
 }
 
-// executes a read instruction against the node's store
-func (n *LocalNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
-	_ = cmd
-	_ = key
-	_ = args
-
-	return nil, nil
-}
-
 // executes a write instruction against the node's store
-func (n *LocalNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+func (n *LocalNode) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
@@ -265,16 +256,8 @@ func (n *RemoteNode) sendMessage(m Message) (Message, uint32, error) {
 	return response, messageType, nil
 }
 
-// executes a read instruction against the node's store
-func (n *RemoteNode) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
-	_ = cmd
-	_ = key
-	_ = args
-	return nil, nil
-}
-
 // executes a write instruction against the node's store
-func (n *RemoteNode) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+func (n *RemoteNode) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	_ = cmd
 	_ = key
 	_ = args
