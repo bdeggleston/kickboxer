@@ -570,14 +570,14 @@ func (c *Cluster) reconcileRead(
 		//log something??
 	}
 
-	write := func(node ClusterNode, inst *store.Instruction) {
-		node.ExecuteWrite(inst.Cmd, inst.Key, inst.Args, inst.Timestamp)
+	write := func(n ClusterNode, inst *store.Instruction) {
+		n.ExecuteQuery(inst.Cmd, inst.Key, inst.Args, inst.Timestamp)
 	}
 
 	for nid, instructionList := range instructions {
-		node := nodeMap[NodeId(nid)]
+		n := nodeMap[node.NodeId(nid)]
 		for _, inst := range instructionList {
-			go write(node, inst)
+			go write(n, inst)
 		}
 	}
 
@@ -607,7 +607,7 @@ func (c *Cluster) ExecuteRead(
 	replicaMap := c.GetNodesForKey(key)
 	// map of node ids-> node contacted, used for
 	// sending reconciliation corrections
-	nodeMap := make(map[NodeId]ClusterNode)
+	nodeMap := make(map[node.NodeId]ClusterNode)
 	numNodes := numMappedNodes(replicaMap)
 	// used for constructing a response
 	responseChannel := make(chan queryResponse, numNodes)
@@ -616,7 +616,7 @@ func (c *Cluster) ExecuteRead(
 
 	// executes the read against the cluster
 	execute := func(node ClusterNode) {
-		val, err := node.ExecuteRead(cmd, key, args)
+		val, err := node.ExecuteQuery(cmd, key, args, time.Time{})
 		response := queryResponse{nid:node.GetId() , val:val, err:err}
 		responseChannel <- response
 		reconcileChannel <- response

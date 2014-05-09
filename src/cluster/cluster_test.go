@@ -353,7 +353,7 @@ func setupSeedPeerDiscovery(t *testing.T, responses map[string]*ConnectionAccept
 }
 
 // compares a node to it's mocked ConnectionAcceptedResponse
-func compareNodeToConnectionResponse(t *testing.T, cluster *Cluster, node Node, addr string, response *ConnectionAcceptedResponse){
+func compareNodeToConnectionResponse(t *testing.T, cluster *Cluster, node ClusterNode, addr string, response *ConnectionAcceptedResponse){
 	fieldname := func(field string) string { return fmt.Sprintf("%v %v", node.Name(), field)}
 	testing_helpers.AssertEqual(t, fieldname("id"), node.GetId(), response.NodeId)
 	testing_helpers.AssertEqual(t, fieldname("dc id"), node.GetDatacenterId(), response.DCId)

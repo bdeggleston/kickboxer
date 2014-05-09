@@ -51,7 +51,7 @@ func setupReadTestCluster(t *testing.T, s store.Store) *Cluster {
 
 // checks that the read calls in a list of nodes match the expected
 // calls provided by the caller
-func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []Node) {
+func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []ClusterNode) {
 	for _, rnode := range nodes {
 		node := rnode.(*mockNode)
 		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
@@ -70,7 +70,7 @@ func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []Node) {
 
 // checks that the write calls in a list of nodes match the expected
 // calls provided by the caller
-func assertWriteCallsReceived(t *testing.T, writes []*writeCall, nodes []Node) {
+func assertWriteCallsReceived(t *testing.T, writes []*writeCall, nodes []ClusterNode) {
 	for _, rnode := range nodes {
 		node := rnode.(*mockNode)
 		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
