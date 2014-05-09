@@ -37,6 +37,8 @@ type KVStore struct {
 
 }
 
+var _ = store.Store(&KVStore{})
+
 func NewKVStore() *KVStore {
 	r := &KVStore{
 		data:make(map[string] store.Value),
@@ -121,16 +123,16 @@ func (s *KVStore) Reconcile(key string, values map[string] store.Value) (store.V
 	return nil, make(map[string][]*store.Instruction), nil
 }
 
-func (s *KVStore) IsReadCommand(cmd string) bool {
-	switch strings.ToUpper(cmd) {
+func (s *KVStore) IsReadOnly(instruction store.Instruction) bool {
+	switch strings.ToUpper(instruction.Cmd) {
 	case GET:
 		return true
 	}
 	return false
 }
 
-func (s *KVStore) IsWriteCommand(cmd string) bool {
-	switch strings.ToUpper(cmd) {
+func (s *KVStore) IsWriteOnly(instruction store.Instruction) bool {
+	switch strings.ToUpper(instruction.Cmd) {
 	case SET, DEL:
 		return true
 	}
