@@ -139,17 +139,17 @@ func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
 // adds a node to the cluster, if it's not already
 // part of the cluster, and starting it if the cluster
 // has been started
-func (c *Cluster) addNode(node ClusterNode) error {
+func (c *Cluster) addNode(n ClusterNode) error {
 	// add to ring, and start if it hasn't been seen before
 	var err error
-	if node.GetDatacenterId() == c.GetDatacenterId() {
-		err = c.ring.AddNode(node)
+	if n.GetDatacenterId() == c.GetDatacenterId() {
+		err = c.ring.AddNode(n)
 	} else {
-		err = c.dcContainer.AddNode(node)
+		err = c.dcContainer.AddNode(n)
 	}
 	if err != nil { return err }
 	if c.status != CLUSTER_INITIALIZING {
-		if err := node.Start(); err != nil { return err }
+		if err := n.Start(); err != nil { return err }
 	}
 	return nil
 }
@@ -159,23 +159,23 @@ func (c *Cluster) getPeerData() []*PeerData {
 	localNodes := c.ring.AllNodes()
 	extNodes := c.dcContainer.AllNodes()
 	peers := make([]*PeerData, 0, len(localNodes) + len(extNodes) - 1)
-	node2PeerData := func(node ClusterNode) *PeerData {
+	node2PeerData := func(n ClusterNode) *PeerData {
 		return &PeerData{
-			NodeId:node.GetId(),
-			DCId:node.GetDatacenterId(),
-			Addr:node.GetAddr(),
-			Name:node.Name(),
-			Token:node.GetToken(),
+			NodeId:n.GetId(),
+			DCId:n.GetDatacenterId(),
+			Addr:n.GetAddr(),
+			Name:n.Name(),
+			Token:n.GetToken(),
 		}
 	}
 
-	for _, node := range localNodes {
-		if node.GetId() != c.GetNodeId() {
-			peers = append(peers, node2PeerData(node))
+	for _, n := range localNodes {
+		if n.GetId() != c.GetNodeId() {
+			peers = append(peers, node2PeerData(n))
 		}
 	}
-	for _, node := range extNodes {
-		peers = append(peers, node2PeerData(node))
+	for _, n := range extNodes {
+		peers = append(peers, node2PeerData(n))
 	}
 	return peers
 }
@@ -190,9 +190,9 @@ func (c* Cluster) discoverPeers() error {
 		nodes := c.ring.AllNodes()
 		nodes = append(nodes, c.dcContainer.AllNodes()...)
 		for _, v := range c.ring.AllNodes() {
-			if node, ok := v.(*RemoteNode); ok {
-				if node.addr == addr {
-					return node
+			if n, ok := v.(*RemoteNode); ok {
+				if n.addr == addr {
+					return n
 				}
 			}
 		}
@@ -201,14 +201,14 @@ func (c* Cluster) discoverPeers() error {
 
 	// add seed nodes
 	for _, addr := range c.seeds {
-		if node := addrIsKnown(addr); node == nil {
-			node := NewRemoteNode(addr, c)
+		if n := addrIsKnown(addr); n == nil {
+			n := NewRemoteNode(addr, c)
 			// start the node to get it's info
-			if err := node.Start(); err != nil {
+			if err := n.Start(); err != nil {
 				fmt.Println(err)
 				continue
 			}
-			c.addNode(node)
+			c.addNode(n)
 		}
 	}
 
@@ -216,20 +216,20 @@ func (c* Cluster) discoverPeers() error {
 	getRemoteNodes := func() []*RemoteNode {
 		peers := make([]*RemoteNode, 0)
 		for _, v := range c.ring.AllNodes() {
-			if node, ok := v.(*RemoteNode); ok {
-				peers = append(peers, node)
+			if n, ok := v.(*RemoteNode); ok {
+				peers = append(peers, n)
 			}
 		}
 		return peers
 	}
 	peers := getRemoteNodes()
 	request := &DiscoverPeersRequest{NodeId:c.GetNodeId()}
-	for _, node := range peers {
+	for _, n := range peers {
 		// don't add yourself
-		if node.GetId() == c.GetNodeId() {
+		if n.GetId() == c.GetNodeId() {
 			continue
 		}
-		response, _, err := node.SendMessage(request)
+		response, _, err := n.SendMessage(request)
 		if err != nil { return err }
 		peerMessage, ok := response.(*DiscoverPeerResponse)
 		if !ok {
@@ -263,9 +263,9 @@ func (c* Cluster) Start() error {
 	}
 
 	//startup the nodes
-	for _, node := range c.ring.AllNodes() {
-		if !node.IsStarted() {
-			if err:= node.Start(); err != nil {
+	for _, n := range c.ring.AllNodes() {
+		if !n.IsStarted() {
+			if err:= n.Start(); err != nil {
 				return err
 			}
 		}
@@ -291,8 +291,8 @@ func (c* Cluster) Start() error {
 
 func (c* Cluster) Stop() error {
 	c.peerServer.Stop()
-	for _, node := range c.ring.AllNodes() {
-		node.Stop()
+	for _, n := range c.ring.AllNodes() {
+		n.Stop()
 	}
 	return nil
 }
@@ -317,10 +317,10 @@ func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]ClusterNode {
 /************** streaming **************/
 
 // initiates streaming tokens from the given node
-func (c *Cluster) streamFromNode(n ClusterNode) error {
-	node := n.(*RemoteNode)
+func (c *Cluster) streamFromNode(cn ClusterNode) error {
+	n := cn.(*RemoteNode)
 	msg := &StreamRequest{}
-	_, mtype, err := node.SendMessage(msg)
+	_, mtype, err := n.SendMessage(msg)
 	if err != nil { return err }
 	if mtype != STREAM_RESPONSE {
 		return fmt.Errorf("Expected STREAM_RESPONSE, got: %v", mtype)
@@ -333,14 +333,14 @@ func (c *Cluster) streamFromNode(n ClusterNode) error {
 // by the given node to it
 func (c *Cluster) streamToNode(n ClusterNode) error {
 	//
-	node := n.(*RemoteNode)
+	n := n.(*RemoteNode)
 
 	// determines if the given key is replicated by
 	// the destination node
 	replicates:= func(key string) bool {
 		nodes := c.GetLocalNodesForKey(key)
 		for _, rnode := range nodes {
-			if rnode.GetId() == node.GetId() {
+			if rnode.GetId() == n.GetId() {
 				return true
 			}
 		}
@@ -357,7 +357,7 @@ func (c *Cluster) streamToNode(n ClusterNode) error {
 			if err != nil { return err }
 			sd := &StreamData{Key:key, Data:valBytes}
 			msg := &StreamDataRequest{Data:[]*StreamData{sd}}
-			response , err := node.SendMessage(msg)
+			response , err := n.SendMessage(msg)
 			if err != nil { return err }
 			if response.GetType() != STREAM_DATA_RESPONSE {
 				return fmt.Errorf("Expected StreamDataResponse, got %T", response)
@@ -366,7 +366,7 @@ func (c *Cluster) streamToNode(n ClusterNode) error {
 	}
 
 	// notify remote node that streaming is completed
-	response, err := node.SendMessage(&StreamCompleteRequest{})
+	response, err := n.SendMessage(&StreamCompleteRequest{})
 	if err != nil { return err }
 	if response.GetType() != STREAM_COMPLETE_RESPONSE {
 		return fmt.Errorf("Expected StreamCompleteRequest, got %T", response)
@@ -402,8 +402,8 @@ func receiveStreamedData([]*StreamData) error {
 func (c *Cluster) JoinCluster() error {
 	ring := c.ring.AllNodes()
 	var idx int
-	for i, node := range ring {
-		if node.GetId() == c.GetNodeId() {
+	for i, n := range ring {
+		if n.GetId() == c.GetNodeId() {
 			idx = i
 			break
 		}
@@ -542,7 +542,7 @@ func (c *Cluster) reconcileRead(
 	timeout time.Duration,
 ) {
 	numNodes := len(nodeMap)
-	values := make(map[string]store.Value, numNodes)
+	values := make(map[node.NodeId]store.Value, numNodes)
 	var response queryResponse
 
 	numReceived := 0
@@ -559,7 +559,7 @@ func (c *Cluster) reconcileRead(
 					// TODO: log the error?
 					continue
 				}
-				values[string(response.nid)] = val
+				values[response.nid] = val
 			case <-timeoutEvent:
 				break receive
 			}
@@ -615,9 +615,9 @@ func (c *Cluster) ExecuteRead(
 	reconcileChannel := make(chan queryResponse, numNodes)
 
 	// executes the read against the cluster
-	execute := func(node ClusterNode) {
-		val, err := node.ExecuteQuery(cmd, key, args, time.Time{})
-		response := queryResponse{nid:node.GetId() , val:val, err:err}
+	execute := func(n ClusterNode) {
+		val, err := n.ExecuteQuery(cmd, key, args, time.Time{})
+		response := queryResponse{nid:n.GetId() , val:val, err:err}
 		responseChannel <- response
 		reconcileChannel <- response
 	}
@@ -647,9 +647,9 @@ func (c *Cluster) ExecuteRead(
 			}
 		}
 
-		for _, node := range nodes {
-			nodeMap[node.GetId()] = node
-			go execute(node)
+		for _, n := range nodes {
+			nodeMap[n.GetId()] = n
+			go execute(n)
 		}
 	}
 
