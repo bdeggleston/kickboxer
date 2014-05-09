@@ -65,9 +65,10 @@ func (s *KVStore) Stop() error {
 	return nil
 }
 
-func (s *KVStore) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+func (s *KVStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	switch cmd {
 	case GET:
 		//
@@ -75,18 +76,6 @@ func (s *KVStore) ExecuteRead(cmd string, key string, args []string) (store.Valu
 		rval, err := s.get(key)
 		if err != nil { return nil, err }
 		return rval, nil
-	default:
-		return nil, fmt.Errorf("Unrecognized read command: %v", cmd)
-	}
-
-	return nil, nil
-}
-
-func (s *KVStore) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	switch cmd {
 	case SET:
 		if err := s.validateSet(key, args, timestamp); err != nil { return nil, err }
 		return s.set(key, args[0], timestamp), nil
