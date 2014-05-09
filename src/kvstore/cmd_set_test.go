@@ -19,7 +19,7 @@ func TestSet(t *testing.T) {
 	}
 
 	ts := time.Now()
-	rawval, err := r.ExecuteWrite("SET", "a", []string{"b"}, ts)
+	rawval, err := r.ExecuteQuery("SET", "a", []string{"b"}, ts)
 	if err != nil {
 		t.Errorf("Unexpected write error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestSetValidation(t *testing.T) {
 	var val store.Value
 	var err error
 
-	val, err = r.ExecuteWrite("SET", "a", []string{"x", "y"}, time.Now())
+	val, err = r.ExecuteQuery("SET", "a", []string{"x", "y"}, time.Now())
 	if val != nil { t.Errorf("Expected nil value, got %v", val) }
 	if err == nil {
 		t.Errorf("Expected error, got nil")
@@ -70,7 +70,7 @@ func TestSetValidation(t *testing.T) {
 		t.Logf("Got expected err: %v", err)
 	}
 
-	val, err = r.ExecuteWrite("SET", "a", []string{"x"}, time.Time{})
+	val, err = r.ExecuteQuery("SET", "a", []string{"x"}, time.Time{})
 	if val != nil { t.Errorf("Expected nil value, got %v", val) }
 	if err == nil {
 		t.Errorf("Expected error, got nil")

@@ -54,7 +54,7 @@ func TestInterfaceIsImplemented(t *testing.T) {
 
 func TestGetRawKeySuccess(t *testing.T) {
 	r := setupKVStore()
-	expected, err := r.ExecuteWrite("SET", "a", []string{"b"}, time.Now())
+	expected, err := r.ExecuteQuery("SET", "a", []string{"b"}, time.Now())
 	if err != nil {
 		t.Fatalf("Unexpected error executing set: %v", err)
 	}
