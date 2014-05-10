@@ -20,7 +20,7 @@ import (
 var logger *logging.Logger
 
 func init() {
-	logger = logging.MustGetLogger("monitor")
+	logger = logging.MustGetLogger("cluster")
 }
 
 type Token []byte
