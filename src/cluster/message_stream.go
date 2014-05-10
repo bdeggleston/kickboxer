@@ -124,3 +124,13 @@ func (m *StreamDataResponse) NumBytes() int { return 0 }
 
 var _ = message.Message(&StreamDataResponse{})
 
+func init() {
+	message.RegisterMessage(STREAM_REQUEST, func() message.Message {return &StreamRequest{}} )
+	message.RegisterMessage(STREAM_RESPONSE, func() message.Message {return &StreamResponse{}} )
+
+	message.RegisterMessage(STREAM_COMPLETE_REQUEST, func() message.Message {return &StreamCompleteRequest{}} )
+	message.RegisterMessage(STREAM_COMPLETE_RESPONSE, func() message.Message {return &StreamCompleteResponse{}} )
+
+	message.RegisterMessage(STREAM_DATA_REQUEST, func() message.Message {return &StreamDataRequest{}} )
+	message.RegisterMessage(STREAM_DATA_RESPONSE, func() message.Message {return &StreamDataResponse{}} )
+}

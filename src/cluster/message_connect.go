@@ -280,3 +280,11 @@ func (m *DiscoverPeerResponse) GetType() uint32 { return DISCOVER_PEERS_RESPONSE
 func (m *DiscoverPeerResponse) NumBytes() int { return 0 }
 
 
+func init() {
+	message.RegisterMessage(CONNECTION_REQUEST, func() message.Message {return &ConnectionRequest{}} )
+	message.RegisterMessage(CONNECTION_ACCEPTED_RESPONSE, func() message.Message {return &ConnectionAcceptedResponse{}} )
+	message.RegisterMessage(CONNECTION_REFUSED_RESPONSE, func() message.Message {return &ConnectionRefusedResponse{}} )
+
+	message.RegisterMessage(DISCOVER_PEERS_REQUEST, func() message.Message {return &DiscoverPeersRequest{}} )
+	message.RegisterMessage(DISCOVER_PEERS_RESPONSE, func() message.Message {return &DiscoverPeerResponse{}} )
+}

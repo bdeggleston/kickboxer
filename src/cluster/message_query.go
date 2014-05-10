@@ -127,3 +127,8 @@ func (m *QueryResponse) GetType() uint32 { return QUERY_RESPONSE }
 func (m *QueryResponse) NumBytes() int { return 0 }
 
 
+func init() {
+	message.RegisterMessage(READ_REQUEST, func() message.Message {return &ReadRequest{}} )
+	message.RegisterMessage(WRITE_REQUEST, func() message.Message {return &WriteRequest{}} )
+	message.RegisterMessage(QUERY_RESPONSE, func() message.Message {return &QueryResponse{}} )
+}
