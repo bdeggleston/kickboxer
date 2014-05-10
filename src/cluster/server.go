@@ -7,7 +7,6 @@ import (
 
 import (
 	"message"
-	"node"
 )
 
 type PeerServer struct {
@@ -28,8 +27,8 @@ func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
 }
 
 // executes a request and returns a response message
-func (s *PeerServer) executeRequest(node node.Node, request message.Message, requestType uint32) (message.Message, error) {
-	switch requestType {
+func (s *PeerServer) executeRequest(node ClusterNode, request message.Message) (message.Message, error) {
+	switch request.GetType() {
 	case DISCOVER_PEERS_REQUEST:
 		peerData := s.cluster.getPeerData()
 		return &DiscoverPeerResponse{Peers:peerData}, nil
@@ -59,12 +58,12 @@ func (s *PeerServer) executeRequest(node node.Node, request message.Message, req
 
 func (s *PeerServer) handleConnection(conn net.Conn) error {
 	// check that the opening message is a ConnectionRequest
-	msg, _, err := ReadMessage(conn)
+	msg, err := message.ReadMessage(conn)
 	if err != nil {
 		refusal := &ConnectionRefusedResponse{
 			Reason:fmt.Sprintf("Error reading message: %v", err),
 		}
-		WriteMessage(conn, refusal)
+		message.WriteMessage(conn, refusal)
 		conn.Close()
 		return fmt.Errorf("Error reading opening message")
 	}
@@ -76,7 +75,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		refusal := &ConnectionRefusedResponse{
 			Reason:errMsg,
 		}
-		WriteMessage(conn, refusal)
+		message.WriteMessage(conn, refusal)
 		conn.Close()
 		return fmt.Errorf(errMsg)
 	}
@@ -87,7 +86,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		Name:s.cluster.GetName(),
 		Token:s.cluster.GetToken(),
 	}
-	if err := WriteMessage(conn, acceptance); err != nil {
+	if err := message.WriteMessage(conn, acceptance); err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("Error writing acceptance: %v", err)
 	}
@@ -105,7 +104,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 
 	for {
 		// get the request
-		request, requestType, err := ReadMessage(conn)
+		request, err := message.ReadMessage(conn)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error reading request: %v", err)
 			fmt.Println(errMsg)
@@ -113,14 +112,8 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 			return fmt.Errorf(errMsg)
 		}
 
-		// handle the close connection message
-		if requestType == close_connection {
-			conn.Close()
-			return nil
-		}
-
 		// get the response
-		response, err := s.executeRequest(node, request, requestType)
+		response, err := s.executeRequest(node, request)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error executing request: %v", err)
 			fmt.Println(errMsg)
@@ -129,7 +122,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		}
 
 		// send response
-		if err = WriteMessage(conn, response); err != nil {
+		if err = message.WriteMessage(conn, response); err != nil {
 			return fmt.Errorf("Error writing response: %v", err)
 		}
 	}

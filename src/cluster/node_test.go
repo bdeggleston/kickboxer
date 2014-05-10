@@ -5,6 +5,8 @@ import (
 )
 
 import (
+	"message"
+	"node"
 	"testing_helpers"
 )
 
@@ -35,36 +37,36 @@ func TestStartingConnectsToPeer(t *testing.T) {
 	// write a connection acceptance message
 	sock := newBiConn(1, 1)
 	response := &ConnectionAcceptedResponse{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 		Name:"Ghost",
 		Token:Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3}),
 	}
-	WriteMessage(sock.input[0], response)
+	message.WriteMessage(sock.input[0], response)
 
 	cluster := setupCluster()
-	node := NewRemoteNode("127.0.0.2:9998", cluster)
+	n := NewRemoteNode("127.0.0.2:9998", cluster)
 	conn := &Connection{socket:sock}
-	node.pool.Put(conn)
+	n.pool.Put(conn)
 
 	// pre startup sanity check
 	testing_helpers.AssertEqual(t, "pre start conn status", false, conn.completedHandshake)
-	testing_helpers.AssertEqual(t, "pre start name", "", node.name)
-	testing_helpers.AssertEqual(t, "pre start id", NodeId(""), node.id)
-	testing_helpers.AssertEqual(t, "pre start status", NODE_INITIALIZING, node.status)
-	testing_helpers.AssertSliceEqual(t, "pre start token", nil, node.token)
+	testing_helpers.AssertEqual(t, "pre start name", "", n.name)
+	testing_helpers.AssertEqual(t, "pre start id", node.NodeId{}, n.id)
+	testing_helpers.AssertEqual(t, "pre start status", NODE_INITIALIZING, n.status)
+	testing_helpers.AssertSliceEqual(t, "pre start token", nil, n.token)
 
 	// start the node
-	err := node.Start()
+	err := n.Start()
 	if err != nil {
 		t.Fatalf("Unexpected error of type %T: %v", err, err)
 	}
 
 	// check that values were saved properly
 	testing_helpers.AssertEqual(t, "post start conn status", true, conn.completedHandshake)
-	testing_helpers.AssertEqual(t, "post start name", response.Name, node.name)
-	testing_helpers.AssertEqual(t, "post start id", response.NodeId, node.id)
-	testing_helpers.AssertEqual(t, "post start status", NODE_UP, node.status)
-	testing_helpers.AssertSliceEqual(t, "post start token", response.Token, node.token)
+	testing_helpers.AssertEqual(t, "post start name", response.Name, n.name)
+	testing_helpers.AssertEqual(t, "post start id", response.NodeId, n.id)
+	testing_helpers.AssertEqual(t, "post start status", NODE_UP, n.status)
+	testing_helpers.AssertSliceEqual(t, "post start token", response.Token, n.token)
 
 
 }
@@ -75,22 +77,19 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 	sock := newBiConn(1, 1)
 	expected := &DiscoverPeerResponse{Peers:[]*PeerData{}}
 
-	WriteMessage(sock.input[0], expected)
+	message.WriteMessage(sock.input[0], expected)
 
 	cluster := setupCluster()
-	node := NewRemoteNode("127.0.0.2:9998", cluster)
-	node.status = NODE_UP
+	n := NewRemoteNode("127.0.0.2:9998", cluster)
+	n.status = NODE_UP
 	conn := &Connection{socket:sock}
 	conn.SetHandshakeCompleted()
-	node.pool.Put(conn)
+	n.pool.Put(conn)
 
-	request := &DiscoverPeersRequest{NodeId:node.GetId()}
-	rawResponse, mtype, err := node.sendMessage(request)
+	request := &DiscoverPeersRequest{NodeId:n.GetId()}
+	rawResponse, err := n.SendMessage(request)
 	if err != nil {
 		t.Fatalf("Unexpected error of type [%T]: %v", err, err)
-	}
-	if mtype != DISCOVER_PEERS_RESPONSE {
-		t.Errorf("Unexpected message response type. Expected %v, got %v", DISCOVER_PEERS_RESPONSE, mtype)
 	}
 	response, ok := rawResponse.(*DiscoverPeerResponse)
 	if !ok {
@@ -100,8 +99,8 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 		t.Errorf("Unexpected response data length. Expected 0, got %v", len(response.Peers))
 	}
 
-	if node.status != NODE_UP {
-		t.Errorf("Unexpected node status, expected %v, got %v", NODE_UP, node.status)
+	if n.status != NODE_UP {
+		t.Errorf("Unexpected node status, expected %v, got %v", NODE_UP, n.status)
 	}
 
 }
@@ -110,22 +109,22 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 // a message fails
 func TestMessageSendingFailureCase(t *testing.T) {
 	cluster := setupCluster()
-	node := NewRemoteNode("127.0.0.2:9998", cluster)
-	node.status = NODE_UP
+	n := NewRemoteNode("127.0.0.2:9998", cluster)
+	n.status = NODE_UP
 	conn := &Connection{socket:&readTimeoutConn{}}
 	conn.SetHandshakeCompleted()
-	node.pool.Put(conn)
+	n.pool.Put(conn)
 
-	request := &DiscoverPeersRequest{NodeId:node.GetId()}
-	response, mtype, err := node.sendMessage(request)
+	request := &DiscoverPeersRequest{NodeId:n.GetId()}
+	response, err := n.SendMessage(request)
 	if err == nil {
 		t.Fatal("Expected error, received nil")
 	}
-	if response != nil || mtype != 0 {
-		t.Errorf("Expected nil message and response type, got: %T %v", response, mtype)
+	if response != nil {
+		t.Errorf("Expected nil message and response type, got: %T", response)
 	}
-	if node.status != NODE_DOWN {
-		t.Errorf("Unexpected node status. Expected %v, got %v", NODE_DOWN, node.status)
+	if n.status != NODE_DOWN {
+		t.Errorf("Unexpected node status. Expected %v, got %v", NODE_DOWN, n.status)
 	}
 
 }

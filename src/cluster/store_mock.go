@@ -12,20 +12,18 @@ import (
 
 type reconcileCall struct {
 	key string
-	values map[string] store.Value
+	values []store.Value
 }
 
 type reconcileResponse struct {
 	val store.Value
-	instructions map[string][]*store.Instruction
+	instructions [][]store.Instruction
 	err error
 }
 
 type mockStore struct {
-	readInstructions []*readCall
-	readResponses []*mockQueryResponse
-	writeInstructions []*writeCall
-	writeResponses []*mockQueryResponse
+	requests []*queryCall
+	responses []*mockQueryResponse
 	reconcileCalls []*reconcileCall
 	reconcileResponses []*reconcileResponse
 	//
@@ -37,51 +35,39 @@ type mockStore struct {
 	returnsValue bool
 }
 
+var _ = store.Store(&mockStore{})
+
 func newMockStore() *mockStore {
 	s := &mockStore{}
 	s.isRead = true
 	s.isWrite = true
 	s.returnsValue = true
-	s.readInstructions = make([]*readCall, 0, 10)
-	s.readResponses = make([]*mockQueryResponse, 0, 10)
-	s.writeInstructions = make([]*writeCall, 0, 10)
-	s.writeResponses = make([]*mockQueryResponse, 0, 10)
+	s.requests = make([]*queryCall, 0, 10)
+	s.responses = make([]*mockQueryResponse, 0, 10)
 	s.reconcileCalls = make([]*reconcileCall, 0, 10)
 	s.reconcileResponses = make([]*reconcileResponse, 0, 10)
 
 	return s
 }
 
-func (s *mockStore) addReadResponse(val store.Value, err error) {
-	s.readResponses = append(s.readResponses, &mockQueryResponse{val:val, err:err})
+func (s *mockStore) addResponse(val store.Value, err error) {
+	s.responses = append(s.responses, &mockQueryResponse{val:val, err:err})
 }
 
-func (s *mockStore) addWriteResponse(val store.Value, err error) {
-	s.writeResponses = append(s.writeResponses, &mockQueryResponse{val:val, err:err})
-}
-
-func (s *mockStore) addReconcileResponse(val store.Value, instructions map[string][]*store.Instruction, err error) {
+func (s *mockStore) addReconcileResponse(val store.Value, instructions [][]store.Instruction, err error) {
 	s.reconcileResponses = append(s.reconcileResponses, &reconcileResponse{val:val, instructions:instructions, err:err})
 }
 
-func (s *mockStore) ExecuteRead(cmd string, key string, args []string) (store.Value, error) {
-	rc := &readCall{cmd:cmd, key:key, args:args}
-	s.readInstructions = append(s.readInstructions, rc)
-	rr := s.readResponses[0]
-	s.readResponses = s.readResponses[1:]
-	return rr.val, rr.err
-}
-
 // executes a write instruction against the node's store
-func (s *mockStore) ExecuteWrite(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	rc := &writeCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
-	s.writeInstructions = append(s.writeInstructions, rc)
-	rr := s.writeResponses[0]
-	s.writeResponses = s.writeResponses[1:]
+func (s *mockStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+	rc := &queryCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
+	s.requests = append(s.requests, rc)
+	rr := s.responses[0]
+	s.responses = s.responses[1:]
 	return rr.val, rr.err
 }
 
-func (s *mockStore) Reconcile(key string, values map[string] store.Value) (store.Value, map[string][]*store.Instruction, error) {
+func (s *mockStore) Reconcile(key string, values []store.Value) (store.Value, [][]store.Instruction, error) {
 	rc := &reconcileCall{key:key, values:values}
 	s.reconcileCalls = append(s.reconcileCalls, rc)
 	rr := s.reconcileResponses[0]
@@ -89,8 +75,9 @@ func (s *mockStore) Reconcile(key string, values map[string] store.Value) (store
 	return rr.val, rr.instructions, rr.err
 }
 
-func (s *mockStore) IsReadCommand(cmd string) bool { return s.isRead }
-func (s *mockStore) IsWriteCommand(cmd string) bool { return s.isWrite }
+func (s *mockStore) IsReadOnly(instruction store.Instruction) bool { return s.isRead }
+func (s *mockStore) IsWriteOnly(instruction store.Instruction) bool { return s.isWrite }
+func (s *mockStore) InterferingKeys(instruction store.Instruction) []string { return []string{instruction.Key} }
 func (s *mockStore) ReturnsValue(cmd string) bool { return s.returnsValue }
 func (s *mockStore) Start() error { s.isStarted = true; return nil }
 func (s *mockStore) Stop() error { s.isStarted = true; return nil }

@@ -6,6 +6,7 @@ import (
 )
 
 import (
+	"node"
 	"testing_helpers"
 )
 
@@ -13,9 +14,9 @@ import (
 
 func TestGetUnknownNode_(t *testing.T) {
 	ring := setupRing()
-	node, err := ring.getNode(NewNodeId())
-	if node != nil {
-		t.Errorf("Expected nil node, got: %v", node)
+	n, err := ring.getNode(node.NewNodeId())
+	if n != nil {
+		t.Errorf("Expected nil node, got: %v", n)
 	}
 	if err == nil {
 		t.Errorf("Expected error from getNode, got nil")
@@ -28,15 +29,15 @@ func TestGetExistingNode_(t *testing.T) {
 	ring := setupRing()
 
 	nid := ring.tokenRing[4].GetId()
-	node, err := ring.getNode(nid)
+	n, err := ring.getNode(nid)
 	if err != nil {
 		t.Errorf("Got unexpected error from getNode: %v", err)
 	}
-	if node == nil {
+	if n == nil {
 		t.Fatalf("Got unexpected nil result for node")
 	}
-	if node.GetId() != nid {
-		t.Errorf("Unexpected node id on returned node. Expected %v, got %v", nid, node.GetId())
+	if n.GetId() != nid {
+		t.Errorf("Unexpected node id on returned node. Expected %v, got %v", nid, n.GetId())
 	}
 }
 
@@ -53,7 +54,7 @@ func TestAddingNewNodeToRing(t *testing.T) {
 
 	// add a new node
 	token := Token([]byte{0,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6})
-	newNode := newMockNode(NewNodeId(), "DC1", token, "N2")
+	newNode := newMockNode(node.NewNodeId(), "DC1", token, "N2")
 	err := ring.AddNode(newNode)
 	if err != nil {
 		t.Errorf("Expected nil error, got: %v", err)
@@ -62,8 +63,7 @@ func TestAddingNewNodeToRing(t *testing.T) {
 	testing_helpers.AssertEqual(t, "ring map size", 11, len(ring.nodeMap))
 	testing_helpers.AssertEqual(t, "ring ring size", 11, len(ring.tokenRing))
 	testing_helpers.AssertEqual(t, "new node started", false, newNode.IsStarted())
-	testing_helpers.AssertEqual(t, "new node read size", 0, len(newNode.reads))
-	testing_helpers.AssertEqual(t, "new node write size", 0, len(newNode.writes))
+	testing_helpers.AssertEqual(t, "new node read size", 0, len(newNode.requests))
 }
 
 // tests that nothing is changed if a node is already
@@ -110,7 +110,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	ring := NewRing()
 
 	n1 := newMockNode(
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		Token([]byte{0,0,0,7}),
 		fmt.Sprintf("N1"),
@@ -118,7 +118,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	ring.AddNode(n1)
 
 	n2 := newMockNode(
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		Token([]byte{0,0,0,3}),
 		"N2",
@@ -129,7 +129,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	testing_helpers.AssertEqual(t, "ring position 1", ring.tokenRing[1].GetId(), n1.GetId())
 
 	n3 := newMockNode(
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		Token([]byte{0,0,0,5}),
 		"N3",
@@ -141,7 +141,7 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	testing_helpers.AssertEqual(t, "ring position 2", ring.tokenRing[2].GetId(), n1.GetId())
 
 	n4 := newMockNode(
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		Token([]byte{0,0,1,0}),
 		"N4",
@@ -159,7 +159,7 @@ func TestKeyRouting_(t *testing.T) {
 	ring := setupRing()
 
 	var token Token
-	var nodes []Node
+	var nodes []ClusterNode
 
 	// test the upper bound
 	token = Token([]byte{0,0,9,5})

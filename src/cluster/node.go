@@ -190,22 +190,20 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 			Name:n.cluster.GetName(),
 			Token:n.cluster.GetToken(),
 		}}
-		if err := WriteMessage(conn, msg); err != nil {
+		if err := message.WriteMessage(conn, msg); err != nil {
 			n.status = NODE_DOWN
 			return nil, err
 		}
-		response, mtype, err := ReadMessage(conn)
+		response, err := message.ReadMessage(conn)
 		if err != nil {
 			n.status = NODE_DOWN
 			return nil, err
 		}
-		if mtype != CONNECTION_ACCEPTED_RESPONSE {
+		if _, ok := response.(*ConnectionAcceptedResponse); !ok {
 			n.status = NODE_DOWN
 			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
-		}
-
-		// copy the response info if we're still initializing
-		if n.status == NODE_INITIALIZING {
+		} else if n.status == NODE_INITIALIZING {
+			// copy the response info if we're still initializing
 			accept := response.(*ConnectionAcceptedResponse)
 			n.id = accept.NodeId
 			n.dcId = accept.DCId
@@ -224,28 +222,28 @@ func (n *RemoteNode) SendMessage(m message.Message) (message.Message, error) {
 	conn, err := n.getConnection()
 	if  err != nil {
 		n.status = NODE_DOWN
-		return nil, 0, err
+		return nil, err
 	}
 
 
 	// send the message
-	if err := WriteMessage(conn, m); err != nil {
+	if err := message.WriteMessage(conn, m); err != nil {
 		conn.Close()
 		n.status = NODE_DOWN
-		return nil, 0, err
+		return nil, err
 	}
 
 	// receive the message
-	response, messageType, err := ReadMessage(conn)
+	response, err := message.ReadMessage(conn)
 	if err != nil {
 		conn.Close()
 		n.status = NODE_DOWN
-		return nil, 0, err
+		return nil, err
 	}
 
 	n.status = NODE_UP
 	n.pool.Put(conn)
-	return response, messageType, nil
+	return response, nil
 }
 
 // executes a write instruction against the node's store

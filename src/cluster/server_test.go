@@ -8,6 +8,8 @@ import (
 
 import (
 	"kvstore"
+	"message"
+	"node"
 )
 
 // tests that a properly formed connection request
@@ -17,18 +19,18 @@ func TestServerConnectionSuccessCase(t *testing.T) {
 
 	// write input messages
 	connectMessage := &ConnectionRequest{PeerData{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
-	if err := WriteMessage(conn.input[0], connectMessage); err != nil {
+	if err := message.WriteMessage(conn.input[0], connectMessage); err != nil {
 		t.Fatalf("Unexpected error writing connection message: %v", err)
 	}
-	closeMessage := &closeConnection{}
-	if err := WriteMessage(conn.input[1], closeMessage); err != nil {
-		t.Fatalf("Unexpected error writing close message: %v", err)
-	}
+//	closeMessage := &closeConnection{}
+//	if err := message.WriteMessage(conn.input[1], closeMessage); err != nil {
+//		t.Fatalf("Unexpected error writing close message: %v", err)
+//	}
 
 	// create cluster and peer server
 	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
@@ -37,7 +39,7 @@ func TestServerConnectionSuccessCase(t *testing.T) {
 		"127.0.0.1:9999",
 		"TestCluster",
 		token,
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		3,
 		NewMD5Partitioner(),
@@ -53,15 +55,12 @@ func TestServerConnectionSuccessCase(t *testing.T) {
 	}
 
 	// read output messages
-	rawAcceptMessage, msgType, err := ReadMessage(conn.output[0])
+	rawAcceptMessage, err := message.ReadMessage(conn.output[0])
 	if err != nil {
 		t.Errorf("Unexpected error reading acceptance message")
 	}
 
 	// verify output
-	if msgType != CONNECTION_ACCEPTED_RESPONSE {
-		t.Errorf("Expected CONNECTION_ACCEPTED_RESPONSE, got: %v", msgType)
-	}
 	acceptMessage, ok := rawAcceptMessage.(*ConnectionAcceptedResponse)
 	if !ok {
 		t.Errorf("Expected ConnectionAcceptedResponse, got: %T", rawAcceptMessage)
@@ -84,7 +83,7 @@ func TestServerConnectionFailure(t *testing.T) {
 
 	// write input messages
 	connectMessage := &ReadRequest{Cmd:"GET", Key:"A", Args:[]string{"B"}}
-	if err := WriteMessage(conn.input[0], connectMessage); err != nil {
+	if err := message.WriteMessage(conn.input[0], connectMessage); err != nil {
 		t.Fatalf("Unexpected error writing connection message: %v", err)
 	}
 
@@ -95,7 +94,7 @@ func TestServerConnectionFailure(t *testing.T) {
 		"127.0.0.1:9999",
 		"TestCluster",
 		token,
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		3,
 		NewMD5Partitioner(),
@@ -111,15 +110,12 @@ func TestServerConnectionFailure(t *testing.T) {
 	}
 
 	// read output messages
-	rawAcceptMessage, msgType, err := ReadMessage(conn.output[0])
+	rawAcceptMessage, err := message.ReadMessage(conn.output[0])
 	if err != nil {
 		t.Errorf("Unexpected error reading acceptance message")
 	}
 
 	// verify output
-	if msgType != CONNECTION_REFUSED_RESPONSE {
-		t.Errorf("Expected CONNECTION_ACCEPTED_RESPONSE, got: %v", msgType)
-	}
 	refusalMessage, ok := rawAcceptMessage.(*ConnectionRefusedResponse)
 	if !ok {
 		t.Errorf("Expected ConnectionRefusedResponse, got: %T", rawAcceptMessage)
@@ -136,19 +132,19 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 
 	// write input messages
 	connectMessage := &ConnectionRequest{PeerData{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 		DCId:"DC1",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
-	if err := WriteMessage(conn.input[0], connectMessage); err != nil {
+	if err := message.WriteMessage(conn.input[0], connectMessage); err != nil {
 		t.Fatalf("Unexpected error writing connection message: %v", err)
 	}
-	closeMessage := &closeConnection{}
-	if err := WriteMessage(conn.input[1], closeMessage); err != nil {
-		t.Fatalf("Unexpected error writing close message: %v", err)
-	}
+//	closeMessage := &closeConnection{}
+//	if err := message.WriteMessage(conn.input[1], closeMessage); err != nil {
+//		t.Fatalf("Unexpected error writing close message: %v", err)
+//	}
 
 	// create cluster and peer server
 	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
@@ -157,7 +153,7 @@ func TestServerNodeRegistrationOnConnection(t *testing.T) {
 		"127.0.0.1:9999",
 		"TestCluster",
 		token,
-		NewNodeId(),
+		node.NewNodeId(),
 		"DC1",
 		3,
 		NewMD5Partitioner(),

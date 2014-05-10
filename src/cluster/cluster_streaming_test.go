@@ -9,6 +9,7 @@ import (
 
 import (
 	"kvstore"
+	"message"
 )
 
 // TODO: values need to be reconciled on cluster join
@@ -26,7 +27,7 @@ func TestStreamFromNodeMethod(t *testing.T) {
 
 	// setup mock socket
 	sock := newPgmConn()
-	sock.outputFactory = func(_ *pgmConn) Message {
+	sock.outputFactory = func(_ *pgmConn) message.Message {
 		return &StreamResponse{}
 	}
 	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
@@ -69,7 +70,7 @@ func TestStreamToNode(t *testing.T) {
 	for i:=0; i<numKeys; i++ {
 		keyNum := i * interval
 		key := fmt.Sprintf("%04d", keyNum)
-		if val, err := store.ExecuteWrite("SET", key, []string{key}, time.Now()); err != nil {
+		if val, err := store.ExecuteQuery("SET", key, []string{key}, time.Now()); err != nil {
 			t.Fatalf("Error while writing to store: %v", err)
 			_ = val
 		}
@@ -82,7 +83,7 @@ func TestStreamToNode(t *testing.T) {
 
 	// setup mock socket for node
 	sock := newPgmConn()
-	sock.outputFactory = func(p *pgmConn) Message {
+	sock.outputFactory = func(p *pgmConn) message.Message {
 		if _, ok := p.incoming[len(p.incoming) - 1].(*StreamCompleteRequest); ok {
 			return &StreamCompleteResponse{}
 		}
@@ -180,12 +181,12 @@ func TestServerStreamRequest(t *testing.T) {
 
 	// setup mock socket
 	sock := newPgmConn()
-	sock.outputFactory = func(_ *pgmConn) Message { return &StreamCompleteResponse{} }
+	sock.outputFactory = func(_ *pgmConn) message.Message { return &StreamCompleteResponse{} }
 	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
 	// process message and check response
 	server := &PeerServer{cluster:cluster}
-	resp, err := server.executeRequest(node, &StreamRequest{}, STREAM_REQUEST)
+	resp, err := server.executeRequest(node, &StreamRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected error executing StreamRequest: %v", err)
 	}

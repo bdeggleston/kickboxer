@@ -44,7 +44,7 @@ func (m *PeerData) Serialize(buf *bufio.Writer) error {
 
 	// then the fields
 	// NodeId
-	if err := serializer.WriteFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	if err := (&m.NodeId).WriteBuffer(buf); err != nil { return err }
 	// DCId
 	if err := serializer.WriteFieldBytes(buf, []byte(m.DCId)); err != nil { return err }
 	// Addr
@@ -71,9 +71,7 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	var err error
 
 	// NodeId
-	b, err = serializer.ReadFieldBytes(buf)
-	if err != nil { return err }
-	m.NodeId = NodeId(b)
+	if err := (&m.NodeId).ReadBuffer(buf); err != nil { return err }
 
 	// DCId
 	b, err = serializer.ReadFieldBytes(buf)
@@ -132,7 +130,7 @@ func (m *ConnectionAcceptedResponse) Serialize(buf *bufio.Writer) error {
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 
 	// then the fields
-	if err := serializer.WriteFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	if err := (&m.NodeId).WriteBuffer(buf); err != nil { return err }
 	if err := serializer.WriteFieldBytes(buf, []byte(m.DCId)); err != nil { return err }
 	if err := serializer.WriteFieldBytes(buf, []byte(m.Name)); err != nil { return err }
 	if err := serializer.WriteFieldBytes(buf, []byte(m.Token)); err != nil { return err }
@@ -153,9 +151,7 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 	var b []byte
 	var err error
 
-	b, err = serializer.ReadFieldBytes(buf)
-	if err != nil { return nil }
-	m.NodeId = node.NodeId(b)
+	if err := (&m.NodeId).ReadBuffer(buf); err != nil { return err }
 
 	b, err = serializer.ReadFieldBytes(buf)
 	if err != nil { return nil }
@@ -176,6 +172,9 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 func (m *ConnectionAcceptedResponse) GetType() uint32 { return CONNECTION_ACCEPTED_RESPONSE }
+
+// TODO: implement and fix
+func (m *ConnectionAcceptedResponse) NumBytes() int { return 0 }
 
 
 type ConnectionRefusedResponse struct {
@@ -214,7 +213,7 @@ func (m *DiscoverPeersRequest) Serialize(buf *bufio.Writer) error {
 	if err := binary.Write(buf, binary.LittleEndian, &numArgs); err != nil { return err }
 
 	// then the fields
-	if err := serializer.WriteFieldBytes(buf, []byte(m.NodeId)); err != nil { return err }
+	if err := (&m.NodeId).WriteBuffer(buf); err != nil { return err }
 	return nil
 }
 
@@ -228,12 +227,8 @@ func (m *DiscoverPeersRequest) Deserialize(buf *bufio.Reader) error {
 	}
 
 	// get the fields
-	var b []byte
-	var err error
+	if err := (&m.NodeId).ReadBuffer(buf); err != nil { return err }
 
-	b, err = serializer.ReadFieldBytes(buf)
-	if err != nil { return nil }
-	m.NodeId = node.NodeId(b)
 	return nil
 }
 
@@ -280,5 +275,8 @@ func (m *DiscoverPeerResponse) Deserialize(buf *bufio.Reader) error {
 }
 
 func (m *DiscoverPeerResponse) GetType() uint32 { return DISCOVER_PEERS_RESPONSE }
+
+// TODO: implement and fix
+func (m *DiscoverPeerResponse) NumBytes() int { return 0 }
 
 

@@ -229,7 +229,7 @@ func (c* Cluster) discoverPeers() error {
 		if n.GetId() == c.GetNodeId() {
 			continue
 		}
-		response, _, err := n.SendMessage(request)
+		response, err := n.SendMessage(request)
 		if err != nil { return err }
 		peerMessage, ok := response.(*DiscoverPeerResponse)
 		if !ok {
@@ -320,10 +320,10 @@ func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]ClusterNode {
 func (c *Cluster) streamFromNode(cn ClusterNode) error {
 	n := cn.(*RemoteNode)
 	msg := &StreamRequest{}
-	_, mtype, err := n.SendMessage(msg)
+	response, err := n.SendMessage(msg)
 	if err != nil { return err }
-	if mtype != STREAM_RESPONSE {
-		return fmt.Errorf("Expected STREAM_RESPONSE, got: %v", mtype)
+	if _, ok := response.(*StreamResponse); !ok {
+		return fmt.Errorf("Expected STREAM_RESPONSE, got: %T", response)
 	}
 	c.status = CLUSTER_STREAMING
 	return nil
@@ -331,9 +331,9 @@ func (c *Cluster) streamFromNode(cn ClusterNode) error {
 
 // streams keys that are owned/replicated
 // by the given node to it
-func (c *Cluster) streamToNode(n ClusterNode) error {
+func (c *Cluster) streamToNode(cn ClusterNode) error {
 	//
-	n := n.(*RemoteNode)
+	n := cn.(*RemoteNode)
 
 	// determines if the given key is replicated by
 	// the destination node
@@ -542,7 +542,8 @@ func (c *Cluster) reconcileRead(
 	timeout time.Duration,
 ) {
 	numNodes := len(nodeMap)
-	values := make(map[node.NodeId]store.Value, numNodes)
+	values := make([]store.Value, 0, numNodes)
+	valueNids := make([]node.NodeId, 0, numNodes)
 	var response queryResponse
 
 	numReceived := 0
@@ -559,7 +560,8 @@ func (c *Cluster) reconcileRead(
 					// TODO: log the error?
 					continue
 				}
-				values[response.nid] = val
+				values = append(values, val)
+				valueNids = append(valueNids, response.nid)
 			case <-timeoutEvent:
 				break receive
 			}
@@ -571,14 +573,16 @@ func (c *Cluster) reconcileRead(
 		//log something??
 	}
 
-	write := func(n ClusterNode, inst *store.Instruction) {
+	write := func(n ClusterNode, inst store.Instruction) {
 		n.ExecuteQuery(inst.Cmd, inst.Key, inst.Args, inst.Timestamp)
 	}
 
-	for nid, instructionList := range instructions {
-		n := nodeMap[node.NodeId(nid)]
-		for _, inst := range instructionList {
-			go write(n, inst)
+	for i, instructionList := range instructions {
+		if len(instructionList) > 0 {
+			n := nodeMap[valueNids[i]]
+			for _, inst := range instructionList {
+				go write(n, inst)
+			}
 		}
 	}
 
@@ -663,7 +667,7 @@ func (c *Cluster) ExecuteRead(
 		}
 		return true
 	}
-	values := make(map[string]store.Value)
+	values := make([]store.Value, 0)
 	var response queryResponse
 	timeoutEvent := time.After(timeout * time.Millisecond)
 	for !consistencySatisfied() {
@@ -684,7 +688,7 @@ func (c *Cluster) ExecuteRead(
 			}
 			// increment number of responses for responding datacenter
 			numReceivedResponses[nodeMap[response.nid].GetDatacenterId()]++
-			values[string(response.nid)] = val
+			values = append(values, val)
 		case <-timeoutEvent:
 			return nil, nodeTimeoutError(fmt.Sprintf("Read not completed before timeout"))
 		}

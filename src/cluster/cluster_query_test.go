@@ -7,6 +7,7 @@ import (
 )
 
 import (
+	"node"
 	"store"
 	"testing_helpers"
 )
@@ -19,7 +20,7 @@ func setupReadTestCluster(t *testing.T, s store.Store) *Cluster {
 		"127.0.0.1:9999",
 		"Test Cluster",
 		partitioner.GetToken("0"),
-		NewNodeId(),
+		node.NewNodeId(),
 		DatacenterId("DC0000"),
 		3,
 		partitioner,
@@ -36,14 +37,14 @@ func setupReadTestCluster(t *testing.T, s store.Store) *Cluster {
 	for x:=0; x<4; x++ {
 		dcid := DatacenterId(fmt.Sprintf("DC%v000", x))
 		for y:=0; y<10; y++ {
-			node := newMockNode(
-				NewNodeId(),
+			n := newMockNode(
+				node.NewNodeId(),
 				dcid,
 				partitioner.GetToken(fmt.Sprint(y)),
 				fmt.Sprintf("D%vN%v", x, y),
 			)
-			node.testPtr = t
-			c.addNode(node)
+			n.testPtr = t
+			c.addNode(n)
 		}
 	}
 	return c
@@ -51,14 +52,14 @@ func setupReadTestCluster(t *testing.T, s store.Store) *Cluster {
 
 // checks that the read calls in a list of nodes match the expected
 // calls provided by the caller
-func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []ClusterNode) {
+func assertReadCallsReceived(t *testing.T, reads []*queryCall, nodes []ClusterNode) {
 	for _, rnode := range nodes {
-		node := rnode.(*mockNode)
-		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		if testing_helpers.AssertEqual(t, nodefmt("read count"), len(reads), len(node.reads)) {
+		n := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", n.Name(), s) }
+		if testing_helpers.AssertEqual(t, nodefmt("read count"), len(reads), len(n.requests)) {
 			for i:=0; i<len(reads); i++ {
 				expected := reads[i]
-				actual := node.reads[i]
+				actual := n.requests[i]
 				readfmt := func(s string) string { return fmt.Sprintf("Read %v: %v", i, s) }
 				testing_helpers.AssertEqual(t, readfmt("cmd"), expected.cmd, actual.cmd)
 				testing_helpers.AssertEqual(t, readfmt("key"), expected.key, actual.key)
@@ -70,14 +71,14 @@ func assertReadCallsReceived(t *testing.T, reads []*readCall, nodes []ClusterNod
 
 // checks that the write calls in a list of nodes match the expected
 // calls provided by the caller
-func assertWriteCallsReceived(t *testing.T, writes []*writeCall, nodes []ClusterNode) {
+func assertWriteCallsReceived(t *testing.T, writes []*queryCall, nodes []ClusterNode) {
 	for _, rnode := range nodes {
-		node := rnode.(*mockNode)
-		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", node.Name(), s) }
-		if testing_helpers.AssertEqual(t, nodefmt("write count"), len(writes), len(node.writes)) {
+		n := rnode.(*mockNode)
+		nodefmt := func(s string) string { return fmt.Sprintf("Node %v: %v", n.Name(), s) }
+		if testing_helpers.AssertEqual(t, nodefmt("write count"), len(writes), len(n.requests)) {
 			for i:=0; i<len(writes); i++ {
 				expected := writes[i]
-				actual := node.writes[i]
+				actual := n.requests[i]
 				readfmt := func(s string) string { return fmt.Sprintln("Read %v: %v", i, s) }
 				testing_helpers.AssertEqual(t, readfmt("cmd"), expected.cmd, actual.cmd)
 				testing_helpers.AssertEqual(t, readfmt("key"), expected.key, actual.key)
@@ -120,14 +121,14 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	nodeMap := tCluster.GetNodesForKey(key)
 	for dcid, nodes := range nodeMap {
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for _, node := range nodes {
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+		for _, n := range nodes {
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, false)
@@ -149,19 +150,19 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 	}
 
 	// check that local nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
 		if dcid == tCluster.GetDatacenterId() { continue }
-		assertReadCallsReceived(t, []*readCall{}, nodes)
+		assertReadCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -180,16 +181,16 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 	nodeMap := tCluster.GetNodesForKey(key)
 	for dcid, nodes := range nodeMap {
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for idx, node := range nodes {
+		for idx, n := range nodes {
 			// we only want one node to respond
 			if idx != 0 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ONE, timeout, true)
@@ -211,19 +212,19 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 	}
 
 	// check that local nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
 		if dcid == tCluster.GetDatacenterId() { continue }
-		assertReadCallsReceived(t, []*readCall{}, nodes)
+		assertReadCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that only one value was received for reconciliation
@@ -258,19 +259,19 @@ func TestReadFailureCaseCLONE(t *testing.T) {
 	}
 
 	// check that local node's received a read call
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	assertReadCallsReceived(t, expectedCalls, nodeMap[tCluster.GetDatacenterId()])
 
 	// check that remote nodes were not queried
 	for dcid, nodes := range nodeMap {
 		// skip local cluster
 		if dcid == tCluster.GetDatacenterId() { continue }
-		assertReadCallsReceived(t, []*readCall{}, nodes)
+		assertReadCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against any nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
@@ -287,14 +288,14 @@ func TestReadSuccessCaseCLQUORUM(t *testing.T) {
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
 	for _, nodes := range nodeMap {
-		for _, node := range nodes {
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+		for _, n := range nodes {
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
@@ -316,14 +317,14 @@ func TestReadSuccessCaseCLQUORUM(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for _, nodes := range nodeMap {
 		assertReadCallsReceived(t, expectedCalls, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -348,16 +349,16 @@ func TestReadPartialSuccessCaseCLQUORUM(t *testing.T) {
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
 	for _, nodes := range nodeMap {
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first 2 nodes only
 			if i > 1 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
@@ -379,14 +380,14 @@ func TestReadPartialSuccessCaseCLQUORUM(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for _, nodes := range nodeMap {
 		assertReadCallsReceived(t, expectedCalls, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -406,16 +407,16 @@ func TestReadFailureCaseCLQUORUM(t *testing.T) {
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
 	for _, nodes := range nodeMap {
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first node only
 			if i > 0 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM, timeout, false)
@@ -433,14 +434,14 @@ func TestReadFailureCaseCLQUORUM(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for _, nodes := range nodeMap {
 		assertReadCallsReceived(t, expectedCalls, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
@@ -459,14 +460,14 @@ func TestReadSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 	for dcid, nodes := range nodeMap {
 		// local dc only
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for _, node := range nodes {
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+		for _, n := range nodes {
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM_LOCAL, timeout, false)
@@ -488,18 +489,18 @@ func TestReadSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for dcid, nodes := range nodeMap {
 		if dcid == tCluster.GetDatacenterId() {
 			assertReadCallsReceived(t, expectedCalls, nodes)
 		} else {
-			assertReadCallsReceived(t, []*readCall{}, nodes)
+			assertReadCallsReceived(t, []*queryCall{}, nodes)
 		}
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -523,16 +524,16 @@ func TestReadPartialSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 	for dcid, nodes := range nodeMap {
 		// local dc only
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first 2 nodes only
 			if i > 1 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM_LOCAL, timeout, false)
@@ -554,18 +555,18 @@ func TestReadPartialSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for dcid, nodes := range nodeMap {
 		if dcid == tCluster.GetDatacenterId() {
 			assertReadCallsReceived(t, expectedCalls, nodes)
 		} else {
-			assertReadCallsReceived(t, []*readCall{}, nodes)
+			assertReadCallsReceived(t, []*queryCall{}, nodes)
 		}
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -588,16 +589,16 @@ func TestReadFailureCaseCLQUORUM_LOCAL(t *testing.T) {
 	for dcid, nodes := range nodeMap {
 		// local dc only
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first node only
 			if i > 0 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_QUORUM_LOCAL, timeout, false)
@@ -615,18 +616,18 @@ func TestReadFailureCaseCLQUORUM_LOCAL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for dcid, nodes := range nodeMap {
 		if dcid == tCluster.GetDatacenterId() {
 			assertReadCallsReceived(t, expectedCalls, nodes)
 		} else {
-			assertReadCallsReceived(t, []*readCall{}, nodes)
+			assertReadCallsReceived(t, []*queryCall{}, nodes)
 		}
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
@@ -643,14 +644,14 @@ func TestReadSuccessCaseCLALL(t *testing.T) {
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
 	for _, nodes := range nodeMap {
-		for _, node := range nodes {
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+		for _, n := range nodes {
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL, timeout, false)
@@ -672,14 +673,14 @@ func TestReadSuccessCaseCLALL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for _, nodes := range nodeMap {
 		assertReadCallsReceived(t, expectedCalls, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -698,16 +699,16 @@ func TestReadFailureCaseCLALL(t *testing.T) {
 	expectedVal := newMockString("b", time.Now())
 	nodeMap := tCluster.GetNodesForKey(key)
 	for _, nodes := range nodeMap {
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first two nodes only
 			if i > 1 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL, timeout, false)
@@ -725,14 +726,14 @@ func TestReadFailureCaseCLALL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for _, nodes := range nodeMap {
 		assertReadCallsReceived(t, expectedCalls, nodes)
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted
@@ -751,14 +752,14 @@ func TestReadSuccessCaseCLALL_LOCAL(t *testing.T) {
 	for dcid, nodes := range nodeMap {
 		// local nodes only
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for _, node := range nodes {
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+		for _, n := range nodes {
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL_LOCAL, timeout, false)
@@ -780,18 +781,18 @@ func TestReadSuccessCaseCLALL_LOCAL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for dcid, nodes := range nodeMap {
 		if dcid == tCluster.GetDatacenterId() {
 			assertReadCallsReceived(t, expectedCalls, nodes)
 		} else {
-			assertReadCallsReceived(t, []*readCall{}, nodes)
+			assertReadCallsReceived(t, []*queryCall{}, nodes)
 		}
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that reconcile was called twice
@@ -812,16 +813,16 @@ func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
 	for dcid, nodes := range nodeMap {
 		// local nodes only
 		if dcid != tCluster.GetDatacenterId() { continue }
-		for i, node := range nodes {
+		for i, n := range nodes {
 			// first two nodes only
 			if i > 1 { continue }
-			mNode := node.(*mockNode)
-			mNode.addReadResponse(expectedVal, nil)
+			mNode := n.(*mockNode)
+			mNode.addResponse(expectedVal, nil)
 		}
 	}
 
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
-	mStore.addReconcileResponse(expectedVal, make(map[string][]*store.Instruction), nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
+	mStore.addReconcileResponse(expectedVal, [][]store.Instruction{}, nil)
 
 	timeout := time.Duration(1)
 	val, err := tCluster.ExecuteRead("GET", key, []string{}, CONSISTENCY_ALL_LOCAL, timeout, false)
@@ -839,18 +840,18 @@ func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
 	}
 
 	// check that all nodes were queried properly
-	expectedCalls := []*readCall{&readCall{cmd:"GET", key:key, args:[]string{}}}
+	expectedCalls := []*queryCall{&queryCall{cmd:"GET", key:key, args:[]string{}}}
 	for dcid, nodes := range nodeMap {
 		if dcid == tCluster.GetDatacenterId() {
 			assertReadCallsReceived(t, expectedCalls, nodes)
 		} else {
-			assertReadCallsReceived(t, []*readCall{}, nodes)
+			assertReadCallsReceived(t, []*queryCall{}, nodes)
 		}
 	}
 
 	// check that no writes (reconciliations) were issued against the nodes
 	for _, nodes := range nodeMap {
-		assertWriteCallsReceived(t, []*writeCall{}, nodes)
+		assertWriteCallsReceived(t, []*queryCall{}, nodes)
 	}
 
 	// check that no reconciliations were attempted

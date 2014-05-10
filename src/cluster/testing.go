@@ -16,6 +16,7 @@ import (
 import (
 	"kvstore"
 	"message"
+	"node"
 )
 
 // ----------------- cluster setup -----------------
@@ -26,7 +27,7 @@ func setupCluster() *Cluster {
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
-		NewNodeId(),
+		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		3,
 		NewMD5Partitioner(),
@@ -46,7 +47,7 @@ func setupRing() *Ring {
 
 	for i:=0; i<10; i++ {
 		n := newMockNode(
-			NewNodeId(),
+			node.NewNodeId(),
 			DatacenterId("DC5000"),
 			Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
@@ -64,7 +65,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		"127.0.0.1:9999",
 		"Test Cluster",
 		Token([]byte{0,0,0,0}),
-		NewNodeId(),
+		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		replicationFactor,
 		NewMD5Partitioner(),
@@ -76,7 +77,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 
 	for i:=1; i<size; i++ {
 		n := newMockNode(
-			NewNodeId(),
+			node.NewNodeId(),
 			DatacenterId("DC5000"),
 			Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
@@ -95,7 +96,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		"127.0.0.1:9999",
 		"Test Cluster",
 		partitioner.GetToken("0000"),
-		NewNodeId(),
+		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		replicationFactor,
 		partitioner,
@@ -109,7 +110,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		tkey := fmt.Sprintf("%04v", i * 1000)
 		token := partitioner.GetToken(tkey)
 		n := NewRemoteNodeInfo(
-			NewNodeId(),
+			node.NewNodeId(),
 			DatacenterId("DC5000"),
 			token,
 			fmt.Sprintf("N%v", i),
@@ -133,7 +134,7 @@ func setupDC(numDCs int, numNodes int) *DatacenterContainer {
 		dcid := DatacenterId(fmt.Sprintf("DC%v", dcNum))
 		for i:=0; i<numNodes; i++ {
 			n := newMockNode(
-				NewNodeId(),
+				node.NewNodeId(),
 				dcid,
 				Token([]byte{0,0,byte(i),0}),
 				fmt.Sprintf("N%v", i),
@@ -281,14 +282,14 @@ type pgmConn struct {
 
 func newPgmConn() *pgmConn {
 	p := &pgmConn{}
-	p.incoming = make([]Message, 0, 10)
-	p.outgoing = make([]Message, 0, 10)
+	p.incoming = make([]message.Message, 0, 10)
+	p.outgoing = make([]message.Message, 0, 10)
 	return p
 }
 
 // reads outgoing messages to the receiver
 func (c *pgmConn) Read(b []byte) (int, error) {
-	var msg Message
+	var msg message.Message
 	if c.outputFactory != nil {
 		msg = c.outputFactory(c)
 	} else {
@@ -297,7 +298,7 @@ func (c *pgmConn) Read(b []byte) (int, error) {
 	}
 
 	buf := &bytes.Buffer{}
-	if err := WriteMessage(buf, msg); err != nil { panic(err) }
+	if err := message.WriteMessage(buf, msg); err != nil { panic(err) }
 
 	num, err := buf.Read(b)
 	return num, err
@@ -307,7 +308,7 @@ func (c *pgmConn) Read(b []byte) (int, error) {
 func (c *pgmConn) Write(b []byte) (int, error) {
 	buf := &bytes.Buffer{}
 	num, err := buf.Write(b)
-	msg, _, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil { panic(err) }
 
 	if c.incoming == nil {

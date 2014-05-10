@@ -8,6 +8,7 @@ import (
 )
 
 import (
+	"message"
 	"testing_helpers"
 )
 
@@ -19,19 +20,13 @@ func TestReadRequest(t *testing.T) {
 		Args: []string{"B", "C"},
 	}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != READ_REQUEST {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ReadRequest)
 	if !ok {
@@ -57,19 +52,13 @@ func TestWriteRequest(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != WRITE_REQUEST {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*WriteRequest)
 	if !ok {
@@ -95,19 +84,13 @@ func TestQueryResponse(t *testing.T) {
 		},
 	}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != QUERY_RESPONSE {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*QueryResponse)
 	if !ok {

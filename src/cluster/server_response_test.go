@@ -5,6 +5,7 @@ import (
 )
 
 import (
+	"node"
 	"testing_helpers"
 )
 
@@ -12,16 +13,16 @@ func TestServerDiscoverPeersResponse(t *testing.T) {
 	c := makeRing(5, 3)
 	server := &PeerServer{cluster:c}
 
-	node := NewRemoteNodeInfo(
-		NewNodeId(),
+	n := NewRemoteNodeInfo(
+		node.NewNodeId(),
 		"DC1",
 		c.partitioner.GetToken("asdfghjkl"),
 		"New Node",
 		"127.0.0.5:9999",
 		c,
 	)
-	msg := &DiscoverPeersRequest{NodeId:node.GetId()}
-	response, err := server.executeRequest(node, msg, msg.GetType())
+	msg := &DiscoverPeersRequest{NodeId:n.GetId()}
+	response, err := server.executeRequest(n, msg)
 
 	if err != nil {
 		t.Fatalf("Unexpected error executing request: %v", err)

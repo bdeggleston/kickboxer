@@ -7,32 +7,28 @@ import (
 )
 
 import (
+	"message"
+	"node"
 	"testing_helpers"
 )
 
 func TestConnectionRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionRequest{PeerData{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 		DCId:"DC5000",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != CONNECTION_REQUEST {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionRequest)
 	if !ok {
@@ -53,25 +49,19 @@ func TestConnectionRequest(t *testing.T) {
 func TestConnectionAcceptedResponse(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionAcceptedResponse{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 		DCId:"DC5000",
 		Name:"Test Node",
 		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != CONNECTION_ACCEPTED_RESPONSE {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionAcceptedResponse)
 	if !ok {
@@ -90,19 +80,13 @@ func TestConnectionRefusedResponse(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &ConnectionRefusedResponse{Reason:"you suck"}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != CONNECTION_REFUSED_RESPONSE {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*ConnectionRefusedResponse)
 	if !ok {
@@ -117,22 +101,16 @@ func TestConnectionRefusedResponse(t *testing.T) {
 func TestDiscoverPeersRequest(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src := &DiscoverPeersRequest{
-		NodeId:NewNodeId(),
+		NodeId:node.NewNodeId(),
 	}
-
-	// interface check
-	_ = Message(src)
 
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != DISCOVER_PEERS_REQUEST {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*DiscoverPeersRequest)
 	if !ok {
@@ -149,14 +127,14 @@ func TestDiscoverPeersResponse(t *testing.T) {
 	src := &DiscoverPeerResponse{
 		Peers: []*PeerData{
 			&PeerData{
-				NodeId:NewNodeId(),
+				NodeId:node.NewNodeId(),
 				DCId:DatacenterId("DC5000"),
 				Addr:"127.0.0.1:9998",
 				Name:"Test Node1",
 				Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 			},
 			&PeerData{
-				NodeId:NewNodeId(),
+				NodeId:node.NewNodeId(),
 				DCId:DatacenterId("DC2000"),
 				Addr:"127.0.0.1:9999",
 				Name:"Test Node2",
@@ -165,19 +143,13 @@ func TestDiscoverPeersResponse(t *testing.T) {
 		},
 	}
 
-	// interface check
-	_ = Message(src)
-
 	// write, then read message
-	if err := WriteMessage(buf, src); err != nil {
+	if err := message.WriteMessage(buf, src); err != nil {
 		t.Fatalf("unexpected Serialize error: %v", err)
 	}
-	msg, mtype, err := ReadMessage(buf)
+	msg, err := message.ReadMessage(buf)
 	if err != nil {
 		t.Fatalf("unexpected Deserialize error: %v", err)
-	}
-	if mtype != DISCOVER_PEERS_RESPONSE {
-		t.Fatalf("unexpected message type enum: %v", mtype)
 	}
 	dst, ok := msg.(*DiscoverPeerResponse)
 	if !ok {
