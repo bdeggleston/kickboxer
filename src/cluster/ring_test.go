@@ -201,3 +201,9 @@ func TestKeyRouting_(t *testing.T) {
 	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[0].GetId(), nodes[1].GetId())
 	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[1].GetId(), nodes[2].GetId())
 }
+
+// TODO: this
+// tests that the number of nodes returned matches the replication factor
+func TestReplicationFactor(t *testing.T) {
+	t.Skipf("check number of nodes returned matches replication factor")
+}
