@@ -1,39 +1,46 @@
 package cluster
 
 import (
-	"testing"
+	"launchpad.net/gocheck"
 )
 
 import (
 	"message"
 	"node"
-	"testing_helpers"
 )
 
 
 /************** local tests **************/
 
+type LocalNodeTest struct {}
+
+var _ = gocheck.Suite(&LocalNodeTest{})
+
 // tests that starting the local node starts the local store
-func TestStartingConnectsToStore(t *testing.T) {
+func (t *LocalNodeTest) TestStartingConnectsToStore(c *gocheck.C) {
 
 }
 
 // tests that calling ExecuteRead calls the proper store method
-func TestReadRequestCallsCorrectStoreMethod(t *testing.T) {
+func (t *LocalNodeTest) TestReadRequestCallsCorrectStoreMethod(c *gocheck.C) {
 
 }
 
 // tests that calling ExecuteWrite calls the proper store method
-func TestWriteRequestCallsCorrectStoreMethod(t *testing.T) {
+func (t *LocalNodeTest) TestWriteRequestCallsCorrectStoreMethod(c *gocheck.C) {
 
 }
 
 /************** remote tests **************/
 
+type RemoteNodeTest struct {}
+
+var _ = gocheck.Suite(&RemoteNodeTest{})
+
 // tests that calling Start on a remote node initiates
 // a connection to the remote peer server, copies
 // it's data, and sets the node's status to UP
-func TestStartingConnectsToPeer(t *testing.T) {
+func (t *RemoteNodeTest) TestStartingConnectsToPeer(c *gocheck.C) {
 	// write a connection acceptance message
 	sock := newBiConn(1, 1)
 	response := &ConnectionAcceptedResponse{
@@ -49,31 +56,27 @@ func TestStartingConnectsToPeer(t *testing.T) {
 	n.pool.Put(conn)
 
 	// pre startup sanity check
-	testing_helpers.AssertEqual(t, "pre start conn status", false, conn.completedHandshake)
-	testing_helpers.AssertEqual(t, "pre start name", "", n.name)
-	testing_helpers.AssertEqual(t, "pre start id", node.NodeId{}, n.id)
-	testing_helpers.AssertEqual(t, "pre start status", NODE_INITIALIZING, n.status)
-	testing_helpers.AssertSliceEqual(t, "pre start token", nil, n.token)
+	c.Check(conn.completedHandshake, gocheck.Equals, false)
+	c.Check(n.name, gocheck.Equals, "")
+	c.Check(n.id, gocheck.Equals, node.NodeId{})
+	c.Check(n.status, gocheck.Equals, NODE_INITIALIZING)
+	c.Check(len(n.token), gocheck.DeepEquals, 0)
 
 	// start the node
 	err := n.Start()
-	if err != nil {
-		t.Fatalf("Unexpected error of type %T: %v", err, err)
-	}
+	c.Assert(err, gocheck.IsNil)
 
 	// check that values were saved properly
-	testing_helpers.AssertEqual(t, "post start conn status", true, conn.completedHandshake)
-	testing_helpers.AssertEqual(t, "post start name", response.Name, n.name)
-	testing_helpers.AssertEqual(t, "post start id", response.NodeId, n.id)
-	testing_helpers.AssertEqual(t, "post start status", NODE_UP, n.status)
-	testing_helpers.AssertSliceEqual(t, "post start token", response.Token, n.token)
-
-
+	c.Check(conn.completedHandshake, gocheck.Equals, true)
+	c.Check(n.name, gocheck.Equals, response.Name)
+	c.Check(n.id, gocheck.Equals, response.NodeId)
+	c.Check(n.status, gocheck.Equals, NODE_UP)
+	c.Check(n.token, gocheck.DeepEquals, response.Token)
 }
 
 // tests that sending and receiving messages works as
 // expected
-func TestMessageSendingSuccessCase(t *testing.T) {
+func (t *RemoteNodeTest) TestMessageSendingSuccessCase(c *gocheck.C) {
 	sock := newBiConn(1, 1)
 	expected := &DiscoverPeerResponse{Peers:[]*PeerData{}}
 
@@ -88,26 +91,16 @@ func TestMessageSendingSuccessCase(t *testing.T) {
 
 	request := &DiscoverPeersRequest{NodeId:n.GetId()}
 	rawResponse, err := n.SendMessage(request)
-	if err != nil {
-		t.Fatalf("Unexpected error of type [%T]: %v", err, err)
-	}
-	response, ok := rawResponse.(*DiscoverPeerResponse)
-	if !ok {
-		t.Fatalf("Unexpected message type. Expected DiscoverPeerResponse, got %T", rawResponse)
-	}
-	if len(response.Peers) != 0 {
-		t.Errorf("Unexpected response data length. Expected 0, got %v", len(response.Peers))
-	}
+	c.Assert(err, gocheck.IsNil)
 
-	if n.status != NODE_UP {
-		t.Errorf("Unexpected node status, expected %v, got %v", NODE_UP, n.status)
-	}
-
+	response := rawResponse.(*DiscoverPeerResponse)
+	c.Check(len(response.Peers), gocheck.Equals, 0)
+	c.Check(n.status, gocheck.Equals, NODE_UP)
 }
 
 // tests that a node is marked as down if sending
 // a message fails
-func TestMessageSendingFailureCase(t *testing.T) {
+func (t *RemoteNodeTest) TestMessageSendingFailureCase(c *gocheck.C) {
 	cluster := setupCluster()
 	n := NewRemoteNode("127.0.0.2:9998", cluster)
 	n.status = NODE_UP
@@ -117,24 +110,14 @@ func TestMessageSendingFailureCase(t *testing.T) {
 
 	request := &DiscoverPeersRequest{NodeId:n.GetId()}
 	response, err := n.SendMessage(request)
-	if err == nil {
-		t.Fatal("Expected error, received nil")
-	}
-	if response != nil {
-		t.Errorf("Expected nil message and response type, got: %T", response)
-	}
-	if n.status != NODE_DOWN {
-		t.Errorf("Unexpected node status. Expected %v, got %v", NODE_DOWN, n.status)
-	}
-
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(response, gocheck.IsNil)
+	c.Assert(n.status, gocheck.Equals, NODE_DOWN)
 }
 
-// tests that calling ExecuteRead sends a ReadMessage
-func TestReadRequestSendsCorrectMessage(t *testing.T) {
-	t.SkipNow()
-}
+// tests calling execute query sends correct message
+func (t *RemoteNodeTest) TestExecuteQueryMessage(c *gocheck.C) {
+	// TODO: this
+	c.Skip("TODO: this")
 
-// tests that calling ExecuteWrite sends a WriteMessage
-func TestWriteRequestSendsCorrectMessage(t *testing.T) {
-	t.SkipNow()
 }
