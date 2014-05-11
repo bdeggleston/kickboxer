@@ -107,11 +107,14 @@ func TestInvalidReadCommand(t *testing.T) {
 // tests values are reconciled, and corrections
 // sent to nodes with out of date info
 func TestReadRepair(t *testing.T) {
-
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 }
 
 // tests consistency ONE where all nodes respond
 func TestReadSuccessCaseCLONE(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -172,6 +175,8 @@ func TestReadSuccessCaseCLONE(t *testing.T) {
 // tests consistency ONE where consistency is satisfied
 // but not all nodes return a response
 func TestReadPartialSuccessCaseCLONE(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -236,6 +241,8 @@ func TestReadPartialSuccessCaseCLONE(t *testing.T) {
 
 // tests consistency ONE where no nodes can be reached
 func TestReadFailureCaseCLONE(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -280,6 +287,8 @@ func TestReadFailureCaseCLONE(t *testing.T) {
 
 // tests consistency QUORUM where all nodes responsd
 func TestReadSuccessCaseCLQUORUM(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -340,6 +349,8 @@ func TestReadSuccessCaseCLQUORUM(t *testing.T) {
 // tests consistency QUORUM where consistency is satisfied
 // but not all nodes are reached
 func TestReadPartialSuccessCaseCLQUORUM(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	// TODO: test with single and multi dc configs
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
@@ -399,6 +410,8 @@ func TestReadPartialSuccessCaseCLQUORUM(t *testing.T) {
 
 // tests consistency QUORUM where consistency cannot be satisfied
 func TestReadFailureCaseCLQUORUM(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -450,6 +463,8 @@ func TestReadFailureCaseCLQUORUM(t *testing.T) {
 
 // tests consistency QUORUM_LOCAL where all nodes respond
 func TestReadSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -514,6 +529,8 @@ func TestReadSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 // tests consistency QUORUM_LOCAL where consistency is satisfied
 // but not all nodes are reached
 func TestReadPartialSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -579,6 +596,8 @@ func TestReadPartialSuccessCaseCLQUORUM_LOCAL(t *testing.T) {
 
 // tests consistency QUORUM_LOCAL where consistency cannot be satisfied
 func TestReadFailureCaseCLQUORUM_LOCAL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -636,6 +655,8 @@ func TestReadFailureCaseCLQUORUM_LOCAL(t *testing.T) {
 
 // tests consistency ALL_LOCAL where all nodes respond
 func TestReadSuccessCaseCLALL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -691,6 +712,8 @@ func TestReadSuccessCaseCLALL(t *testing.T) {
 
 // tests consistency ALL where no nodes can be reached
 func TestReadFailureCaseCLALL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -742,6 +765,8 @@ func TestReadFailureCaseCLALL(t *testing.T) {
 
 // tests consistency ALL_LOCAL where all nodes respond
 func TestReadSuccessCaseCLALL_LOCAL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -803,6 +828,8 @@ func TestReadSuccessCaseCLALL_LOCAL(t *testing.T) {
 
 // tests consistency ALL_LOCAL where no nodes can be reached
 func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
+	t.Skip("consider removing existing cluster query code")
+	t.SkipNow()
 	mStore := newMockStore()
 	tCluster := setupReadTestCluster(t, mStore)
 	key := "a"
@@ -856,38 +883,6 @@ func TestReadFailureCaseCLALL_LOCAL(t *testing.T) {
 
 	// check that no reconciliations were attempted
 	testing_helpers.AssertEqual(t, "reconcile calls", 0, len(mStore.reconcileCalls))
-}
-
-// tests consistency CONSENSUS where all nodes respond
-func TestReadSuccessCaseCLCONSENSUS(t *testing.T) {
-	t.Skip("not implemented yet")
-}
-
-// tests consistency CONSENSUS where consistency is satisfied
-// but not all nodes are reached
-func TestReadPartialSuccessCaseCLCONSENSUS(t *testing.T) {
-	t.Skip("not implemented yet")
-}
-
-// tests consistency CONSENSUS where no nodes can be reached
-func TestReadFailureCaseCLCONSENSUS(t *testing.T) {
-	t.Skip("not implemented yet")
-}
-
-// tests consistency CONSENSUS_LOCAL where all nodes respond
-func TestReadSuccessCaseCLCONSENSUS_LOCAL(t *testing.T) {
-	t.Skip("not implemented yet")
-}
-
-// tests consistency CONSENSUS_LOCAL where consistency is satisfied
-// but not all nodes are reached
-func TestReadPartialSuccessCaseCLCONSENSUS_LOCAL(t *testing.T) {
-	t.Skip("not implemented yet")
-}
-
-// tests consistency CONSENSUS_LOCAL where no nodes can be reached
-func TestReadFailureCaseCLCONSENSUS_LOCAL(t *testing.T) {
-	t.Skip("not implemented yet")
 }
 
 
