@@ -2,204 +2,139 @@ package cluster
 
 import (
 	"net"
-	"testing"
 )
 
-// tests that the connection pool is initialized as expected
-func TestPoolInitialization(t *testing.T) {
-	addr := "127.0.0.1:9999"
+import (
+	"launchpad.net/gocheck"
+)
 
+type ConnectionPoolTest struct {}
+
+var _ = gocheck.Suite(&ConnectionPoolTest{})
+
+func (t *ConnectionPoolTest) TestInitialization(c *gocheck.C) {
+	addr := "127.0.0.1:9999"
 	pool := NewConnectionPool(addr, 30, 10000)
 
-	//check pool initialization
-	if pool.size != 0 {
-		t.Errorf("pool size 0 expected, %v found", pool.size)
-	}
-	if pool.addr != addr {
-		t.Errorf("pool addr %v expected, %v found", addr, pool.addr)
-	}
-	if pool.timeout != 10000 {
-		t.Errorf("pool timeout 10000 expected, %v found", pool.timeout)
-	}
-	if pool.maxConn != 30 {
-		t.Errorf("pool maxConn 30 expected, %v found", pool.maxConn)
-	}
-	if pool.pool != nil {
-		t.Errorf("nil pool pointer expected")
-	}
-	if pool.tail != nil {
-		t.Errorf("nil tail pointer expected")
-	}
+	c.Check(pool.size, gocheck.Equals, uint(0))
+	c.Check(pool.addr, gocheck.Equals, addr)
+	c.Check(pool.timeout, gocheck.Equals, int64(10000))
+	c.Check(pool.maxConn, gocheck.Equals, uint(30))
+	c.Check(pool.pool, gocheck.IsNil)
+	c.Check(pool.tail, gocheck.IsNil)
 }
 
 // tests that open connections are returned to
 // the connection pool
-func TestOpenConnectionReturn(t *testing.T) {
-
+func (t *ConnectionPoolTest) TestOpenConnectionReturn(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
 	conn := &Connection{socket:&dumbConn{}}
 
 	pool.Put(conn)
 
-	if pool.size != 1 {
-		t.Errorf("pool size 1 expected, %v found", pool.size)
-	}
-	if pool.pool == nil {
-		t.Errorf("unexpected nil pool pointer found")
-	}
-	if pool.tail == nil {
-		t.Errorf("unexpected nil tail pointer found")
-	}
+	c.Check(pool.size, gocheck.Equals, uint(1))
+	c.Check(pool.pool, gocheck.NotNil)
+	c.Check(pool.tail, gocheck.NotNil)
 }
 
 // test that closed connections are not returned
 // to the connection pool
-func TestClosedConnectionReturn(t *testing.T) {
-
+func (t *ConnectionPoolTest) TestClosedConnectionReturn(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
 	conn := &Connection{socket:&dumbConn{}, isClosed:true}
 
 	pool.Put(conn)
 
-	if pool.size != 0 {
-		t.Errorf("pool size 0 expected, %v found", pool.size)
-	}
-	if pool.pool != nil {
-		t.Errorf("nil pool pointer expected")
-	}
-	if pool.tail != nil {
-		t.Errorf("nil tail pointer expected")
-	}
+	c.Check(pool.size, gocheck.Equals, uint(0))
+	c.Check(pool.pool, gocheck.IsNil)
+	c.Check(pool.tail, gocheck.IsNil)
 }
 
 // test that connections are closed if the
 // pool is full
-func TestFullConnectionReturn(t *testing.T) {
+func (t *ConnectionPoolTest) TestFullConnectionReturn(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 10, 10000)
 	for i:=0; i<10; i++ {
 		pool.Put(&Connection{socket:&dumbConn{}})
 
 	}
-	if pool.size != 10 {
-		t.Errorf("pool size 10 expected, %v found", pool.size)
-	}
+	c.Check(pool.size, gocheck.Equals, uint(10))
 
 	conn := &Connection{socket:&dumbConn{}}
 	pool.Put(conn)
-
-	if pool.size != 10 {
-		t.Errorf("pool size 10 expected, %v found", pool.size)
-	}
-	if !conn.isClosed {
-		t.Errorf("connection was not closed")
-	}
+	c.Check(pool.size, gocheck.Equals, uint(10))
+	c.Check(conn.isClosed, gocheck.Equals, true)
 }
 
 // test that open connections are returned
-func TestGetConn(t *testing.T) {
+func (t *ConnectionPoolTest) TestGetConn(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
 	conn := &Connection{socket:&dumbConn{}}
 
 	pool.Put(conn)
 
-	if pool.size != 1 {
-		t.Errorf("pool size 1 expected, %v found", pool.size)
-	}
+	c.Check(pool.size, gocheck.Equals, uint(1))
 
 	newConn, err := pool.Get()
 
-	if err != nil {
-		t.Fatalf("unexpected error returned: %v", err)
-	}
-	if pool.size != 0 {
-		t.Errorf("pool size 0 expected, %v found", pool.size)
-	}
-	if conn != newConn {
-		t.Errorf("unexpected connection returned")
-	}
-
+	c.Assert(err, gocheck.IsNil)
+	c.Check(pool.size, gocheck.Equals, uint(0))
+	c.Check(conn, gocheck.Equals, newConn)
 }
 
 // test that connections are opened if the
 // pool is empty
-func TestGetOpensConnection(t *testing.T) {
+func (t *ConnectionPoolTest) TestGetOpensConnection(c *gocheck.C) {
 	addr := "127.0.0.1:9999"
 	ln, _ := unresponsiveListener(addr)
 	defer ln.Close()
 
 	pool := NewConnectionPool("127.0.0.1:9999", 10, 10000)
-	if pool.pool != nil {
-		t.Fatal("empty pool expected")
-	}
+	c.Assert(pool.pool, gocheck.IsNil)
 	conn, err := pool.Get()
-	if err != nil {
-		t.Fatalf("unexpected error returned: %v", err)
-	}
-
-	if conn == nil {
-		t.Fatalf("nil connection returned")
-	}
-
-	if conn.Closed() {
-		t.Fatalf("connection unexpectedly closed")
-	}
 	defer conn.Close()
 
-	if _, ok := conn.socket.(*net.TCPConn); !ok {
-		t.Errorf("conn.socket of type *new.TCPConn expected, got %T", conn.socket)
-	}
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(conn, gocheck.NotNil)
+
+	c.Assert(conn.Closed(), gocheck.Equals, false)
+
+	c.Assert(conn.socket, gocheck.FitsTypeOf, &net.TCPConn{})
 }
 
 // tests that pool counter is incremented and
 // decremented properly
-func TestPoolSize(t *testing.T) {
+func (t *ConnectionPoolTest) TestPoolSize(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
 
 	conn := &Connection{socket:&dumbConn{}}
 	pool.Put(conn)
-	if pool.size != 1 {
-		t.Errorf("pool size 1 expected, %v found", pool.size)
-	}
+	c.Check(pool.size, gocheck.Equals, uint(1))
 
 	conn = &Connection{socket:&dumbConn{}}
 	pool.Put(conn)
-	if pool.size != 2 {
-		t.Errorf("pool size 2 expected, %v found", pool.size)
-	}
+	c.Check(pool.size, gocheck.Equals, uint(2))
 
 	pool.Get()
-	if pool.size != 1 {
-		t.Errorf("pool size 1 expected, %v found", pool.size)
-	}
-
-
+	c.Check(pool.size, gocheck.Equals, uint(1))
 }
 
 // tests that the tail member is tracked properly
-func TestTailLogic(t *testing.T) {
-
+func (t *ConnectionPoolTest) TestTailLogic(c *gocheck.C) {
 	pool := NewConnectionPool("127.0.0.1:9999", 30, 10000)
 
 	conn := &Connection{socket:&dumbConn{}}
 	pool.Put(conn)
-	if pool.tail.conn != conn {
-		t.Errorf("unexpected connection found on tail")
-	}
+	c.Assert(pool.tail.conn, gocheck.Equals, conn)
 
 	conn = &Connection{socket:&dumbConn{}}
 	pool.Put(conn)
-	if pool.tail.conn != conn {
-		t.Errorf("unexpected connection found on tail")
-	}
+	c.Assert(pool.tail.conn, gocheck.Equals, conn)
 
 	// empty the pool
 	pool.Get()
 	pool.Get()
 
-	if pool.size != 0 {
-		t.Errorf("pool size 0 expected, %v found", pool.size)
-	}
-	if pool.tail != nil {
-		t.Errorf("nil tail expected, %v found", pool.tail)
-	}
+	c.Check(pool.size, gocheck.Equals, uint(0))
+	c.Assert(pool.tail, gocheck.IsNil)
 }
