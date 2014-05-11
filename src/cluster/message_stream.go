@@ -80,7 +80,17 @@ func (m *StreamData) Deserialize(buf *bufio.Reader) error {
 }
 
 // TODO: implement and fix
-func (m *StreamData) NumBytes() int { return 0 }
+func (m *StreamData) NumBytes() int {
+	numBytes := 0
+
+	// key
+	numBytes += serializer.NumStringBytes(m.Key)
+
+	// value
+	numBytes += serializer.NumSliceBytes(m.Data)
+
+	return numBytes
+}
 
 // sends arbitrary byte data from one
 type StreamDataRequest struct {
@@ -113,8 +123,17 @@ func (m *StreamDataRequest) Deserialize(buf *bufio.Reader) error {
 
 func (m *StreamDataRequest) GetType() uint32 { return STREAM_DATA_REQUEST }
 
-// TODO: implement and fix
-func (m *StreamDataRequest) NumBytes() int { return 0 }
+func (m *StreamDataRequest) NumBytes() int {
+	numBytes := 0
+
+	// num entries
+	numBytes += 4
+
+	for _, datum := range m.Data {
+		numBytes += datum.NumBytes()
+	}
+	return numBytes
+}
 
 type StreamDataResponse struct {}
 func (m *StreamDataResponse) Serialize(*bufio.Writer) error { return nil }

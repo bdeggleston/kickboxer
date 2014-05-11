@@ -61,7 +61,18 @@ func (m *ReadRequest) Deserialize(buf *bufio.Reader) error {
 func (m *ReadRequest) GetType() uint32 { return READ_REQUEST }
 
 // TODO: implement and fix
-func (m *ReadRequest) NumBytes() int { return 0 }
+func (m *ReadRequest) NumBytes() int {
+	numBytes := 0
+	numBytes += serializer.NumStringBytes(m.Cmd)
+	numBytes += serializer.NumStringBytes(m.Key)
+
+	// args
+	numBytes += 4
+	for _, arg := range m.Args {
+		numBytes += serializer.NumStringBytes(arg)
+	}
+	return numBytes
+}
 
 type WriteRequest struct {
 	ReadRequest
@@ -72,24 +83,25 @@ var _ = message.Message(&WriteRequest{})
 
 func (m *WriteRequest) Serialize(buf *bufio.Writer) error {
 	if err := m.ReadRequest.Serialize(buf); err != nil { return err }
-	if b, err := m.Timestamp.GobEncode(); err != nil { return err } else {
-		if err := serializer.WriteFieldBytes(buf, b); err != nil { return err }
-	}
+	if err := serializer.WriteTime(buf, m.Timestamp); err != nil { return err }
 	return nil
 }
 
 func (m *WriteRequest) Deserialize(buf *bufio.Reader) error {
 	if err := m.ReadRequest.Deserialize(buf); err != nil { return err }
-	if b, err := serializer.ReadFieldBytes(buf); err != nil { return err } else  {
-		if err := m.Timestamp.GobDecode(b); err != nil { return err }
-	}
+	var err error
+	if m.Timestamp, err = serializer.ReadTime(buf); err != nil { return err }
 	return nil
 }
 
 func (m *WriteRequest) GetType() uint32 { return WRITE_REQUEST }
 
 // TODO: implement and fix
-func (m *WriteRequest) NumBytes() int { return 0 }
+func (m *WriteRequest) NumBytes() int {
+	numBytes := m.ReadRequest.NumBytes()
+	numBytes += serializer.NumTimeBytes()
+	return numBytes
+}
 
 type QueryResponse struct {
 	// ad hoc data returned by the storage backend
@@ -124,7 +136,17 @@ func (m *QueryResponse) Deserialize(buf *bufio.Reader) error {
 func (m *QueryResponse) GetType() uint32 { return QUERY_RESPONSE }
 
 // TODO: implement and fix
-func (m *QueryResponse) NumBytes() int { return 0 }
+func (m *QueryResponse) NumBytes() int {
+	numBytes := 0
+
+	// num entries
+	numBytes += 4
+
+	for _, datum := range m.Data {
+		numBytes += serializer.NumSliceBytes(datum)
+	}
+	return numBytes
+}
 
 
 func init() {
