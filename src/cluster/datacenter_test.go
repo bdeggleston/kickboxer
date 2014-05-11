@@ -2,63 +2,57 @@ package cluster
 
 import (
 	"fmt"
-	"testing"
-	"testing_helpers"
 )
 
-// tests add node behavior
-func TestAddNode(t *testing.T) {
-	dc := setupDC(3, 10)
+import (
+	"launchpad.net/gocheck"
+)
 
-	testing_helpers.AssertEqual(t, "num dcs", 3, len(dc.rings))
+type DatacenterTest struct {
+	dc *DatacenterContainer
+}
+
+var _ = gocheck.Suite(&DatacenterTest{})
+
+func (t *DatacenterTest) SetUpTest(c *gocheck.C) {
+	t.dc = setupDC(3, 10)
+	c.Assert(len(t.dc.rings), gocheck.Equals, 3)
+}
+
+// tests add node behavior
+func (t *DatacenterTest) TestAddNode(c *gocheck.C) {
 	for i, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
 		dcNum := i + 1
-		ring, exists := dc.rings[dcid]
-		if !exists {
-			t.Fatalf("DC not found: [%v]", dcid)
-		}
+		ring, exists := t.dc.rings[dcid]
+		c.Check(exists, gocheck.Equals, true)
 		nodes := ring.AllNodes()
-		testing_helpers.AssertEqual(t, "ring size", 10, len(nodes))
+		c.Check(len(nodes), gocheck.Equals, 10)
 		node := nodes[0]
-
-		testing_helpers.AssertEqual(t, "dc name", DatacenterId(fmt.Sprintf("DC%v", dcNum)), node.GetDatacenterId())
+		c.Check(node.GetDatacenterId(), gocheck.Equals, DatacenterId(fmt.Sprintf("DC%v", dcNum)))
 	}
 }
 
-func TestGetRing(t *testing.T) {
-	dc := setupDC(3, 10)
+func (t *DatacenterTest) TestGetRing(c *gocheck.C) {
+	ring, err := t.dc.GetRing("DC1")
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(ring, gocheck.NotNil)
 
-	ring, err := dc.GetRing("DC1")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if ring == nil {
-		t.Fatalf("Ring unexpectedly nil")
-	}
-
-	ring, err = dc.GetRing("DC5")
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-	if ring != nil {
-		t.Fatalf("Expected nil ring")
-	}
+	ring, err = t.dc.GetRing("DC5")
+	c.Assert(err, gocheck.NotNil)
+	c.Assert(ring, gocheck.IsNil)
 }
 
-func TestGetNodesForToken(t *testing.T) {
-	dc := setupDC(3, 10)
-
+func (t *DatacenterTest) TestGetNodesForToken(c *gocheck.C) {
 	var token Token
 
 	token = Token([]byte{0,0,4,5})
-	nodes := dc.GetNodesForToken(token, 3)
+	nodes := t.dc.GetNodesForToken(token, 3)
 
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
+	c.Assert(len(nodes), gocheck.Equals, 3)
 	for dcid, replicas := range nodes {
-		testing_helpers.AssertEqual(t, "node[0]", dc.rings[dcid].tokenRing[5].GetId(), replicas[0].GetId())
-		testing_helpers.AssertEqual(t, "node[1]", dc.rings[dcid].tokenRing[6].GetId(), replicas[1].GetId())
-		testing_helpers.AssertEqual(t, "node[2]", dc.rings[dcid].tokenRing[7].GetId(), replicas[2].GetId())
+		c.Check(replicas[0].GetId(), gocheck.Equals, t.dc.rings[dcid].tokenRing[5].GetId())
+		c.Check(replicas[1].GetId(), gocheck.Equals, t.dc.rings[dcid].tokenRing[6].GetId())
+		c.Check(replicas[2].GetId(), gocheck.Equals, t.dc.rings[dcid].tokenRing[7].GetId())
 	}
 }
-
 
