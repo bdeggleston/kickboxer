@@ -87,8 +87,7 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		Token:s.cluster.GetToken(),
 	}
 	if err := message.WriteMessage(conn, acceptance); err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("Error writing acceptance: %v", err)
+		return err
 	}
 
 	// register node with cluster
@@ -106,24 +105,20 @@ func (s *PeerServer) handleConnection(conn net.Conn) error {
 		// get the request
 		request, err := message.ReadMessage(conn)
 		if err != nil {
-			errMsg := fmt.Sprintf("Error reading request: %v", err)
-			fmt.Println(errMsg)
 			conn.Close()
-			return fmt.Errorf(errMsg)
+			return err
 		}
 
 		// get the response
 		response, err := s.executeRequest(node, request)
 		if err != nil {
-			errMsg := fmt.Sprintf("Error executing request: %v", err)
-			fmt.Println(errMsg)
 			conn.Close()
-			return fmt.Errorf(errMsg)
+			return err
 		}
 
 		// send response
 		if err = message.WriteMessage(conn, response); err != nil {
-			return fmt.Errorf("Error writing response: %v", err)
+			return err
 		}
 	}
 	return nil

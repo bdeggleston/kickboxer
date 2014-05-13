@@ -1,42 +1,39 @@
 package cluster
 
 import (
-	"testing"
+	"launchpad.net/gocheck"
 )
 
 import (
 	"node"
-	"testing_helpers"
 )
 
-func TestServerDiscoverPeersResponse(t *testing.T) {
-	c := makeRing(5, 3)
-	server := &PeerServer{cluster:c}
+type ServerResponseTest struct {}
+
+var _ = gocheck.Suite(&ServerResponseTest{})
+
+func (t *ServerResponseTest) TestServerDiscoverPeersResponse(c *gocheck.C) {
+	clstr := makeRing(5, 3)
+	server := &PeerServer{cluster:clstr}
 
 	n := NewRemoteNodeInfo(
 		node.NewNodeId(),
 		"DC1",
-		c.partitioner.GetToken("asdfghjkl"),
+		clstr.partitioner.GetToken("asdfghjkl"),
 		"New Node",
 		"127.0.0.5:9999",
-		c,
+		clstr,
 	)
 	msg := &DiscoverPeersRequest{NodeId:n.GetId()}
 	response, err := server.executeRequest(n, msg)
+	c.Assert(err, gocheck.IsNil)
 
-	if err != nil {
-		t.Fatalf("Unexpected error executing request: %v", err)
-	}
-
-	peerResponse, ok := response.(*DiscoverPeerResponse)
-	if !ok {
-		t.Fatalf("Unexpected response type: %T", response)
-	}
-
-	testing_helpers.AssertEqual(t, "num peers", len(c.getPeerData()), len(peerResponse.Peers))
+	c.Assert(response, gocheck.FitsTypeOf, &DiscoverPeerResponse{})
+	peerResponse := response.(*DiscoverPeerResponse)
+	c.Check(len(peerResponse.Peers), gocheck.Equals, len(clstr.getPeerData()))
 }
 
-func TestStreamRequestResonse(t *testing.T) {
+func (t *ServerResponseTest) TestStreamRequestResonse(c *gocheck.C) {
 
 }
 

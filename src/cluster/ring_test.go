@@ -2,111 +2,107 @@ package cluster
 
 import (
 	"fmt"
-	"testing"
+)
+
+import (
+	"launchpad.net/gocheck"
 )
 
 import (
 	"node"
-	"testing_helpers"
 )
+
+type RingTest struct {
+	ring *Ring
+}
+
+var _ = gocheck.Suite(&RingTest{})
+
+func (t *RingTest) SetUpTest(c *gocheck.C) {
+	t.ring = NewRing()
+
+	for i:=0; i<10; i++ {
+		n := newMockNode(
+			node.NewNodeId(),
+			DatacenterId("DC5000"),
+			Token([]byte{0,0,byte(i),0}),
+			fmt.Sprintf("N%v", i),
+		)
+		t.ring.AddNode(n)
+	}
+}
 
 /************** GetNode tests **************/
 
-func TestGetUnknownNode_(t *testing.T) {
-	ring := setupRing()
-	n, err := ring.getNode(node.NewNodeId())
-	if n != nil {
-		t.Errorf("Expected nil node, got: %v", n)
-	}
-	if err == nil {
-		t.Errorf("Expected error from getNode, got nil")
-	}
+func (t *RingTest) TestGetUnknownNode(c *gocheck.C) {
+	n, err := t.ring.getNode(node.NewNodeId())
+	c.Assert(n, gocheck.IsNil)
+	c.Assert(err, gocheck.NotNil)
 }
 
 // tests that fetching a node with a valid node id
 // returns the requested node
-func TestGetExistingNode_(t *testing.T) {
-	ring := setupRing()
-
-	nid := ring.tokenRing[4].GetId()
-	n, err := ring.getNode(nid)
-	if err != nil {
-		t.Errorf("Got unexpected error from getNode: %v", err)
-	}
-	if n == nil {
-		t.Fatalf("Got unexpected nil result for node")
-	}
-	if n.GetId() != nid {
-		t.Errorf("Unexpected node id on returned node. Expected %v, got %v", nid, n.GetId())
-	}
+func (t *RingTest) TestGetExistingNode(c *gocheck.C) {
+	nid := t.ring.tokenRing[4].GetId()
+	n, err := t.ring.getNode(nid)
+	c.Assert(err, gocheck.IsNil)
+	c.Assert(n, gocheck.NotNil)
+	c.Check(n.GetId(), gocheck.Equals, nid)
 }
 
 /************** AddNode tests **************/
 
 // tests that a node is added to the cluster if
 // the cluster has not seen it yet
-func TestAddingNewNodeToRing(t *testing.T) {
-	ring := setupRing()
-
+func (t *RingTest) TestAddingNewNodeToRing(c *gocheck.C) {
 	// sanity check
-	testing_helpers.AssertEqual(t, "ring map size", 10, len(ring.nodeMap))
-	testing_helpers.AssertEqual(t, "ring ring size", 10, len(ring.tokenRing))
+	c.Assert(len(t.ring.nodeMap), gocheck.Equals, 10)
+	c.Assert(len(t.ring.tokenRing), gocheck.Equals, 10)
 
 	// add a new node
 	token := Token([]byte{0,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6})
 	newNode := newMockNode(node.NewNodeId(), "DC1", token, "N2")
-	err := ring.AddNode(newNode)
-	if err != nil {
-		t.Errorf("Expected nil error, got: %v", err)
-	}
+	err := t.ring.AddNode(newNode)
+	c.Assert(err, gocheck.IsNil)
 
-	testing_helpers.AssertEqual(t, "ring map size", 11, len(ring.nodeMap))
-	testing_helpers.AssertEqual(t, "ring ring size", 11, len(ring.tokenRing))
-	testing_helpers.AssertEqual(t, "new node started", false, newNode.IsStarted())
-	testing_helpers.AssertEqual(t, "new node read size", 0, len(newNode.requests))
+	c.Check(len(t.ring.nodeMap), gocheck.Equals, 11)
+	c.Check(len(t.ring.tokenRing), gocheck.Equals, 11)
+	c.Check(newNode.isStarted, gocheck.Equals, false)
+	c.Check(len(newNode.requests), gocheck.Equals, 0)
 }
 
 // tests that nothing is changed if a node is already
 // known by the cluster, and an error is returned
-func TestAddingExistingNodeToRing(t *testing.T) {
-	ring := setupRing()
-
+func (t *RingTest) TestAddingExistingNodeToRing(c *gocheck.C) {
 	// sanity check
-	testing_helpers.AssertEqual(t, "ring map size", 10, len(ring.nodeMap))
-	testing_helpers.AssertEqual(t, "ring size", 10, len(ring.tokenRing))
+	c.Assert(len(t.ring.nodeMap), gocheck.Equals, 10)
+	c.Assert(len(t.ring.tokenRing), gocheck.Equals, 10)
 
-	err := ring.AddNode(ring.tokenRing[3])
-	if err == nil {
-		t.Errorf("Expected non nil error, got nil")
-	}
+	err := t.ring.AddNode(t.ring.tokenRing[3])
+	c.Assert(err, gocheck.NotNil)
 
-	testing_helpers.AssertEqual(t, "ring map size", 10, len(ring.nodeMap))
-	testing_helpers.AssertEqual(t, "ring size", 10, len(ring.tokenRing))
+	c.Check(len(t.ring.nodeMap), gocheck.Equals, 10)
+	c.Check(len(t.ring.tokenRing), gocheck.Equals, 10)
 }
 
 /************** AllNodes tests **************/
 
-func TestAllNodes(t *testing.T) {
-	ring := setupRing()
-
-	nodes := ring.AllNodes()
-	testing_helpers.AssertEqual(t, "node list size", len(ring.nodeMap), len(nodes))
+func (t *RingTest) TestAllNodes(c *gocheck.C) {
+	nodes := t.ring.AllNodes()
+	c.Assert(len(t.ring.nodeMap), gocheck.Equals, len(nodes))
 
 	for i:=0; i<len(nodes); i++ {
-		expected := ring.tokenRing[i]
+		expected := t.ring.tokenRing[i]
 		actual := nodes[i]
 
-		if actual == nil {
-			t.Errorf("Unexpected nil node at index [%v]", i)
-		}
-
-		testing_helpers.AssertEqual(t, fmt.Sprintf("node[%v] id", i), expected.GetId(), actual.GetId())
+		c.Assert(actual, gocheck.NotNil)
+		c.Check(actual.GetId(), gocheck.Equals, expected.GetId())
 	}
 }
 
 /************** RefreshRing tests **************/
 
-func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
+func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 	ring := NewRing()
 
 	n1 := newMockNode(
@@ -125,8 +121,8 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	)
 	ring.AddNode(n2)
 
-	testing_helpers.AssertEqual(t, "ring position 0", ring.tokenRing[0].GetId(), n2.GetId())
-	testing_helpers.AssertEqual(t, "ring position 1", ring.tokenRing[1].GetId(), n1.GetId())
+	c.Check(n2.GetId(), gocheck.Equals, ring.tokenRing[0].GetId())
+	c.Check(n1.GetId(), gocheck.Equals, ring.tokenRing[1].GetId())
 
 	n3 := newMockNode(
 		node.NewNodeId(),
@@ -136,9 +132,9 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	)
 	ring.AddNode(n3)
 
-	testing_helpers.AssertEqual(t, "ring position 0", ring.tokenRing[0].GetId(), n2.GetId())
-	testing_helpers.AssertEqual(t, "ring position 1", ring.tokenRing[1].GetId(), n3.GetId())
-	testing_helpers.AssertEqual(t, "ring position 2", ring.tokenRing[2].GetId(), n1.GetId())
+	c.Check(n2.GetId(), gocheck.Equals, ring.tokenRing[0].GetId())
+	c.Check(n3.GetId(), gocheck.Equals, ring.tokenRing[1].GetId())
+	c.Check(n1.GetId(), gocheck.Equals, ring.tokenRing[2].GetId())
 
 	n4 := newMockNode(
 		node.NewNodeId(),
@@ -148,62 +144,61 @@ func TestRingIsRefreshedAfterNodeAddition_(t *testing.T) {
 	)
 	ring.AddNode(n4)
 
-	testing_helpers.AssertEqual(t, "ring position 0", ring.tokenRing[0].GetId(), n2.GetId())
-	testing_helpers.AssertEqual(t, "ring position 1", ring.tokenRing[1].GetId(), n3.GetId())
-	testing_helpers.AssertEqual(t, "ring position 2", ring.tokenRing[2].GetId(), n1.GetId())
-	testing_helpers.AssertEqual(t, "ring position 3", ring.tokenRing[3].GetId(), n4.GetId())
+	c.Check(n2.GetId(), gocheck.Equals, ring.tokenRing[0].GetId())
+	c.Check(n3.GetId(), gocheck.Equals, ring.tokenRing[1].GetId())
+	c.Check(n1.GetId(), gocheck.Equals, ring.tokenRing[2].GetId())
+	c.Check(n4.GetId(), gocheck.Equals, ring.tokenRing[3].GetId())
 }
 
 // tests that the proper nodes are returned for the given keys
-func TestKeyRouting_(t *testing.T) {
-	ring := setupRing()
-
+func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	var token Token
 	var nodes []ClusterNode
 
 	// test the upper bound
 	token = Token([]byte{0,0,9,5})
-	nodes = ring.GetNodesForToken(token, 3)
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	testing_helpers.AssertEqual(t, "node[0]", ring.tokenRing[0].GetId(), nodes[0].GetId())
-	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[1].GetId(), nodes[1].GetId())
-	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[2].GetId(), nodes[2].GetId())
+	nodes = t.ring.GetNodesForToken(token, 3)
+	c.Assert(len(nodes), gocheck.Equals, 3)
+	c.Check(t.ring.tokenRing[0].GetId(), gocheck.Equals, t.ring.tokenRing[0].GetId())
+	c.Check(t.ring.tokenRing[1].GetId(), gocheck.Equals, t.ring.tokenRing[1].GetId())
+	c.Check(t.ring.tokenRing[2].GetId(), gocheck.Equals, t.ring.tokenRing[2].GetId())
 
 	// test the lower bound
 	token = Token([]byte{0,0,0,0})
-	nodes = ring.GetNodesForToken(token, 3)
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	testing_helpers.AssertEqual(t, "node[0]", ring.tokenRing[0].GetId(), nodes[0].GetId())
-	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[1].GetId(), nodes[1].GetId())
-	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[2].GetId(), nodes[2].GetId())
+	nodes = t.ring.GetNodesForToken(token, 3)
+	c.Assert(len(nodes), gocheck.Equals, 3)
+	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[0].GetId())
+	c.Check(nodes[1].GetId(), gocheck.Equals, t.ring.tokenRing[1].GetId())
+	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[2].GetId())
 
 	// test token intersection
 	token = Token([]byte{0,0,4,0})
-	nodes = ring.GetNodesForToken(token, 3)
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	testing_helpers.AssertEqual(t, "node[0]", ring.tokenRing[4].GetId(), nodes[0].GetId())
-	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[5].GetId(), nodes[1].GetId())
-	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[6].GetId(), nodes[2].GetId())
+	nodes = t.ring.GetNodesForToken(token, 3)
+	c.Assert(len(nodes), gocheck.Equals, 3)
+	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[4].GetId())
+	c.Check(nodes[1].GetId(), gocheck.Equals, t.ring.tokenRing[5].GetId())
+	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[6].GetId())
 
 	// test middle range
 	token = Token([]byte{0,0,4,5})
-	nodes = ring.GetNodesForToken(token, 3)
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	testing_helpers.AssertEqual(t, "node[0]", ring.tokenRing[5].GetId(), nodes[0].GetId())
-	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[6].GetId(), nodes[1].GetId())
-	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[7].GetId(), nodes[2].GetId())
+	nodes = t.ring.GetNodesForToken(token, 3)
+	c.Assert(len(nodes), gocheck.Equals, 3)
+	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[5].GetId())
+	c.Check(nodes[1].GetId(), gocheck.Equals, t.ring.tokenRing[6].GetId())
+	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[7].GetId())
 
 	// test wrapping
 	token = Token([]byte{0,0,8,5})
-	nodes = ring.GetNodesForToken(token, 3)
-	if len(nodes) != 3 { t.Fatalf("wrong number of nodes returned, expected 3, got %v", len(nodes)) }
-	testing_helpers.AssertEqual(t, "node[0]", ring.tokenRing[9].GetId(), nodes[0].GetId())
-	testing_helpers.AssertEqual(t, "node[1]", ring.tokenRing[0].GetId(), nodes[1].GetId())
-	testing_helpers.AssertEqual(t, "node[2]", ring.tokenRing[1].GetId(), nodes[2].GetId())
+	nodes = t.ring.GetNodesForToken(token, 3)
+	c.Assert(len(nodes), gocheck.Equals, 3)
+	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[9].GetId())
+	c.Check(nodes[1].GetId(), gocheck.Equals, t.ring.tokenRing[0].GetId())
+	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[1].GetId())
 }
 
 // TODO: this
 // tests that the number of nodes returned matches the replication factor
-func TestReplicationFactor(t *testing.T) {
-	t.Skipf("check number of nodes returned matches replication factor")
+func (t *RingTest) TestReplicationFactor(c *gocheck.C) {
+	c.Skip("check number of nodes returned matches replication factor")
+
 }
