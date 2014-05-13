@@ -12,6 +12,7 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"types"
 )
 
@@ -40,7 +41,7 @@ func (t *ClusterMessageTest) TestConnectionRequest(c *gocheck.C) {
 		DCId:"DC5000",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
-		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
 	t.checkMessage(c, src)
 }
@@ -50,7 +51,7 @@ func (t *ClusterMessageTest) TestConnectionAcceptedResponse(c *gocheck.C) {
 		NodeId:node.NewNodeId(),
 		DCId:"DC5000",
 		Name:"Test Node",
-		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}
 	t.checkMessage(c, src)
 }
@@ -75,14 +76,14 @@ func (t *ClusterMessageTest) TestDiscoverPeersResponse(c *gocheck.C) {
 				DCId:DatacenterId("DC5000"),
 				Addr:"127.0.0.1:9998",
 				Name:"Test Node1",
-				Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+				Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 			},
 			&PeerData{
 				NodeId:node.NewNodeId(),
 				DCId:DatacenterId("DC2000"),
 				Addr:"127.0.0.1:9999",
 				Name:"Test Node2",
-				Token:Token([]byte{1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0}),
+				Token:partitioner.Token([]byte{1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0}),
 			},
 		},
 	}

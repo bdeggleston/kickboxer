@@ -17,6 +17,7 @@ import (
 	"kvstore"
 	"message"
 	"node"
+	"partitioner"
 )
 
 // ----------------- cluster setup -----------------
@@ -26,7 +27,7 @@ func setupCluster() *Cluster {
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		3,
@@ -49,7 +50,7 @@ func setupRing() *Ring {
 		n := newMockNode(
 			node.NewNodeId(),
 			DatacenterId("DC5000"),
-			Token([]byte{0,0,byte(i),0}),
+			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
 		r.AddNode(n)
@@ -64,7 +65,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,0,0,0}),
+		partitioner.Token([]byte{0,0,0,0}),
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		replicationFactor,
@@ -79,7 +80,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		n := newMockNode(
 			node.NewNodeId(),
 			DatacenterId("DC5000"),
-			Token([]byte{0,0,byte(i),0}),
+			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
 		c.addNode(n)
@@ -136,7 +137,7 @@ func setupDC(numDCs int, numNodes int) *DatacenterContainer {
 			n := newMockNode(
 				node.NewNodeId(),
 				dcid,
-				Token([]byte{0,0,byte(i),0}),
+				partitioner.Token([]byte{0,0,byte(i),0}),
 				fmt.Sprintf("N%v", i),
 			)
 			dc.AddNode(n)
@@ -153,7 +154,7 @@ type literalPartitioner struct {
 
 }
 
-func (p literalPartitioner) GetToken(key string) Token {
+func (p literalPartitioner) GetToken(key string) partitioner.Token {
 	val, err := strconv.Atoi(key)
 	if err != nil {
 		panic(fmt.Sprintf("The given key does not convert to an integer: %v", key))
@@ -171,7 +172,7 @@ func (p literalPartitioner) GetToken(key string) Token {
 	if len(b) != 8 {
 		panic(fmt.Sprintf("Expected token length of 8, got: %v", len(b)))
 	}
-	return Token(b)
+	return partitioner.Token(b)
 }
 
 // ----------------- connection mocks -----------------

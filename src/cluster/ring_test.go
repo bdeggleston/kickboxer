@@ -10,6 +10,7 @@ import (
 
 import (
 	"node"
+	"partitioner"
 )
 
 type RingTest struct {
@@ -25,7 +26,7 @@ func (t *RingTest) SetUpTest(c *gocheck.C) {
 		n := newMockNode(
 			node.NewNodeId(),
 			DatacenterId("DC5000"),
-			Token([]byte{0,0,byte(i),0}),
+			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
 		t.ring.AddNode(n)
@@ -60,7 +61,7 @@ func (t *RingTest) TestAddingNewNodeToRing(c *gocheck.C) {
 	c.Assert(len(t.ring.tokenRing), gocheck.Equals, 10)
 
 	// add a new node
-	token := Token([]byte{0,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6})
+	token := partitioner.Token([]byte{0,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6})
 	newNode := newMockNode(node.NewNodeId(), "DC1", token, "N2")
 	err := t.ring.AddNode(newNode)
 	c.Assert(err, gocheck.IsNil)
@@ -108,7 +109,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 	n1 := newMockNode(
 		node.NewNodeId(),
 		"DC1",
-		Token([]byte{0,0,0,7}),
+		partitioner.Token([]byte{0,0,0,7}),
 		fmt.Sprintf("N1"),
 	)
 	ring.AddNode(n1)
@@ -116,7 +117,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 	n2 := newMockNode(
 		node.NewNodeId(),
 		"DC1",
-		Token([]byte{0,0,0,3}),
+		partitioner.Token([]byte{0,0,0,3}),
 		"N2",
 	)
 	ring.AddNode(n2)
@@ -127,7 +128,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 	n3 := newMockNode(
 		node.NewNodeId(),
 		"DC1",
-		Token([]byte{0,0,0,5}),
+		partitioner.Token([]byte{0,0,0,5}),
 		"N3",
 	)
 	ring.AddNode(n3)
@@ -139,7 +140,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 	n4 := newMockNode(
 		node.NewNodeId(),
 		"DC1",
-		Token([]byte{0,0,1,0}),
+		partitioner.Token([]byte{0,0,1,0}),
 		"N4",
 	)
 	ring.AddNode(n4)
@@ -152,11 +153,11 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 
 // tests that the proper nodes are returned for the given keys
 func (t *RingTest) TestKeyRouting(c *gocheck.C) {
-	var token Token
+	var token partitioner.Token
 	var nodes []ClusterNode
 
 	// test the upper bound
-	token = Token([]byte{0,0,9,5})
+	token = partitioner.Token([]byte{0,0,9,5})
 	nodes = t.ring.GetNodesForToken(token, 3)
 	c.Assert(len(nodes), gocheck.Equals, 3)
 	c.Check(t.ring.tokenRing[0].GetId(), gocheck.Equals, t.ring.tokenRing[0].GetId())
@@ -164,7 +165,7 @@ func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	c.Check(t.ring.tokenRing[2].GetId(), gocheck.Equals, t.ring.tokenRing[2].GetId())
 
 	// test the lower bound
-	token = Token([]byte{0,0,0,0})
+	token = partitioner.Token([]byte{0,0,0,0})
 	nodes = t.ring.GetNodesForToken(token, 3)
 	c.Assert(len(nodes), gocheck.Equals, 3)
 	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[0].GetId())
@@ -172,7 +173,7 @@ func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[2].GetId())
 
 	// test token intersection
-	token = Token([]byte{0,0,4,0})
+	token = partitioner.Token([]byte{0,0,4,0})
 	nodes = t.ring.GetNodesForToken(token, 3)
 	c.Assert(len(nodes), gocheck.Equals, 3)
 	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[4].GetId())
@@ -180,7 +181,7 @@ func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[6].GetId())
 
 	// test middle range
-	token = Token([]byte{0,0,4,5})
+	token = partitioner.Token([]byte{0,0,4,5})
 	nodes = t.ring.GetNodesForToken(token, 3)
 	c.Assert(len(nodes), gocheck.Equals, 3)
 	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[5].GetId())
@@ -188,7 +189,7 @@ func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	c.Check(nodes[2].GetId(), gocheck.Equals, t.ring.tokenRing[7].GetId())
 
 	// test wrapping
-	token = Token([]byte{0,0,8,5})
+	token = partitioner.Token([]byte{0,0,8,5})
 	nodes = t.ring.GetNodesForToken(token, 3)
 	c.Assert(len(nodes), gocheck.Equals, 3)
 	c.Check(nodes[0].GetId(), gocheck.Equals, t.ring.tokenRing[9].GetId())

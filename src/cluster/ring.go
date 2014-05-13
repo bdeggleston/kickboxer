@@ -9,6 +9,7 @@ import (
 
 import (
 	"node"
+	"partitioner"
 )
 
 // implements sort.Interface
@@ -103,17 +104,17 @@ func (r *Ring) refreshRing() {
 
 // adds a node to the ring, returns true if the node
 // was added, false if not
-func (r *Ring) AddNode(node ClusterNode) error {
+func (r *Ring) AddNode(n ClusterNode) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	nid := node.GetId()
+	nid := n.GetId()
 	_, ok := r.nodeMap[nid]
 	if ok {
 		return fmt.Errorf("This node is already a part of the ring")
 	}
 
-	r.nodeMap[nid] = node
+	r.nodeMap[nid] = n
 	r.refreshRing()
 	return nil
 }
@@ -136,7 +137,7 @@ func (r *Ring) AllNodes() []ClusterNode {
 // to simplify the binary search logic, a token belongs the first
 // node with a token greater than or equal to it
 // values are replicated forward in the ring
-func (r *Ring) GetNodesForToken(t Token, replicationFactor uint32) []ClusterNode {
+func (r *Ring) GetNodesForToken(t partitioner.Token, replicationFactor uint32) []ClusterNode {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 

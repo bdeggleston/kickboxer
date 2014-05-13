@@ -9,6 +9,7 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"store"
 )
 
@@ -34,7 +35,7 @@ type mockNode struct {
 	testPtr *testing.T
 }
 
-func newMockNode(id node.NodeId, dcid DatacenterId, token Token, name string) (*mockNode) {
+func newMockNode(id node.NodeId, dcid DatacenterId, token partitioner.Token, name string) (*mockNode) {
 	n := &mockNode{}
 	n.id = id
 	n.dcId = dcid

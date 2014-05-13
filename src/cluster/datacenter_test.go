@@ -8,6 +8,10 @@ import (
 	"launchpad.net/gocheck"
 )
 
+import (
+	"partitioner"
+)
+
 type DatacenterTest struct {
 	dc *DatacenterContainer
 }
@@ -43,9 +47,9 @@ func (t *DatacenterTest) TestGetRing(c *gocheck.C) {
 }
 
 func (t *DatacenterTest) TestGetNodesForToken(c *gocheck.C) {
-	var token Token
+	var token partitioner.Token
 
-	token = Token([]byte{0,0,4,5})
+	token = partitioner.Token([]byte{0,0,4,5})
 	nodes := t.dc.GetNodesForToken(token, 3)
 
 	c.Assert(len(nodes), gocheck.Equals, 3)

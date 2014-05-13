@@ -13,6 +13,7 @@ import (
 	"kvstore"
 	"message"
 	"node"
+	"partitioner"
 )
 
 type ServerTest struct {
@@ -29,7 +30,7 @@ func (t *ServerTest) TestGetUnknownNode(c *gocheck.C) {
 		NodeId:node.NewNodeId(),
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
-		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
 	err := message.WriteMessage(conn.input[0], connectMessage)
 	c.Assert(err, gocheck.IsNil)
@@ -40,7 +41,7 @@ func (t *ServerTest) TestGetUnknownNode(c *gocheck.C) {
 	//	}
 
 	// create cluster and peer server
-	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
+	token := partitioner.Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
@@ -83,7 +84,7 @@ func (t *ServerTest) TestServerConnectionFailure(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// create cluster and peer server
-	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
+	token := partitioner.Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
@@ -121,14 +122,14 @@ func (t *ServerTest) TestServerNodeRegistrationOnConnection(c *gocheck.C) {
 		DCId:"DC1",
 		Addr:"127.0.0.1:9999",
 		Name:"Test Node",
-		Token:Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 	}}
 
 	err := message.WriteMessage(conn.input[0], connectMessage)
 	c.Assert(err, gocheck.IsNil)
 
 	// create cluster and peer server
-	token := Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
+	token := partitioner.Token([]byte{4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",

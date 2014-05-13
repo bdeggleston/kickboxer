@@ -7,6 +7,7 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 )
 
 
@@ -46,7 +47,7 @@ func (t *RemoteNodeTest) TestStartingConnectsToPeer(c *gocheck.C) {
 	response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		Name:"Ghost",
-		Token:Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3}),
+		Token:partitioner.Token([]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3}),
 	}
 	message.WriteMessage(sock.input[0], response)
 

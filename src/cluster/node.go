@@ -8,6 +8,7 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"store"
 )
 
@@ -38,7 +39,7 @@ type ClusterNode interface {
 
 	Name() string
 	GetAddr() string
-	GetToken() Token
+	GetToken() partitioner.Token
 	GetDatacenterId() DatacenterId
 	GetStatus() NodeStatus
 
@@ -52,7 +53,7 @@ type ClusterNode interface {
 type baseNode struct {
 	name string
 	addr string
-	token Token
+	token partitioner.Token
 	id node.NodeId
 	dcId DatacenterId
 	status NodeStatus
@@ -62,7 +63,7 @@ func (n *baseNode) Name() string { return n.name }
 
 func (n *baseNode) GetAddr() string { return n.addr }
 
-func (n *baseNode) GetToken() Token { return n.token }
+func (n *baseNode) GetToken() partitioner.Token { return n.token }
 
 func (n *baseNode) GetId() node.NodeId { return n.id }
 
@@ -79,7 +80,7 @@ type LocalNode struct {
 
 var _ = ClusterNode(&LocalNode{})
 
-func NewLocalNode(id node.NodeId, dcId DatacenterId, token Token, name string, store store.Store) (*LocalNode) {
+func NewLocalNode(id node.NodeId, dcId DatacenterId, token partitioner.Token, name string, store store.Store) (*LocalNode) {
 	//
 	n := &LocalNode{}
 	n.id = id
@@ -147,7 +148,7 @@ func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
 }
 
 // creates a new remote node from info provided from the node
-func NewRemoteNodeInfo(id node.NodeId, dcId DatacenterId, token Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
+func NewRemoteNodeInfo(id node.NodeId, dcId DatacenterId, token partitioner.Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
 	n = NewRemoteNode(addr, cluster)
 	n.id = id
 	n.dcId = dcId

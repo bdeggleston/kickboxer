@@ -14,6 +14,7 @@ import (
 
 import (
 	"node"
+	"partitioner"
 	"store"
 )
 
@@ -22,8 +23,6 @@ var logger *logging.Logger
 func init() {
 	logger = logging.MustGetLogger("cluster")
 }
-
-type Token []byte
 
 type ClusterStatus string
 
@@ -63,7 +62,7 @@ type Cluster struct {
 	dcContainer *DatacenterContainer
 
 	name string
-	token Token
+	token partitioner.Token
 	nodeId node.NodeId
 	dcId DatacenterId
 	peerAddr string
@@ -81,7 +80,7 @@ func NewCluster(
 	// the name of this local node
 	name string,
 	// the token of this local node
-	token Token,
+	token partitioner.Token,
 	// the id of this local node
 	nodeId node.NodeId,
 	// the name of the datacenter this node belongs to
@@ -132,7 +131,7 @@ func NewCluster(
 // info getters
 func (c* Cluster) GetNodeId() node.NodeId { return c.nodeId }
 func (c* Cluster) GetDatacenterId() DatacenterId { return c.dcId }
-func (c* Cluster) GetToken() Token { return c.token }
+func (c* Cluster) GetToken() partitioner.Token { return c.token }
 func (c* Cluster) GetName() string { return c.name }
 func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
 
@@ -442,7 +441,7 @@ func (c *Cluster) JoinCluster() error {
 // If a node starts streaming in data as soon as it knows it's token space changes, there
 // will be a race condition that may prevent the correct data being streamed to the node
 // if the node doing the streaming is not aware of the token when it receives the request.
-func (c *Cluster) MoveNode(token Token) error {
+func (c *Cluster) MoveNode(token partitioner.Token) error {
 	panic("not implemented")
 	return nil
 }

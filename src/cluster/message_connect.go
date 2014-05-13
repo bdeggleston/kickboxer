@@ -9,6 +9,7 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"serializer"
 	"types"
 )
@@ -34,7 +35,7 @@ type PeerData struct {
 	// the name of the requesting node
 	Name string
 	// the token of the requesting node
-	Token Token
+	Token partitioner.Token
 }
 
 func (m *PeerData) Serialize(buf *bufio.Writer) error {
@@ -81,7 +82,7 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	if len(b) < 1 {
 		return NewMessageEncodingError(fmt.Sprintf("expected at least one byte for Token, got %v (%v)", b, len(b)))
 	}
-	m.Token = Token(b)
+	m.Token = partitioner.Token(b)
 
 	return nil
 }
@@ -126,7 +127,7 @@ type ConnectionAcceptedResponse struct {
 	// the name of the requesting node
 	Name string
 	// the token of the requesting node
-	Token Token
+	Token partitioner.Token
 }
 
 
@@ -160,7 +161,7 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 	if len(b) < 1 {
 		return NewMessageEncodingError(fmt.Sprintf("expected at least 1 byte for Token, got %v (%v)", b, len(b)))
 	}
-	m.Token = Token(b)
+	m.Token = partitioner.Token(b)
 
 	return nil
 }

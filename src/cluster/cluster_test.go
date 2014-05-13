@@ -15,6 +15,7 @@ import (
 	"kvstore"
 	"message"
 	"node"
+	"partitioner"
 )
 
 var _test_loglevel = flag.String("test.loglevel", "", "the loglevel to run tests with")
@@ -56,7 +57,7 @@ func (t *ClusterTest) TestInvalidReplicationFactor(c *gocheck.C) {
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
 		0,
@@ -72,7 +73,7 @@ func (t *ClusterTest) TestInvalidPartitioner(c *gocheck.C) {
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
+		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
 		3,
@@ -102,7 +103,7 @@ func (t *AddNodeTest) TestAddingNode(c *gocheck.C) {
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
-		Token([]byte{0,0,1,0}),
+		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
 		clstr,
@@ -121,7 +122,7 @@ func (t *AddNodeTest) TestAddOtherDCNode(c *gocheck.C) {
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
 		DatacenterId("DC4000"),
-		Token([]byte{0,0,1,0}),
+		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
 		clstr,
@@ -319,7 +320,7 @@ func (t *PeerDiscoveryTest) setupSeedPeerDiscovery(c *gocheck.C, responses map[s
 		seeds = append(seeds, k)
 	}
 
-	token := Token([]byte{0,0,1,0})
+	token := partitioner.Token([]byte{0,0,1,0})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
@@ -366,13 +367,13 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromSeedAddresses(c *gocheck.C) {
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC5000"),
 		Name:"N2",
-		Token:Token([]byte{0,0,2,0}),
+		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response  := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC5000"),
 		Name:"N3",
-		Token:Token([]byte{0,0,3,0}),
+		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
 	responses := map[string]*ConnectionAcceptedResponse{
 		"127.0.0.2:9999": n2Response,
@@ -403,13 +404,13 @@ func (t *PeerDiscoveryTest) TestOtherDCPeerDiscoveryFromSeedAddresses(c *gocheck
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC4000"),
 		Name:"N2",
-		Token:Token([]byte{0,0,2,0}),
+		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response  := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC4000"),
 		Name:"N3",
-		Token:Token([]byte{0,0,3,0}),
+		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
 	responses := map[string]*ConnectionAcceptedResponse{
 		"127.0.0.2:9999": n2Response,
@@ -435,7 +436,7 @@ func (t *PeerDiscoveryTest) TestOtherDCPeerDiscoveryFromSeedAddresses(c *gocheck
 }
 
 func (t *PeerDiscoveryTest) setupDiscoverFromExistingPeers(c *gocheck.C, responses map[string]*ConnectionAcceptedResponse) *Cluster {
-	token := Token([]byte{0,0,0,0})
+	token := partitioner.Token([]byte{0,0,0,0})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.0:9999",
@@ -453,7 +454,7 @@ func (t *PeerDiscoveryTest) setupDiscoverFromExistingPeers(c *gocheck.C, respons
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
-		Token([]byte{0,0,1,0}),
+		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
 		cluster,
@@ -506,13 +507,13 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromExistingPeers(c *gocheck.C) {
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC5000"),
 		Name:"N2",
-		Token:Token([]byte{0,0,2,0}),
+		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC5000"),
 		Name:"N3",
-		Token:Token([]byte{0,0,3,0}),
+		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
 	responses := map[string]*ConnectionAcceptedResponse{
 		"127.0.0.2:9999": n2Response,
@@ -544,13 +545,13 @@ func (t *PeerDiscoveryTest) TestOtherDCDiscoveryFromExistingPeers(c *gocheck.C) 
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC4000"),
 		Name:"N2",
-		Token:Token([]byte{0,0,2,0}),
+		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		DCId:DatacenterId("DC4000"),
 		Name:"N3",
-		Token:Token([]byte{0,0,3,0}),
+		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
 	responses := map[string]*ConnectionAcceptedResponse{
 		"127.0.0.2:9999": n2Response,
@@ -581,7 +582,7 @@ func (t *PeerDiscoveryTest) TestOtherDCDiscoveryFromExistingPeers(c *gocheck.C) 
 func (t *PeerDiscoveryTest) TestPeerDiscoverySeedFailure(c *gocheck.C) {
 	seeds := []string{"127.0.0.2:9999", "127.0.0.3:9999"}
 
-	token := Token([]byte{0,0,1,0})
+	token := partitioner.Token([]byte{0,0,1,0})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
@@ -605,7 +606,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoverySeedFailure(c *gocheck.C) {
 // there's a problem connecting to it when discovered from
 // another node
 func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
-	token := Token([]byte{0,0,0,0})
+	token := partitioner.Token([]byte{0,0,0,0})
 	cluster, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.0:9999",
@@ -623,7 +624,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
-		Token([]byte{0,0,1,0}),
+		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
 		cluster,
@@ -633,12 +634,12 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		Name:"N2",
-		Token:Token([]byte{0,0,2,0}),
+		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
 		Name:"N3",
-		Token:Token([]byte{0,0,3,0}),
+		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
 	discoveryResponse := &DiscoverPeerResponse{Peers:[]*PeerData{
 		&PeerData{

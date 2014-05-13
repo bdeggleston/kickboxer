@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+import (
+	"partitioner"
+)
+
 /**
  What happens when a new datacenter joins?
  * both clusters collect information about each other
@@ -76,7 +80,7 @@ func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
 }
 
 // returns a map of datacenter ids -> replica nodes
-func (dc *DatacenterContainer) GetNodesForToken(t Token, replicationFactor uint32) map[DatacenterId][]ClusterNode {
+func (dc *DatacenterContainer) GetNodesForToken(t partitioner.Token, replicationFactor uint32) map[DatacenterId][]ClusterNode {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
