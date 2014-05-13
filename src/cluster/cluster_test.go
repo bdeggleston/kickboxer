@@ -61,7 +61,7 @@ func (t *ClusterTest) TestInvalidReplicationFactor(c *gocheck.C) {
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
 		0,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(clstr, gocheck.IsNil)
@@ -329,7 +329,7 @@ func (t *PeerDiscoveryTest) setupSeedPeerDiscovery(c *gocheck.C, responses map[s
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		seeds,
 	)
 	c.Assert(err, gocheck.IsNil)
@@ -445,7 +445,7 @@ func (t *PeerDiscoveryTest) setupDiscoverFromExistingPeers(c *gocheck.C, respons
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(err, gocheck.IsNil)
@@ -591,7 +591,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoverySeedFailure(c *gocheck.C) {
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		seeds,
 	)
 	c.Assert(err, gocheck.IsNil)
@@ -615,7 +615,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 		node.NewNodeId(),
 		DatacenterId("DC1234"),
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(err, gocheck.IsNil)

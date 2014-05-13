@@ -31,7 +31,7 @@ func setupCluster() *Cluster {
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	if err != nil {
@@ -69,7 +69,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		node.NewNodeId(),
 		DatacenterId("DC5000"),
 		replicationFactor,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	if err != nil {

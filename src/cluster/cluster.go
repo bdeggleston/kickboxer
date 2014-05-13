@@ -67,7 +67,7 @@ type Cluster struct {
 	dcId DatacenterId
 	peerAddr string
 	peerServer *PeerServer
-	partitioner Partitioner
+	partitioner partitioner.Partitioner
 
 	status ClusterStatus
 }
@@ -88,7 +88,7 @@ func NewCluster(
 	// the replication factor of the cluster
 	replicationFactor uint32,
 	// the partitioner used by the cluster
-	partitioner Partitioner,
+	partitioner partitioner.Partitioner,
 	// list of seed node addresses
 	seeds []string,
 

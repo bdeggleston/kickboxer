@@ -50,7 +50,7 @@ func (t *ServerTest) TestGetUnknownNode(c *gocheck.C) {
 		node.NewNodeId(),
 		"DC1",
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(err, gocheck.IsNil)
@@ -93,7 +93,7 @@ func (t *ServerTest) TestServerConnectionFailure(c *gocheck.C) {
 		node.NewNodeId(),
 		"DC1",
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(err, gocheck.IsNil)
@@ -138,7 +138,7 @@ func (t *ServerTest) TestServerNodeRegistrationOnConnection(c *gocheck.C) {
 		node.NewNodeId(),
 		"DC1",
 		3,
-		NewMD5Partitioner(),
+		partitioner.NewMD5Partitioner(),
 		nil,
 	)
 	c.Assert(err, gocheck.IsNil)
