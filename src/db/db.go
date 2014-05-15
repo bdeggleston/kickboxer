@@ -1,7 +1,7 @@
-package disk
+package db
 
 import (
-	"time"
+	"io"
 )
 
 import (
@@ -18,7 +18,7 @@ import (
 	http://static.googleusercontent.com/media/research.google.com/en/us/archive/bigtable-osdi06.pdf
 
 
-	token:key:val_type => {col_name: {val, timestamp/version}}
+	token:key:val_type => {col_name: {val, timestamp/version+instance_id}}
  */
 
 /**
@@ -38,49 +38,10 @@ How to:
 
  */
 
-type Table interface {
-	GetKey(token partitioner.Token, key string) *Key
-	Start() error
-	Stop() error
+type Slice struct {
+	keyData
+	Start string
+	Stop string
+	Columns []io.Reader
 }
 
-type IKey interface {
-	GetSlice(sliceStart string, sliceStop string) []Column
-	Mutate(column string, value string)
-	Delete()
-	DeleteSlice(sliceStart string, sliceStop string)
-}
-
-type Key struct {
-	Token partitioner.Token
-	Key string
-	Type byte
-	Columns []Column
-}
-
-type Column struct {
-	Col string
-	Val string
-	Version uint64
-	Timestamp time.Time
-}
-
-type CommitLog struct {
-
-}
-
-type MemTable struct {
-	Keys map[string]*Key
-}
-
-type SSTableWriter struct {
-
-}
-
-type SSTableReader struct {
-
-}
-
-type SSTableMerger struct {
-
-}
