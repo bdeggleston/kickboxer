@@ -1,4 +1,4 @@
-package cluster
+package topology
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 import (
 	"node"
 	"partitioner"
-	"topology"
 )
 
 type RingTest struct {
@@ -26,7 +25,7 @@ func (t *RingTest) SetUpTest(c *gocheck.C) {
 	for i:=0; i<10; i++ {
 		n := newMockNode(
 			node.NewNodeId(),
-			topology.DatacenterID("DC5000"),
+			DatacenterID("DC5000"),
 			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
