@@ -17,8 +17,10 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"store"
 	cluster "clusterproto"
+	"topology"
 )
 
 type intVal struct {
@@ -102,6 +104,9 @@ func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.M
 
 type mockNode struct {
 	id node.NodeId
+	dcID topology.DatacenterID
+	token partitioner.Token
+	name string
 
 	// tracks the queries executed
 	// against this node
@@ -112,15 +117,21 @@ type mockNode struct {
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 	sentMessages   []message.Message
 	lock		   sync.Mutex
-	partition     bool
+	partition     	bool
 	stats			statsd.Statter
+	started		bool
+	status topology.NodeStatus
 }
 
-var _ node.Node = &mockNode{}
+var _ topology.Node = &mockNode{}
 
+// creates a simple node
+// don't use for tests that depend on
+// complex topology
 func newMockNode() *mockNode {
 	clstr := newMockCluster()
 	return &mockNode{
+		// TODO: generate random id
 		id:             clstr.GetID(),
 		queries:        []*store.Instruction{},
 		cluster:        clstr,
@@ -128,6 +139,13 @@ func newMockNode() *mockNode {
 		messageHandler: mockNodeDefaultMessageHandler,
 		sentMessages:   make([]message.Message, 0),
 		stats:			newMockStatter(),
+
+		started: true,
+
+		dcID: topology.DatacenterID("DC1"),
+		token: partitioner.Token([]byte{0,0,0,0}),
+		status: topology.NODE_UP,
+		name: "node",
 	}
 }
 
@@ -222,6 +240,23 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 		return nil, err
 	}
 	return dstResponse, nil
+}
+
+func (n *mockNode) Name() string { return n.name }
+func (n *mockNode) GetAddr() string { return "" }
+func (n *mockNode) IsStarted() bool { return n.started }
+func (n *mockNode) GetToken() partitioner.Token { return n.token }
+func (n *mockNode) GetDatacenterId() topology.DatacenterID { return n.dcID }
+func (n *mockNode) GetStatus() topology.NodeStatus { return n.status }
+
+func (n *mockNode) Start() error {
+	n.started = true
+	return nil
+}
+
+func (n *mockNode) Stop() error {
+	n.started = false;
+	return nil
 }
 
 func transformMockNodeArray(src []*mockNode) []node.Node {
