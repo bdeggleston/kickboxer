@@ -9,8 +9,28 @@ import (
 )
 
 import (
+	"node"
 	"partitioner"
 )
+
+func setupDC(numDCs int, numNodes int) *DatacenterContainer {
+	dc := NewDatacenterContainer()
+
+	for i:=0; i<numDCs; i++ {
+		dcNum := i+1
+		dcid := DatacenterID(fmt.Sprintf("DC%v", dcNum))
+		for i:=0; i<numNodes; i++ {
+			n := newMockNode(
+				node.NewNodeId(),
+				dcid,
+				partitioner.Token([]byte{0,0,byte(i),0}),
+				fmt.Sprintf("N%v", i),
+			)
+			dc.AddNode(n)
+		}
+	}
+	return dc
+}
 
 type DatacenterTest struct {
 	dc *DatacenterContainer
