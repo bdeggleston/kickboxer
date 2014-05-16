@@ -35,7 +35,6 @@ How to:
  */
 
 type Slice struct {
-	key *Key
 	Start string
 	Stop string
 	Columns []io.Reader
