@@ -44,8 +44,8 @@ func setupCluster() *Cluster {
 // ----------------- ring setup -----------------
 
 // returns a ring with 10 nodes
-func setupRing() *Ring {
-	r := NewRing()
+func setupRing() *topology.Ring {
+	r := topology.NewRing()
 
 	for i:=0; i<10; i++ {
 		n := newMockNode(
@@ -128,8 +128,8 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 
 // ----------------- datacenter setup / mocks -----------------
 
-func setupDC(numDCs int, numNodes int) *DatacenterContainer {
-	dc := NewDatacenterContainer()
+func setupDC(numDCs int, numNodes int) *topology.DatacenterContainer {
+	dc := topology.NewDatacenterContainer()
 
 	for i:=0; i<numDCs; i++ {
 		dcNum := i+1

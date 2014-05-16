@@ -14,10 +14,11 @@ import (
 	"message"
 	"node"
 	"partitioner"
+	"topology"
 )
 
 type ServerTest struct {
-	ring *Ring
+	ring *topology.Ring
 }
 
 var _ = gocheck.Suite(&ServerTest{})

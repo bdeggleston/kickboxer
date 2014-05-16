@@ -25,12 +25,6 @@ func (e *NodeError) Error() string {
 	return e.reason
 }
 
-// the basic node interface
-type ClusterNode interface {
-	topology.TopologyNode
-
-}
-
 // the baseNode defines all of the properties
 // and methods in common among node types
 type baseNode struct {
@@ -61,7 +55,7 @@ type LocalNode struct {
 	isStarted bool
 }
 
-var _ = ClusterNode(&LocalNode{})
+var _ = topology.Node(&LocalNode{})
 
 func NewLocalNode(id node.NodeId, dcId topology.DatacenterID, token partitioner.Token, name string, store store.Store) (*LocalNode) {
 	//
@@ -115,7 +109,7 @@ type RemoteNode struct {
 	isStarted bool
 }
 
-var _ = ClusterNode(&RemoteNode{})
+var _ = topology.Node(&RemoteNode{})
 
 var newRemoteNode = func(addr string, cluster *Cluster) (*RemoteNode) {
 	n := &RemoteNode{}

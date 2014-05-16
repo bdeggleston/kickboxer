@@ -59,8 +59,8 @@ type Cluster struct {
 
 	localNode *LocalNode
 
-	ring *Ring
-	dcContainer *DatacenterContainer
+	ring *topology.Ring
+	dcContainer *topology.DatacenterContainer
 
 	name string
 	token partitioner.Token
@@ -122,9 +122,9 @@ func NewCluster(
 		c.seeds = seeds
 	}
 
-	c.ring = NewRing()
+	c.ring = topology.NewRing()
 	c.ring.AddNode(c.localNode)
-	c.dcContainer = NewDatacenterContainer()
+	c.dcContainer = topology.NewDatacenterContainer()
 
 	return c, nil
 }
@@ -139,7 +139,7 @@ func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
 // adds a node to the cluster, if it's not already
 // part of the cluster, and starting it if the cluster
 // has been started
-func (c *Cluster) addNode(n ClusterNode) error {
+func (c *Cluster) addNode(n topology.Node) error {
 	// add to ring, and start if it hasn't been seen before
 	var err error
 	if n.GetDatacenterId() == c.GetDatacenterId() {
@@ -159,7 +159,7 @@ func (c *Cluster) getPeerData() []*PeerData {
 	localNodes := c.ring.AllNodes()
 	extNodes := c.dcContainer.AllNodes()
 	peers := make([]*PeerData, 0, len(localNodes) + len(extNodes) - 1)
-	node2PeerData := func(n ClusterNode) *PeerData {
+	node2PeerData := func(n topology.Node) *PeerData {
 		return &PeerData{
 			NodeId:n.GetId(),
 			DCId:n.GetDatacenterId(),
@@ -301,13 +301,13 @@ func (c* Cluster) Stop() error {
 
 // gets the token of the given key and returns the nodes
 // that it maps to
-func (c *Cluster) GetLocalNodesForKey(k string) []ClusterNode {
+func (c *Cluster) GetLocalNodesForKey(k string) []topology.Node {
 	token := c.partitioner.GetToken(k)
 	return c.ring.GetNodesForToken(token, c.replicationFactor)
 }
 
 // returns a map of DC id -> nodes for the give key
-func (c *Cluster) GetNodesForKey(k string) map[topology.DatacenterID][]ClusterNode {
+func (c *Cluster) GetNodesForKey(k string) map[topology.DatacenterID][]topology.Node {
 	token := c.partitioner.GetToken(k)
 	nm := c.dcContainer.GetNodesForToken(token, c.replicationFactor)
 	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token, c.replicationFactor)
@@ -317,7 +317,7 @@ func (c *Cluster) GetNodesForKey(k string) map[topology.DatacenterID][]ClusterNo
 /************** streaming **************/
 
 // initiates streaming tokens from the given node
-func (c *Cluster) streamFromNode(cn ClusterNode) error {
+func (c *Cluster) streamFromNode(cn topology.Node) error {
 	n := cn.(*RemoteNode)
 	msg := &StreamRequest{}
 	response, err := n.SendMessage(msg)
@@ -331,7 +331,7 @@ func (c *Cluster) streamFromNode(cn ClusterNode) error {
 
 // streams keys that are owned/replicated
 // by the given node to it
-func (c *Cluster) streamToNode(cn ClusterNode) error {
+func (c *Cluster) streamToNode(cn topology.Node) error {
 	//
 	n := cn.(*RemoteNode)
 
@@ -499,7 +499,7 @@ type queryResponse struct {
 }
 
 // returns the total number of nodes in a node map
-func numMappedNodes(replicaMap map[topology.DatacenterID][]ClusterNode) int {
+func numMappedNodes(replicaMap map[topology.DatacenterID][]topology.Node) int {
 	num := 0
 	for _, nodes := range replicaMap {
 		num += len(nodes)
@@ -537,7 +537,7 @@ func (ne nodeTimeoutError) Error() string { return string(ne) }
 // reconciles values and issues repair statements to other nodes
 func (c *Cluster) reconcileRead(
 	key string,
-	nodeMap map[node.NodeId]ClusterNode,
+	nodeMap map[node.NodeId]topology.Node,
 	rchan chan queryResponse,
 	timeout time.Duration,
 ) {
@@ -573,7 +573,7 @@ func (c *Cluster) reconcileRead(
 		//log something??
 	}
 
-	write := func(n ClusterNode, inst store.Instruction) {
+	write := func(n topology.Node, inst store.Instruction) {
 		n.ExecuteQuery(inst.Cmd, inst.Key, inst.Args, inst.Timestamp)
 	}
 
@@ -608,7 +608,7 @@ func (c *Cluster) ExecuteRead(
 	replicaMap := c.GetNodesForKey(key)
 	// map of node ids-> node contacted, used for
 	// sending reconciliation corrections
-	nodeMap := make(map[node.NodeId]ClusterNode)
+	nodeMap := make(map[node.NodeId]topology.Node)
 	numNodes := numMappedNodes(replicaMap)
 	// used for constructing a response
 	responseChannel := make(chan queryResponse, numNodes)
@@ -616,7 +616,7 @@ func (c *Cluster) ExecuteRead(
 	reconcileChannel := make(chan queryResponse, numNodes)
 
 	// executes the read against the cluster
-	execute := func(n ClusterNode) {
+	execute := func(n topology.Node) {
 		val, err := n.ExecuteQuery(cmd, key, args, time.Time{})
 		response := queryResponse{nid:n.GetId() , val:val, err:err}
 		responseChannel <- response
