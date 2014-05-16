@@ -29,7 +29,6 @@ func (e *NodeError) Error() string {
 type ClusterNode interface {
 	topology.TopologyNode
 
-	GetAddr() string
 }
 
 // the baseNode defines all of the properties

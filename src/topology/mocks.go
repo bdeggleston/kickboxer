@@ -18,9 +18,10 @@ type mockNode struct {
 	token partitioner.Token
 	name string
 	status NodeStatus
+	started bool
 }
 
-var _ = TopologyNode(&mockNode{})
+var _ = Node(&mockNode{})
 
 func newMockNode(id node.NodeId, dcid DatacenterID, token partitioner.Token, name string) (*mockNode) {
 	n := &mockNode{}
@@ -34,9 +35,21 @@ func newMockNode(id node.NodeId, dcid DatacenterID, token partitioner.Token, nam
 
 func (n *mockNode) GetId() node.NodeId { return n.id }
 func (n *mockNode) Name() string { return n.name }
+func (n *mockNode) GetAddr() string { return "" }
 func (n *mockNode) GetToken() partitioner.Token { return n.token }
 func (n *mockNode) GetDatacenterId() DatacenterID { return n.dcID }
 func (n *mockNode) GetStatus() NodeStatus { return n.status }
+func (n *mockNode) IsStarted() bool { return n.started }
+
+func (n *mockNode) Start() error {
+	n.started = true
+	return nil
+}
+
+func (n *mockNode) Stop() error {
+	n.started = false;
+	return nil
+}
 
 func (n *mockNode) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
 	panic("not implemented")

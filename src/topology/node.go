@@ -13,10 +13,11 @@ const (
 	NODE_DOWN 			= NodeStatus("DOWN")
 )
 
-type TopologyNode interface {
+type Node interface {
 	node.Node
 
 	Name() string
+	GetAddr() string
 	GetToken() partitioner.Token
 	GetDatacenterId() DatacenterID
 	GetStatus() NodeStatus

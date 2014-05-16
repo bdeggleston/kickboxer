@@ -152,7 +152,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 // tests that the proper nodes are returned for the given keys
 func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	var token partitioner.Token
-	var nodes []TopologyNode
+	var nodes []Node
 
 	// test the upper bound
 	token = partitioner.Token([]byte{0,0,9,5})
