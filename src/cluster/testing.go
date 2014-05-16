@@ -92,16 +92,16 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 
 // makes a ring of the given size, with the tokens evenly spaced
 func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
-	partitioner := literalPartitioner{}
+	p := literalPartitioner{}
 	c, err := NewCluster(
 		kvstore.NewKVStore(),
 		"127.0.0.1:9999",
 		"Test Cluster",
-		partitioner.GetToken("0000"),
+		p.GetToken("0000"),
 		node.NewNodeId(),
 		topology.DatacenterID("DC5000"),
 		replicationFactor,
-		partitioner,
+		p,
 		nil,
 	)
 	if err != nil {
@@ -110,7 +110,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 
 	for i:=1; i<size; i++ {
 		tkey := fmt.Sprintf("%04v", i * 1000)
-		token := partitioner.GetToken(tkey)
+		token := p.GetToken(tkey)
 		n := NewRemoteNodeInfo(
 			node.NewNodeId(),
 			topology.DatacenterID("DC5000"),
