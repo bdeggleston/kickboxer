@@ -29,6 +29,7 @@ func (e *NodeError) Error() string {
 type ClusterNode interface {
 	topology.TopologyNode
 
+	GetAddr() string
 	Start() error
 	Stop() error
 	IsStarted() bool
