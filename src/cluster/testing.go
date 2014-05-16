@@ -18,6 +18,7 @@ import (
 	"message"
 	"node"
 	"partitioner"
+	"topology"
 )
 
 // ----------------- cluster setup -----------------
@@ -29,7 +30,7 @@ func setupCluster() *Cluster {
 		"Test Cluster",
 		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		3,
 		partitioner.NewMD5Partitioner(),
 		nil,
@@ -49,7 +50,7 @@ func setupRing() *Ring {
 	for i:=0; i<10; i++ {
 		n := newMockNode(
 			node.NewNodeId(),
-			DatacenterId("DC5000"),
+			topology.DatacenterID("DC5000"),
 			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
@@ -67,7 +68,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 		"Test Cluster",
 		partitioner.Token([]byte{0,0,0,0}),
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		replicationFactor,
 		partitioner.NewMD5Partitioner(),
 		nil,
@@ -79,7 +80,7 @@ func makeRing(size int, replicationFactor uint32) *Cluster {
 	for i:=1; i<size; i++ {
 		n := newMockNode(
 			node.NewNodeId(),
-			DatacenterId("DC5000"),
+			topology.DatacenterID("DC5000"),
 			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
@@ -98,7 +99,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		"Test Cluster",
 		partitioner.GetToken("0000"),
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		replicationFactor,
 		partitioner,
 		nil,
@@ -112,7 +113,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 		token := partitioner.GetToken(tkey)
 		n := NewRemoteNodeInfo(
 			node.NewNodeId(),
-			DatacenterId("DC5000"),
+			topology.DatacenterID("DC5000"),
 			token,
 			fmt.Sprintf("N%v", i),
 			fmt.Sprintf("127.0.0.%v:9999", i+2),
@@ -132,7 +133,7 @@ func setupDC(numDCs int, numNodes int) *DatacenterContainer {
 
 	for i:=0; i<numDCs; i++ {
 		dcNum := i+1
-		dcid := DatacenterId(fmt.Sprintf("DC%v", dcNum))
+		dcid := topology.DatacenterID(fmt.Sprintf("DC%v", dcNum))
 		for i:=0; i<numNodes; i++ {
 			n := newMockNode(
 				node.NewNodeId(),

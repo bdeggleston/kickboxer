@@ -10,14 +10,7 @@ import (
 	"node"
 	"partitioner"
 	"store"
-)
-
-type NodeStatus string
-
-const (
-	NODE_INITIALIZING 	= NodeStatus("")
-	NODE_UP 			= NodeStatus("UP")
-	NODE_DOWN 			= NodeStatus("DOWN")
+	"topology"
 )
 
 type NodeError struct {
@@ -33,15 +26,8 @@ func (e *NodeError) Error() string {
 }
 
 // the basic node interface
-// TODO: rename ClusterNode, inherit from node.Node
 type ClusterNode interface {
-	node.Node
-
-	Name() string
-	GetAddr() string
-	GetToken() partitioner.Token
-	GetDatacenterId() DatacenterId
-	GetStatus() NodeStatus
+	topology.TopologyNode
 
 	Start() error
 	Stop() error
@@ -55,8 +41,8 @@ type baseNode struct {
 	addr string
 	token partitioner.Token
 	id node.NodeId
-	dcId DatacenterId
-	status NodeStatus
+	dcId topology.DatacenterID
+	status topology.NodeStatus
 }
 
 func (n *baseNode) Name() string { return n.name }
@@ -67,9 +53,9 @@ func (n *baseNode) GetToken() partitioner.Token { return n.token }
 
 func (n *baseNode) GetId() node.NodeId { return n.id }
 
-func (n *baseNode) GetDatacenterId() DatacenterId { return n.dcId }
+func (n *baseNode) GetDatacenterId() topology.DatacenterID { return n.dcId }
 
-func (n *baseNode) GetStatus() NodeStatus { return n.status }
+func (n *baseNode) GetStatus() topology.NodeStatus { return n.status }
 
 // LocalNode provides access to the local store
 type LocalNode struct {
@@ -80,7 +66,7 @@ type LocalNode struct {
 
 var _ = ClusterNode(&LocalNode{})
 
-func NewLocalNode(id node.NodeId, dcId DatacenterId, token partitioner.Token, name string, store store.Store) (*LocalNode) {
+func NewLocalNode(id node.NodeId, dcId topology.DatacenterID, token partitioner.Token, name string, store store.Store) (*LocalNode) {
 	//
 	n := &LocalNode{}
 	n.id = id
@@ -88,7 +74,7 @@ func NewLocalNode(id node.NodeId, dcId DatacenterId, token partitioner.Token, na
 	n.token = token
 	n.name = name
 	n.store = store
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	return n
 }
 
@@ -148,7 +134,7 @@ func NewRemoteNode(addr string, cluster *Cluster) (*RemoteNode) {
 }
 
 // creates a new remote node from info provided from the node
-func NewRemoteNodeInfo(id node.NodeId, dcId DatacenterId, token partitioner.Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
+func NewRemoteNodeInfo(id node.NodeId, dcId topology.DatacenterID, token partitioner.Token, name string, addr string, cluster *Cluster) (n *RemoteNode) {
 	n = NewRemoteNode(addr, cluster)
 	n.id = id
 	n.dcId = dcId
@@ -162,7 +148,7 @@ func (n *RemoteNode) Start() error {
 	conn, err := n.getConnection()
 	if err != nil { return err }
 	n.pool.Put(conn)
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	n.isStarted = true
 	return nil
 }
@@ -192,18 +178,18 @@ func (n *RemoteNode) getConnection() (*Connection, error) {
 			Token:n.cluster.GetToken(),
 		}}
 		if err := message.WriteMessage(conn, msg); err != nil {
-			n.status = NODE_DOWN
+			n.status = topology.NODE_DOWN
 			return nil, err
 		}
 		response, err := message.ReadMessage(conn)
 		if err != nil {
-			n.status = NODE_DOWN
+			n.status = topology.NODE_DOWN
 			return nil, err
 		}
 		if _, ok := response.(*ConnectionAcceptedResponse); !ok {
-			n.status = NODE_DOWN
+			n.status = topology.NODE_DOWN
 			return nil, fmt.Errorf("Unexpected response type, expected *ConnectionAcceptedResponse, got %T", response)
-		} else if n.status == NODE_INITIALIZING {
+		} else if n.status == topology.NODE_INITIALIZING {
 			// copy the response info if we're still initializing
 			accept := response.(*ConnectionAcceptedResponse)
 			n.id = accept.NodeId
@@ -222,7 +208,7 @@ func (n *RemoteNode) SendMessage(m message.Message) (message.Message, error) {
 	// get connection
 	conn, err := n.getConnection()
 	if  err != nil {
-		n.status = NODE_DOWN
+		n.status = topology.NODE_DOWN
 		return nil, err
 	}
 
@@ -230,7 +216,7 @@ func (n *RemoteNode) SendMessage(m message.Message) (message.Message, error) {
 	// send the message
 	if err := message.WriteMessage(conn, m); err != nil {
 		conn.Close()
-		n.status = NODE_DOWN
+		n.status = topology.NODE_DOWN
 		return nil, err
 	}
 
@@ -238,11 +224,11 @@ func (n *RemoteNode) SendMessage(m message.Message) (message.Message, error) {
 	response, err := message.ReadMessage(conn)
 	if err != nil {
 		conn.Close()
-		n.status = NODE_DOWN
+		n.status = topology.NODE_DOWN
 		return nil, err
 	}
 
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	n.pool.Put(conn)
 	return response, nil
 }

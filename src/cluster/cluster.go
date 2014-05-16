@@ -16,6 +16,7 @@ import (
 	"node"
 	"partitioner"
 	"store"
+	"topology"
 )
 
 var logger *logging.Logger
@@ -64,7 +65,7 @@ type Cluster struct {
 	name string
 	token partitioner.Token
 	nodeId node.NodeId
-	dcId DatacenterId
+	dcId topology.DatacenterID
 	peerAddr string
 	peerServer *PeerServer
 	partitioner partitioner.Partitioner
@@ -84,7 +85,7 @@ func NewCluster(
 	// the id of this local node
 	nodeId node.NodeId,
 	// the name of the datacenter this node belongs to
-	dcId DatacenterId,
+	dcId topology.DatacenterID,
 	// the replication factor of the cluster
 	replicationFactor uint32,
 	// the partitioner used by the cluster
@@ -130,7 +131,7 @@ func NewCluster(
 
 // info getters
 func (c* Cluster) GetNodeId() node.NodeId { return c.nodeId }
-func (c* Cluster) GetDatacenterId() DatacenterId { return c.dcId }
+func (c* Cluster) GetDatacenterId() topology.DatacenterID { return c.dcId }
 func (c* Cluster) GetToken() partitioner.Token { return c.token }
 func (c* Cluster) GetName() string { return c.name }
 func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
@@ -306,7 +307,7 @@ func (c *Cluster) GetLocalNodesForKey(k string) []ClusterNode {
 }
 
 // returns a map of DC id -> nodes for the give key
-func (c *Cluster) GetNodesForKey(k string) map[DatacenterId][]ClusterNode {
+func (c *Cluster) GetNodesForKey(k string) map[topology.DatacenterID][]ClusterNode {
 	token := c.partitioner.GetToken(k)
 	nm := c.dcContainer.GetNodesForToken(token, c.replicationFactor)
 	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token, c.replicationFactor)
@@ -498,7 +499,7 @@ type queryResponse struct {
 }
 
 // returns the total number of nodes in a node map
-func numMappedNodes(replicaMap map[DatacenterId][]ClusterNode) int {
+func numMappedNodes(replicaMap map[topology.DatacenterID][]ClusterNode) int {
 	num := 0
 	for _, nodes := range replicaMap {
 		num += len(nodes)
@@ -627,7 +628,7 @@ func (c *Cluster) ExecuteRead(
 
 	// determine how many nodes we need a response from, per datacenter
 	// and start querying nodes
-	numRequiredResponses := make(map[DatacenterId] int, len(replicaMap))
+	numRequiredResponses := make(map[topology.DatacenterID] int, len(replicaMap))
 	for dcid, nodes := range replicaMap {
 		if dcid != c.GetDatacenterId() && localOnly {
 			numRequiredResponses[dcid] = 0
@@ -654,7 +655,7 @@ func (c *Cluster) ExecuteRead(
 	}
 
 	// wait for responses
-	numReceivedResponses := make(map[DatacenterId] int, len(replicaMap))
+	numReceivedResponses := make(map[topology.DatacenterID] int, len(replicaMap))
 	numTotalResponses := 0
 	// determines if the number of responses received satisfies the
 	// required consistency level

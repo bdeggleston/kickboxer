@@ -16,6 +16,7 @@ import (
 	"message"
 	"node"
 	"partitioner"
+	"topology"
 )
 
 var _test_loglevel = flag.String("test.loglevel", "", "the loglevel to run tests with")
@@ -59,7 +60,7 @@ func (t *ClusterTest) TestInvalidReplicationFactor(c *gocheck.C) {
 		"Test Cluster",
 		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
-		DatacenterId("DC1234"),
+		topology.DatacenterID("DC1234"),
 		0,
 		partitioner.NewMD5Partitioner(),
 		nil,
@@ -75,7 +76,7 @@ func (t *ClusterTest) TestInvalidPartitioner(c *gocheck.C) {
 		"Test Cluster",
 		partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 		node.NewNodeId(),
-		DatacenterId("DC1234"),
+		topology.DatacenterID("DC1234"),
 		3,
 		nil,
 		nil,
@@ -102,7 +103,7 @@ func (t *AddNodeTest) TestAddingNode(c *gocheck.C) {
 	clstr := makeRing(5, 3)
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
@@ -121,7 +122,7 @@ func (t *AddNodeTest) TestAddOtherDCNode(c *gocheck.C) {
 	clstr := makeRing(5, 3)
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
-		DatacenterId("DC4000"),
+		topology.DatacenterID("DC4000"),
 		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
@@ -327,7 +328,7 @@ func (t *PeerDiscoveryTest) setupSeedPeerDiscovery(c *gocheck.C, responses map[s
 		"TestCluster",
 		token,
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		3,
 		partitioner.NewMD5Partitioner(),
 		seeds,
@@ -355,7 +356,7 @@ func (t *PeerDiscoveryTest) compareNodeToConnectionResponse(c *gocheck.C, cluste
 	c.Check(n.GetDatacenterId(), gocheck.Equals, response.DCId)
 	c.Check(n.Name(), gocheck.Equals, response.Name)
 	c.Check(n.GetAddr(), gocheck.Equals, addr)
-	c.Check(n.GetStatus(), gocheck.Equals, NODE_UP)
+	c.Check(n.GetStatus(), gocheck.Equals, topology.NODE_UP)
 	c.Check(n.GetToken(), gocheck.DeepEquals, response.Token)
 }
 
@@ -365,13 +366,13 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromSeedAddresses(c *gocheck.C) {
 	// mocked out connections responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC5000"),
+		DCId:topology.DatacenterID("DC5000"),
 		Name:"N2",
 		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response  := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC5000"),
+		DCId:topology.DatacenterID("DC5000"),
 		Name:"N3",
 		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
@@ -402,13 +403,13 @@ func (t *PeerDiscoveryTest) TestOtherDCPeerDiscoveryFromSeedAddresses(c *gocheck
 	// mocked out connections responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC4000"),
+		DCId:topology.DatacenterID("DC4000"),
 		Name:"N2",
 		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response  := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC4000"),
+		DCId:topology.DatacenterID("DC4000"),
 		Name:"N3",
 		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
@@ -443,7 +444,7 @@ func (t *PeerDiscoveryTest) setupDiscoverFromExistingPeers(c *gocheck.C, respons
 		"TestCluster",
 		token,
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		3,
 		partitioner.NewMD5Partitioner(),
 		nil,
@@ -453,7 +454,7 @@ func (t *PeerDiscoveryTest) setupDiscoverFromExistingPeers(c *gocheck.C, respons
 	// create existing remote node
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
-		DatacenterId("DC5000"),
+		topology.DatacenterID("DC5000"),
 		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
@@ -505,13 +506,13 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromExistingPeers(c *gocheck.C) {
 	// mocked out responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC5000"),
+		DCId:topology.DatacenterID("DC5000"),
 		Name:"N2",
 		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC5000"),
+		DCId:topology.DatacenterID("DC5000"),
 		Name:"N3",
 		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
@@ -543,13 +544,13 @@ func (t *PeerDiscoveryTest) TestOtherDCDiscoveryFromExistingPeers(c *gocheck.C) 
 	// mocked out responses
 	n2Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC4000"),
+		DCId:topology.DatacenterID("DC4000"),
 		Name:"N2",
 		Token:partitioner.Token([]byte{0,0,2,0}),
 	}
 	n3Response := &ConnectionAcceptedResponse{
 		NodeId:node.NewNodeId(),
-		DCId:DatacenterId("DC4000"),
+		DCId:topology.DatacenterID("DC4000"),
 		Name:"N3",
 		Token:partitioner.Token([]byte{0,0,3,0}),
 	}
@@ -589,7 +590,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoverySeedFailure(c *gocheck.C) {
 		"TestCluster",
 		token,
 		node.NewNodeId(),
-		DatacenterId("DC1234"),
+		topology.DatacenterID("DC1234"),
 		3,
 		partitioner.NewMD5Partitioner(),
 		seeds,
@@ -613,7 +614,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 		"TestCluster",
 		token,
 		node.NewNodeId(),
-		DatacenterId("DC1234"),
+		topology.DatacenterID("DC1234"),
 		3,
 		partitioner.NewMD5Partitioner(),
 		nil,
@@ -623,7 +624,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	// create existing remote node
 	rnode := NewRemoteNodeInfo(
 		node.NewNodeId(),
-		DatacenterId("DC1234"),
+		topology.DatacenterID("DC1234"),
 		partitioner.Token([]byte{0,0,1,0}),
 		"N1",
 		"127.0.0.1:9999",
@@ -644,14 +645,14 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	discoveryResponse := &DiscoverPeerResponse{Peers:[]*PeerData{
 		&PeerData{
 			NodeId:n2Response.NodeId,
-			DCId:DatacenterId("DC1234"),
+			DCId:topology.DatacenterID("DC1234"),
 			Name:n2Response.Name,
 			Token:n2Response.Token,
 			Addr:"127.0.0.2:9999",
 		},
 		&PeerData{
 			NodeId:n3Response.NodeId,
-			DCId:DatacenterId("DC1234"),
+			DCId:topology.DatacenterID("DC1234"),
 			Name:n3Response.Name,
 			Token:n3Response.Token,
 			Addr:"127.0.0.3:9999",
@@ -710,7 +711,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	c.Check(n3.GetId(), gocheck.Equals, n3Response.NodeId)
 	c.Check(n3.Name(), gocheck.Equals, n3Response.Name)
 	c.Check(n3.GetAddr(), gocheck.Equals, "127.0.0.3:9999")
-	c.Check(n3.GetStatus(), gocheck.Equals, NODE_DOWN)
+	c.Check(n3.GetStatus(), gocheck.Equals, topology.NODE_DOWN)
 	c.Check(n3.GetToken(), gocheck.DeepEquals, n3Response.Token)
 }
 

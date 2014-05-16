@@ -10,6 +10,7 @@ import (
 
 import (
 	"partitioner"
+	"topology"
 )
 
 type DatacenterTest struct {
@@ -25,14 +26,14 @@ func (t *DatacenterTest) SetUpTest(c *gocheck.C) {
 
 // tests add node behavior
 func (t *DatacenterTest) TestAddNode(c *gocheck.C) {
-	for i, dcid := range []DatacenterId{"DC1", "DC2", "DC3"} {
+	for i, dcid := range []topology.DatacenterID{"DC1", "DC2", "DC3"} {
 		dcNum := i + 1
 		ring, exists := t.dc.rings[dcid]
 		c.Check(exists, gocheck.Equals, true)
 		nodes := ring.AllNodes()
 		c.Check(len(nodes), gocheck.Equals, 10)
 		node := nodes[0]
-		c.Check(node.GetDatacenterId(), gocheck.Equals, DatacenterId(fmt.Sprintf("DC%v", dcNum)))
+		c.Check(node.GetDatacenterId(), gocheck.Equals, topology.DatacenterID(fmt.Sprintf("DC%v", dcNum)))
 	}
 }
 

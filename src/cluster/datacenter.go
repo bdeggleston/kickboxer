@@ -7,6 +7,7 @@ import (
 
 import (
 	"partitioner"
+	"topology"
 )
 
 /**
@@ -24,16 +25,14 @@ import (
  * datacenters pick a random coordinator on each request (why?)
  */
 
-type DatacenterId string
-
 type DatacenterContainer struct {
-	rings map[DatacenterId] *Ring
+	rings map[topology.DatacenterID] *Ring
 	lock sync.RWMutex
 }
 
 func NewDatacenterContainer() *DatacenterContainer {
 	dc := &DatacenterContainer{
-		rings: make(map[DatacenterId]*Ring),
+		rings: make(map[topology.DatacenterID]*Ring),
 	}
 	return dc
 }
@@ -68,7 +67,7 @@ func (dc *DatacenterContainer) AllNodes() []ClusterNode {
 	return nodes
 }
 
-func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
+func (dc *DatacenterContainer) GetRing(dcId topology.DatacenterID) (*Ring, error) {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
@@ -80,12 +79,12 @@ func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
 }
 
 // returns a map of datacenter ids -> replica nodes
-func (dc *DatacenterContainer) GetNodesForToken(t partitioner.Token, replicationFactor uint32) map[DatacenterId][]ClusterNode {
+func (dc *DatacenterContainer) GetNodesForToken(t partitioner.Token, replicationFactor uint32) map[topology.DatacenterID][]ClusterNode {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
 	// allocate an additional space for the local node when this is used in queries
-	nodes := make(map[DatacenterId][]ClusterNode, len(dc.rings) + 1)
+	nodes := make(map[topology.DatacenterID][]ClusterNode, len(dc.rings) + 1)
 	for dcid, ring := range dc.rings {
 		nodes[dcid] = ring.GetNodesForToken(t, replicationFactor)
 	}
