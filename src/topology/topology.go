@@ -139,7 +139,11 @@ func (t *Topology) GetLocalNodesForToken(tk partitioner.Token) []Node {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return t.rings[t.localDcID].GetNodesForToken(tk, uint32(t.replicationFactor))
+	ring := t.rings[t.localDcID]
+	if ring == nil {
+		return []Node{}
+	}
+	return ring.GetNodesForToken(tk, uint32(t.replicationFactor))
 }
 
 // returns true if the given token is replicated by the local node
