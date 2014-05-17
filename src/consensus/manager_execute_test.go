@@ -303,8 +303,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 
 // tests that the dependency ordering is the same, regardless of the 'target' instance
 func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	instances := make([]*Instance, 50)
 	for i := range instances {
 		instance := s.manager.makeInstance(s.getInstruction(1))
@@ -394,8 +393,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 // tests that getting the execution order saves the strongly connected component ids on the instances
 func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInExOrder(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	component := make([]InstanceID, 0)
@@ -430,8 +428,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 // tests that components of 1 are not recorded
 func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *gocheck.C) {
 	var err error
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	instance := s.manager.makeInstance(getBasicInstruction())
 	err = s.manager.commitInstance(instance, true)
 	c.Assert(err, gocheck.IsNil)
@@ -445,8 +442,7 @@ func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *goc
 // tests that, as large strongly connected components are executed, their execution ordering
 // is not affected by the dependency graph excluding some executed instances
 func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponentOrdering(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	for i:=0; i<10; i++ {
@@ -490,8 +486,7 @@ func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponent
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSuccess(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)
@@ -527,8 +522,7 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSucces
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedComponent(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)
@@ -569,8 +563,7 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 
 // tests that strongly connected components are not recorded if the component has an uncommitted dep
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedDep(c *gocheck.C) {
-//	s.manager = NewManager(s.manager.cluster)
-	s.manager = setupManager()
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)

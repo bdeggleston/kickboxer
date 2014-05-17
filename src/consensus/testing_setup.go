@@ -51,8 +51,8 @@ func setupDeps(manager *Manager) {
 	}
 }
 
-func setupManager() *Manager {
-	manager := NewManager(
+func setupEmptyManager() *Manager {
+	return NewManager(
 		topology.NewTopology(
 			node.NewNodeId(),
 			topology.DatacenterID("DC1"),
@@ -61,6 +61,9 @@ func setupManager() *Manager {
 		),
 		newMockStore(),
 	)
+}
+func setupManager() *Manager {
+	manager := setupEmptyManager()
 	setupDeps(manager)
 	return manager
 }
