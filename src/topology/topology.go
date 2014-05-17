@@ -108,6 +108,14 @@ func (t *Topology) GetNode(nid node.NodeId) (Node, error) {
 	return n, nil
 }
 
+func (t *Topology) GetLocalNodeID() node.NodeId {
+	return t.localNodeID
+}
+
+func (t *Topology) GetLocalDatacenterID() DatacenterID {
+	return t.localDcID
+}
+
 func (t *Topology) GetToken(key string) partitioner.Token {
 	return t.partitioner.GetToken(key)
 }
