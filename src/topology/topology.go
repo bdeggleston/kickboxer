@@ -23,6 +23,7 @@ type Topology struct {
 	replicationFactor uint
 
 	rings map[DatacenterID]*Ring
+	nodes map[node.NodeId]Node
 	lock  sync.RWMutex
 }
 
@@ -38,6 +39,7 @@ func NewTopology(
 		partitioner:       prtnr,
 		replicationFactor: replicationFactor,
 		rings: make(map[DatacenterID]*Ring, 1),
+		nodes: make(map[node.NodeId]Node, 1),
 	}
 }
 
@@ -49,7 +51,11 @@ func (t *Topology) AddNode(n Node) error {
 	if _, exists := t.rings[dcId]; !exists {
 		t.rings[dcId] = NewRing()
 	}
-	return t.rings[dcId].AddNode(n)
+	err := t.rings[dcId].AddNode(n)
+	if err == nil {
+		t.nodes[n.GetId()] = n
+	}
+	return err
 }
 
 func (t *Topology) Size() int {
@@ -74,6 +80,12 @@ func (t *Topology) AllNodes() []Node {
 	return nodes
 }
 
+func (t *Topology) AllLocalNodes() []Node {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.rings[t.localDcID].AllNodes()
+}
+
 func (t *Topology) GetRing(dcId DatacenterID) (*Ring, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -83,6 +95,17 @@ func (t *Topology) GetRing(dcId DatacenterID) (*Ring, error) {
 		return nil, fmt.Errorf("Unknown datacenter [%v]", dcId)
 	}
 	return ring, nil
+}
+
+func (t *Topology) GetNode(nid node.NodeId) (Node, error) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	n, exists := t.nodes[nid]
+	if !exists {
+		return nil, fmt.Errorf("No node found by node id: %v", nid)
+	}
+	return n, nil
 }
 
 func (t *Topology) GetToken(key string) partitioner.Token {
