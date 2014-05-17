@@ -59,8 +59,7 @@ type Cluster struct {
 
 	localNode *LocalNode
 
-	ring *topology.Ring
-	dcContainer *topology.DatacenterContainer
+	topology *topology.Topology
 
 	name string
 	token partitioner.Token
@@ -122,9 +121,11 @@ func NewCluster(
 		c.seeds = seeds
 	}
 
-	c.ring = topology.NewRing()
-	c.ring.AddNode(c.localNode)
-	c.dcContainer = topology.NewDatacenterContainer()
+//	c.ring = topology.NewRing()
+//	c.ring.AddNode(c.localNode)
+//	c.dcContainer = topology.NewDatacenterContainer()
+	c.topology = topology.NewTopology(c.nodeId, c.dcId, c.partitioner, uint(c.replicationFactor))
+	c.topology.AddNode(c.localNode)
 
 	return c, nil
 }
@@ -141,12 +142,7 @@ func (c* Cluster) GetPeerAddr() string { return c.peerAddr }
 // has been started
 func (c *Cluster) addNode(n topology.Node) error {
 	// add to ring, and start if it hasn't been seen before
-	var err error
-	if n.GetDatacenterId() == c.GetDatacenterId() {
-		err = c.ring.AddNode(n)
-	} else {
-		err = c.dcContainer.AddNode(n)
-	}
+	err := c.topology.AddNode(n)
 	if err != nil { return err }
 	if c.status != CLUSTER_INITIALIZING {
 		if err := n.Start(); err != nil { return err }
@@ -156,26 +152,16 @@ func (c *Cluster) addNode(n topology.Node) error {
 
 // returns data on peer nodes
 func (c *Cluster) getPeerData() []*PeerData {
-	localNodes := c.ring.AllNodes()
-	extNodes := c.dcContainer.AllNodes()
-	peers := make([]*PeerData, 0, len(localNodes) + len(extNodes) - 1)
-	node2PeerData := func(n topology.Node) *PeerData {
-		return &PeerData{
+	nodes := c.topology.AllNodes()
+	peers := make([]*PeerData, len(nodes))
+	for i, n := range nodes {
+		peers[i] = &PeerData{
 			NodeId:n.GetId(),
 			DCId:n.GetDatacenterId(),
 			Addr:n.GetAddr(),
 			Name:n.Name(),
 			Token:n.GetToken(),
 		}
-	}
-
-	for _, n := range localNodes {
-		if n.GetId() != c.GetNodeId() {
-			peers = append(peers, node2PeerData(n))
-		}
-	}
-	for _, n := range extNodes {
-		peers = append(peers, node2PeerData(n))
 	}
 	return peers
 }
@@ -187,9 +173,7 @@ func (c* Cluster) discoverPeers() error {
 
 	// checks the existing nodes for the given address
 	addrIsKnown := func(addr string) *RemoteNode {
-		nodes := c.ring.AllNodes()
-		nodes = append(nodes, c.dcContainer.AllNodes()...)
-		for _, v := range c.ring.AllNodes() {
+		for _, v := range c.topology.AllNodes() {
 			if n, ok := v.(*RemoteNode); ok {
 				if n.addr == addr {
 					return n
@@ -215,7 +199,7 @@ func (c* Cluster) discoverPeers() error {
 	// get peer info from existing nodes
 	getRemoteNodes := func() []*RemoteNode {
 		peers := make([]*RemoteNode, 0)
-		for _, v := range c.ring.AllNodes() {
+		for _, v := range c.topology.AllNodes() {
 			if n, ok := v.(*RemoteNode); ok {
 				peers = append(peers, n)
 			}
@@ -255,7 +239,7 @@ func (c* Cluster) discoverPeers() error {
 
 func (c* Cluster) Start() error {
 	// check for existing nodes
-	firstStartup := len(c.ring.AllNodes()) == 0
+	firstStartup := len(c.topology.AllLocalNodes()) == 0
 
 	// start listening for connections
 	if err := c.peerServer.Start(); err != nil {
@@ -263,7 +247,7 @@ func (c* Cluster) Start() error {
 	}
 
 	//startup the nodes
-	for _, n := range c.ring.AllNodes() {
+	for _, n := range c.topology.AllLocalNodes() {
 		if !n.IsStarted() {
 			if err:= n.Start(); err != nil {
 				return err
@@ -291,7 +275,7 @@ func (c* Cluster) Start() error {
 
 func (c* Cluster) Stop() error {
 	c.peerServer.Stop()
-	for _, n := range c.ring.AllNodes() {
+	for _, n := range c.topology.AllLocalNodes() {
 		n.Stop()
 	}
 	return nil
@@ -303,15 +287,13 @@ func (c* Cluster) Stop() error {
 // that it maps to
 func (c *Cluster) GetLocalNodesForKey(k string) []topology.Node {
 	token := c.partitioner.GetToken(k)
-	return c.ring.GetNodesForToken(token, c.replicationFactor)
+	return c.topology.GetLocalNodesForToken(token)
 }
 
 // returns a map of DC id -> nodes for the give key
 func (c *Cluster) GetNodesForKey(k string) map[topology.DatacenterID][]topology.Node {
-	token := c.partitioner.GetToken(k)
-	nm := c.dcContainer.GetNodesForToken(token, c.replicationFactor)
-	nm[c.GetDatacenterId()] = c.ring.GetNodesForToken(token, c.replicationFactor)
-	return nm
+	token := c.topology.GetToken(k)
+	return c.topology.GetNodesForToken(token)
 }
 
 /************** streaming **************/
@@ -400,9 +382,9 @@ func receiveStreamedData([]*StreamData) error {
 // N10 should stream data from the node to it's left, since it's taking control
 // of a portion of it's previous token space
 func (c *Cluster) JoinCluster() error {
-	ring := c.ring.AllNodes()
+	nodes := c.topology.AllLocalNodes()
 	var idx int
-	for i, n := range ring {
+	for i, n := range nodes {
 		if n.GetId() == c.GetNodeId() {
 			idx = i
 			break
@@ -410,11 +392,11 @@ func (c *Cluster) JoinCluster() error {
 	}
 
 	// check that the node at the idx matches this cluster's id
-	if ring[idx].GetId() != c.GetNodeId() {
+	if nodes[idx].GetId() != c.GetNodeId() {
 		panic("node at index is not the local node")
 	}
 
-	stream_from := ring[(idx - 1) % len(ring)]
+	stream_from := nodes[(idx - 1) % len(nodes)]
 	c.streamFromNode(stream_from)
 	return nil
 }

@@ -22,17 +22,17 @@ func TestStreamFromNodeMethod(t *testing.T) {
 
 	// get target node
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
 	// setup mock socket
 	sock := newPgmConn()
 	sock.outputFactory = func(_ *pgmConn) message.Message {
 		return &StreamResponse{}
 	}
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
-	if err := cluster.streamFromNode(node); err != nil {
+	if err := cluster.streamFromNode(n); err != nil {
 		t.Errorf("Unexpected error requesting stream: %v", err)
 	}
 
@@ -90,13 +90,13 @@ func TestStreamToNode(t *testing.T) {
 		return &StreamDataResponse{}
 	}
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
-	testing_helpers.AssertEqual(t, "pool size", uint(0), node.pool.size)
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	testing_helpers.AssertEqual(t, "pool size", uint(0), n.pool.size)
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
-	if err := cluster.streamToNode(node); err != nil {
+	if err := cluster.streamToNode(n); err != nil {
 		t.Errorf("Unexpected error while streaming: %v", err)
 	}
 
@@ -176,17 +176,17 @@ func TestServerStreamRequest(t *testing.T) {
 
 	// get target node
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
 	// setup mock socket
 	sock := newPgmConn()
 	sock.outputFactory = func(_ *pgmConn) message.Message { return &StreamCompleteResponse{} }
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
 	// process message and check response
 	server := &PeerServer{cluster:cluster}
-	resp, err := server.executeRequest(node, &StreamRequest{})
+	resp, err := server.executeRequest(n, &StreamRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected error executing StreamRequest: %v", err)
 	}

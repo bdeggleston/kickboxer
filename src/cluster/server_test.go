@@ -145,14 +145,14 @@ func (t *ServerTest) TestServerNodeRegistrationOnConnection(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	// sanity check
-	_, err = cluster.ring.GetNode(connectMessage.NodeId)
+	_, err = cluster.topology.GetNode(connectMessage.NodeId)
 	c.Assert(err, gocheck.NotNil)
 
 	server := &PeerServer{cluster:cluster}
 	err = server.handleConnection(conn)
 	c.Assert(err, gocheck.Equals, io.EOF)
 
-	_, err = cluster.ring.GetNode(connectMessage.NodeId)
+	_, err = cluster.topology.GetNode(connectMessage.NodeId)
 	c.Assert(err, gocheck.IsNil)
 }
 

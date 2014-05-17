@@ -112,7 +112,7 @@ func (t *AddNodeTest) TestAddingNode(c *gocheck.C) {
 	err := clstr.addNode(rnode)
 	c.Assert(err, gocheck.IsNil)
 
-	n, err := clstr.ring.GetNode(rnode.GetId())
+	n, err := clstr.topology.GetNode(rnode.GetId())
 	c.Assert(err, gocheck.IsNil)
 
 	c.Check(rnode.GetId(), gocheck.Equals, n.GetId())
@@ -132,7 +132,7 @@ func (t *AddNodeTest) TestAddOtherDCNode(c *gocheck.C) {
 	err := clstr.addNode(rnode)
 	c.Assert(err, gocheck.IsNil)
 
-	ring, err := clstr.dcContainer.GetRing("DC4000")
+	ring, err := clstr.topology.GetRing("DC4000")
 	c.Assert(err, gocheck.IsNil)
 
 	n, err := ring.GetNode(rnode.GetId())
@@ -154,7 +154,7 @@ func (t *PeerDataTest) TestExpectedDataIsReturned(c *gocheck.C) {
 
 	data = clstr.getPeerData()
 	for _, pd := range data {
-		n, err := clstr.ring.GetNode(pd.NodeId)
+		n, err := clstr.topology.GetNode(pd.NodeId)
 		c.Assert(err, gocheck.IsNil)
 		c.Assert(n, gocheck.NotNil)
 
@@ -167,18 +167,18 @@ func (t *PeerDataTest) TestExpectedDataIsReturned(c *gocheck.C) {
 
 func (t *PeerDataTest) TestExpectedDataIsReturnedFromOtherDCs(c *gocheck.C) {
 	clstr := makeRing(3, 3)
-	clstr.dcContainer = setupDC(3, 3)
+	addClusterDC(clstr, 3, 3)
 
 	data := clstr.getPeerData()
-	expectedNumNodes := 3+3+3+3-1
+	expectedNumNodes := 3+3+3+3
 	c.Assert(len(data), gocheck.Equals, expectedNumNodes)
 
 	nodeMap := make(map[node.NodeId]topology.Node)
-	for _, n := range clstr.ring.AllNodes() {
+	for _, n := range clstr.topology.AllLocalNodes() {
 		if n.GetId() == clstr.GetNodeId() { continue }
 		nodeMap[n.GetId()] = n
 	}
-	for _, n := range clstr.dcContainer.AllNodes() {
+	for _, n := range clstr.topology.AllNodes() {
 		nodeMap[n.GetId()] = n
 	}
 
@@ -195,18 +195,6 @@ func (t *PeerDataTest) TestExpectedDataIsReturnedFromOtherDCs(c *gocheck.C) {
 	}
 
 	c.Assert(len(nodeMap), gocheck.Equals, 0, gocheck.Commentf("Remaining nodes"))
-}
-
-func (t *PeerDataTest) TestSelfIsNotReturned(c *gocheck.C) {
-	clstr := makeRing(5, 3)
-
-	var data []*PeerData
-
-	data = clstr.getPeerData()
-	c.Assert(len(data), gocheck.Equals, 4)
-	for _, pd := range data {
-		c.Check(pd.NodeId, gocheck.Not(gocheck.Equals), clstr.GetNodeId())
-	}
 }
 
 // TODO: this
@@ -230,7 +218,7 @@ func (t *ClusterStartupTest) TestNodesAreStarted(c *gocheck.C) {
 	defer clstr.Stop()
 	c.Assert(err, gocheck.IsNil)
 
-	for _, n := range clstr.ring.AllNodes() {
+	for _, n := range clstr.topology.AllLocalNodes() {
 		c.Check(n.IsStarted(), gocheck.Equals, true)
 	}
 }
@@ -387,7 +375,7 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromSeedAddresses(c *gocheck.C) {
 
 
 	getNode := func(nid node.NodeId) topology.Node {
-		n, err := cluster.ring.GetNode(nid)
+		n, err := cluster.topology.GetNode(nid)
 		c.Assert(err, gocheck.IsNil)
 		return n
 	}
@@ -423,7 +411,7 @@ func (t *PeerDiscoveryTest) TestOtherDCPeerDiscoveryFromSeedAddresses(c *gocheck
 	c.Assert(err, gocheck.IsNil)
 
 	getNode := func(nid node.NodeId) topology.Node {
-		ring, err := cluster.dcContainer.GetRing("DC4000")
+		ring, err := cluster.topology.GetRing("DC4000")
 		c.Assert(err, gocheck.IsNil)
 		n, err := ring.GetNode(nid)
 		c.Assert(err, gocheck.IsNil)
@@ -527,7 +515,7 @@ func (t *PeerDiscoveryTest) TestDiscoveryFromExistingPeers(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 
 	getNode := func(nid node.NodeId) topology.Node {
-		n, err := cluster.ring.GetNode(nid)
+		n, err := cluster.topology.GetNode(nid)
 		c.Assert(err, gocheck.IsNil)
 		return n
 	}
@@ -565,7 +553,7 @@ func (t *PeerDiscoveryTest) TestOtherDCDiscoveryFromExistingPeers(c *gocheck.C) 
 	c.Assert(err, gocheck.IsNil)
 
 	getNode := func(nid node.NodeId) topology.Node {
-		ring, err := cluster.dcContainer.GetRing("DC4000")
+		ring, err := cluster.topology.GetRing("DC4000")
 		c.Assert(err, gocheck.IsNil)
 		n, err := ring.GetNode(nid)
 		c.Assert(err, gocheck.IsNil)
@@ -600,7 +588,7 @@ func (t *PeerDiscoveryTest) TestPeerDiscoverySeedFailure(c *gocheck.C) {
 	err = cluster.discoverPeers()
 	c.Assert(err, gocheck.IsNil)
 
-	c.Check(len(cluster.ring.AllNodes()), gocheck.Equals, 1)
+	c.Check(len(cluster.topology.AllLocalNodes()), gocheck.Equals, 1)
 }
 
 // tests that a node is still added to the ring, even if
@@ -697,9 +685,9 @@ func (t *PeerDiscoveryTest) TestPeerDiscoveryNodeDataFailure(c *gocheck.C) {
 	err = cluster.discoverPeers()
 	c.Assert(err, gocheck.IsNil)
 
-	n2, err := cluster.ring.GetNode(n2Response.NodeId)
+	n2, err := cluster.topology.GetNode(n2Response.NodeId)
 	c.Assert(err, gocheck.IsNil)
-	n3, err := cluster.ring.GetNode(n3Response.NodeId)
+	n3, err := cluster.topology.GetNode(n3Response.NodeId)
 	c.Assert(err, gocheck.IsNil)
 
 	n2.Start()

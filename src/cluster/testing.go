@@ -128,9 +128,7 @@ func makeLiteralRing(size int, replicationFactor uint32) *Cluster {
 
 // ----------------- datacenter setup / mocks -----------------
 
-func setupDC(numDCs int, numNodes int) *topology.DatacenterContainer {
-	dc := topology.NewDatacenterContainer()
-
+func addClusterDC(c *Cluster, numDCs int, numNodes int) {
 	for i:=0; i<numDCs; i++ {
 		dcNum := i+1
 		dcid := topology.DatacenterID(fmt.Sprintf("DC%v", dcNum))
@@ -141,10 +139,9 @@ func setupDC(numDCs int, numNodes int) *topology.DatacenterContainer {
 				partitioner.Token([]byte{0,0,byte(i),0}),
 				fmt.Sprintf("N%v", i),
 			)
-			dc.AddNode(n)
+			c.topology.AddNode(n)
 		}
 	}
-	return dc
 }
 
 // ----------------- partitioner mocks -----------------
