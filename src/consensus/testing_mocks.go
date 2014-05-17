@@ -19,7 +19,6 @@ import (
 	"node"
 	"partitioner"
 	"store"
-	cluster "clusterproto"
 	"topology"
 )
 
@@ -45,58 +44,58 @@ func (v *intVal) Equal(value store.Value) bool {
 func (v *intVal) Serialize(_ *bufio.Writer) error { return nil }
 func (v *intVal) Deserialize(_ *bufio.Reader) error { return nil }
 
-type mockCluster struct {
-	id node.NodeId
-	nodes []node.Node
-	lock sync.Mutex
-	instructions []store.Instruction
-	values map[string]*intVal
-}
-
-var _  cluster.Cluster = &mockCluster{}
-
-func newMockCluster() *mockCluster {
-	return &mockCluster{
-		id: node.NewNodeId(),
-		nodes: make([]node.Node, 0, 10),
-		instructions: make([]store.Instruction, 0),
-		values: make(map[string]*intVal),
-	}
-}
-
-func (c *mockCluster) addNodes(n ...node.Node) {
-	c.nodes = append(c.nodes, n...)
-}
-
-func (c *mockCluster) GetID() node.NodeId    { return c.id }
-func (c *mockCluster) GetStore() store.Store { return nil }
-func (c *mockCluster) GetNodesForKey(key string) []node.Node {
-	return c.nodes
-}
-
-func (c *mockCluster) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	panic("mockCluster doesn't implement Execute Query")
-}
-
-// executes a query against the local store
-func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	intVal, err := strconv.Atoi(args[0])
-	if err != nil { return nil, err }
-	val := newIntVal(intVal, timestamp)
-	c.values[key] = val
-	c.instructions = append(c.instructions, store.NewInstruction(cmd, key, args, timestamp))
-	return val, nil
-}
-
-func mockClusterDefaultInterferingKeys(c *mockCluster, instruction store.Instruction) []string {
-	return strings.Split(instruction.Key, ":")
-}
-
-func (c *mockCluster) InterferingKeys(instruction store.Instruction) []string {
-	return mockClusterDefaultInterferingKeys(c, instruction)
-}
+//type mockCluster struct {
+//	id node.NodeId
+//	nodes []node.Node
+//	lock sync.Mutex
+//	instructions []store.Instruction
+//	values map[string]*intVal
+//}
+//
+//var _  cluster.Cluster = &mockCluster{}
+//
+//func newMockCluster() *mockCluster {
+//	return &mockCluster{
+//		id: node.NewNodeId(),
+//		nodes: make([]node.Node, 0, 10),
+//		instructions: make([]store.Instruction, 0),
+//		values: make(map[string]*intVal),
+//	}
+//}
+//
+//func (c *mockCluster) addNodes(n ...node.Node) {
+//	c.nodes = append(c.nodes, n...)
+//}
+//
+//func (c *mockCluster) GetID() node.NodeId    { return c.id }
+//func (c *mockCluster) GetStore() store.Store { return nil }
+//func (c *mockCluster) GetNodesForKey(key string) []node.Node {
+//	return c.nodes
+//}
+//
+//func (c *mockCluster) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+//	panic("mockCluster doesn't implement Execute Query")
+//}
+//
+//// executes a query against the local store
+//func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+//	c.lock.Lock()
+//	defer c.lock.Unlock()
+//	intVal, err := strconv.Atoi(args[0])
+//	if err != nil { return nil, err }
+//	val := newIntVal(intVal, timestamp)
+//	c.values[key] = val
+//	c.instructions = append(c.instructions, store.NewInstruction(cmd, key, args, timestamp))
+//	return val, nil
+//}
+//
+//func mockClusterDefaultInterferingKeys(c *mockCluster, instruction store.Instruction) []string {
+//	return strings.Split(instruction.Key, ":")
+//}
+//
+//func (c *mockCluster) InterferingKeys(instruction store.Instruction) []string {
+//	return mockClusterDefaultInterferingKeys(c, instruction)
+//}
 
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
 	return mn.manager.HandleMessage(msg)
@@ -112,7 +111,6 @@ type mockNode struct {
 	// against this node
 	queries []*store.Instruction
 
-	cluster        *mockCluster
 	manager        *Manager
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 	sentMessages   []message.Message
@@ -129,24 +127,27 @@ var _ topology.Node = &mockNode{}
 // don't use for tests that depend on
 // complex topology
 func newMockNode() *mockNode {
-	clstr := newMockCluster()
-	return &mockNode{
+	nid := node.NewNodeId()
+	dcid := topology.DatacenterID("DC1")
+	n := &mockNode{
 		// TODO: generate random id
-		id:             clstr.GetID(),
+		id:             nid,
 		queries:        []*store.Instruction{},
-		cluster:        clstr,
-		manager:        NewManager(clstr),
 		messageHandler: mockNodeDefaultMessageHandler,
 		sentMessages:   make([]message.Message, 0),
 		stats:			newMockStatter(),
 
 		started: true,
 
-		dcID: topology.DatacenterID("DC1"),
+		dcID: dcid,
 		token: partitioner.Token([]byte{0,0,0,0}),
 		status: topology.NODE_UP,
 		name: "node",
 	}
+	t := topology.NewTopology(nid, dcid, partitioner.NewMD5Partitioner(), 3)
+	n.manager = NewManager(t, newMockStore())
+
+	return n
 }
 
 func (n *mockNode) GetId() node.NodeId { return n.id }

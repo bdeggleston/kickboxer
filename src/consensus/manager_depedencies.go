@@ -295,7 +295,7 @@ type dependencyManager struct {
 }
 
 func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, error) {
-	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+	keys := dm.manager.store.InterferingKeys(instance.Command)
 
 	if len(keys) < 1 {
 		return nil, fmt.Errorf("at least one interfering key required, none found")
@@ -308,7 +308,7 @@ func (dm *dependencyManager) GetAndSetDeps(instance *Instance) ([]InstanceID, er
 // When an instance is committed, it has been acknowledged by a quorum of replicas,
 // and it's dependencies can be removed from the dependency manager
 func (dm *dependencyManager) ReportAcknowledged(instance *Instance) error {
-	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+	keys := dm.manager.store.InterferingKeys(instance.Command)
 
 	if len(keys) < 1 {
 		return fmt.Errorf("at least one interfering key required, none found")
@@ -320,7 +320,7 @@ func (dm *dependencyManager) ReportAcknowledged(instance *Instance) error {
 }
 
 func (dm *dependencyManager) ReportExecuted(instance *Instance) error {
-	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+	keys := dm.manager.store.InterferingKeys(instance.Command)
 
 	if len(keys) < 1 {
 		return fmt.Errorf("at least one interfering key required, none found")
@@ -332,7 +332,7 @@ func (dm *dependencyManager) ReportExecuted(instance *Instance) error {
 }
 
 func (dm *dependencyManager) AddDependency(instance *Instance) error {
-	keys := dm.manager.cluster.InterferingKeys(instance.Command)
+	keys := dm.manager.store.InterferingKeys(instance.Command)
 
 	if len(keys) < 1 {
 		return fmt.Errorf("at least one interfering key required, none found")
