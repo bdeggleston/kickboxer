@@ -76,9 +76,19 @@ func setupReplicaSet(size int) []*mockNode {
 		nodes[i] = replicas[i]
 	}
 
-	for _, replica := range replicas {
-		replica.manager.topology.AddNode(replica)
+	for _, n1 := range replicas {
+		// TODO: make the replication factor a mock node constructor param?
+		n1.manager.topology = topology.NewTopology(
+			n1.id,
+			n1.dcID,
+			partitioner.NewMD5Partitioner(),
+			uint(size),
+		)
+		for _, n2 := range replicas {
+			n1.manager.topology.AddNode(n2)
+		}
 	}
+
 	return replicas
 }
 
