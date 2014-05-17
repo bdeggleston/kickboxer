@@ -328,3 +328,65 @@ func (s *mockStatter) SetPrefix(prefix string) {
 func (s *mockStatter) Close() error {
 	return nil
 }
+
+type mockStore struct {
+	lock sync.Mutex
+	instructions []store.Instruction
+	values map[string]*intVal
+}
+
+func newMockStore() *mockStore {
+	return &mockStore{
+		instructions: make([]store.Instruction, 0),
+		values: make(map[string]*intVal),
+	}
+}
+
+var _ store.Store = &mockStore{}
+
+func (s *mockStore) Start() error { return nil }
+func (s *mockStore) Stop() error { return nil }
+
+func (s *mockStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	intVal, err := strconv.Atoi(args[0])
+	if err != nil { return nil, err }
+	val := newIntVal(intVal, timestamp)
+	s.values[key] = val
+	s.instructions = append(s.instructions, store.NewInstruction(cmd, key, args, timestamp))
+	return val, nil
+}
+
+func mockStoreDefaultInterferingKeys(c *mockStore, instruction store.Instruction) []string {
+	return strings.Split(instruction.Key, ":")
+}
+
+func (s *mockStore) InterferingKeys(instruction store.Instruction) []string {
+	return mockStoreDefaultInterferingKeys(s, instruction)
+}
+
+func mockStoreDefaultIsReadOnly(s *mockStore, instruction store.Instruction) bool {
+	return false
+}
+
+func (s *mockStore) IsReadOnly(instruction store.Instruction) bool {
+	return mockStoreDefaultIsReadOnly(s, instruction)
+}
+
+func mockStoreDefaultIsWriteOnly(s *mockStore, instruction store.Instruction) bool {
+	return false
+}
+
+func (s *mockStore) IsWriteOnly(instruction store.Instruction) bool {
+	return mockStoreDefaultIsWriteOnly(s, instruction)
+}
+
+// not implemented
+func (s *mockStore) Reconcile(key string, values []store.Value) (store.Value, [][]store.Instruction, error) { panic("not implemented") }
+func (s *mockStore) SerializeValue(v store.Value) ([]byte, error) { panic("not implemented") }
+func (s *mockStore) DeserializeValue(b []byte) (store.Value, store.ValueType, error) { panic("not implemented") }
+func (s *mockStore) GetRawKey(key string) (store.Value, error) { panic("not implemented") }
+func (s *mockStore) SetRawKey(key string, val store.Value) error { panic("not implemented") }
+func (s *mockStore) GetKeys() []string { panic("not implemented") }
+func (s *mockStore) KeyExists(key string) bool { panic("not implemented") }
