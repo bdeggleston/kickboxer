@@ -10,6 +10,7 @@ import (
 import (
 	"kvstore"
 	"message"
+	"store"
 )
 
 // TODO: values need to be reconciled on cluster join
@@ -65,12 +66,12 @@ func TestStreamToNode(t *testing.T) {
 
 	interval := 50
 	numKeys := 10000 / interval
-	store := cluster.localNode.store.(*kvstore.KVStore)
+	str := cluster.localNode.store.(*kvstore.KVStore)
 	expected := make(map[string] bool)
 	for i:=0; i<numKeys; i++ {
 		keyNum := i * interval
 		key := fmt.Sprintf("%04d", keyNum)
-		if val, err := store.ExecuteQuery("SET", key, []string{key}, time.Now()); err != nil {
+		if val, err := str.ExecuteInstruction(store.NewInstruction("SET", key, []string{key}, time.Now())); err != nil {
 			t.Fatalf("Error while writing to store: %v", err)
 			_ = val
 		}
@@ -79,7 +80,7 @@ func TestStreamToNode(t *testing.T) {
 			expected[key] = false
 		}
 	}
-	testing_helpers.AssertEqual(t, "store size", numKeys, len(store.GetKeys()))
+	testing_helpers.AssertEqual(t, "store size", numKeys, len(str.GetKeys()))
 
 	// setup mock socket for node
 	sock := newPgmConn()
