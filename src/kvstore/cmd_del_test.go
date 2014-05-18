@@ -13,7 +13,7 @@ func TestDelExistingVal(t *testing.T) {
 	r := setupKVStore()
 
 	// write value
-	if _, err := r.ExecuteQuery("SET", "a", []string{"b"}, time.Now()); err != nil {
+	if _, err := r.ExecuteInstruction(store.NewInstruction("SET", "a", []string{"b"}, time.Now())); err != nil {
 		t.Fatalf("Unexpected error setting 'a': %v", err)
 	}
 
@@ -29,7 +29,7 @@ func TestDelExistingVal(t *testing.T) {
 
 	// delete value
 	ts := time.Now()
-	rawval, err := r.ExecuteQuery("DEL", "a", []string{}, ts)
+	rawval, err := r.ExecuteInstruction(store.NewInstruction("DEL", "a", []string{}, ts))
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
@@ -64,7 +64,7 @@ func TestDelNonExistingVal(t *testing.T) {
 
 	// delete value
 	ts := time.Now()
-	rawval, err := r.ExecuteQuery("DEL", "a", []string{}, ts)
+	rawval, err := r.ExecuteInstruction(store.NewInstruction("DEL", "a", []string{}, ts))
 	if err != nil {
 		t.Fatalf("Unexpected error deleting 'a': %v", err)
 	}
@@ -90,7 +90,7 @@ func TestDelValidation(t *testing.T) {
 	var val store.Value
 	var err error
 
-	val, err = r.ExecuteQuery("DEL", "a", []string{"x", "y"}, time.Now())
+	val, err = r.ExecuteInstruction(store.NewInstruction("DEL", "a", []string{"x", "y"}, time.Now()))
 	if val != nil { t.Errorf("Expected nil value, got %v", val) }
 	if err == nil {
 		t.Errorf("Expected error, got nil")
@@ -98,7 +98,7 @@ func TestDelValidation(t *testing.T) {
 		t.Logf("Got expected err: %v", err)
 	}
 
-	val, err = r.ExecuteQuery("DEL", "a", []string{}, time.Time{})
+	val, err = r.ExecuteInstruction(store.NewInstruction("DEL", "a", []string{}, time.Time{}))
 	if val != nil { t.Errorf("Expected nil value, got %v", val) }
 	if err == nil {
 		t.Errorf("Expected error, got nil")

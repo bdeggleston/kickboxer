@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 )
 
 import (
@@ -67,9 +66,14 @@ func (s *KVStore) Stop() error {
 	return nil
 }
 
-func (s *KVStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+func (s *KVStore) ExecuteInstruction(instruction store.Instruction) (store.Value, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	cmd := instruction.Cmd
+	key := instruction.Key
+	args := instruction.Args
+	timestamp := instruction.Timestamp
 
 	switch cmd {
 	case GET:

@@ -49,7 +49,7 @@ func TestIsReadCmd(t *testing.T) {
 
 func TestGetRawKeySuccess(t *testing.T) {
 	r := setupKVStore()
-	expected, err := r.ExecuteQuery("SET", "a", []string{"b"}, time.Now())
+	expected, err := r.ExecuteInstruction(store.NewInstruction("SET", "a", []string{"b"}, time.Now()))
 	if err != nil {
 		t.Fatalf("Unexpected error executing set: %v", err)
 	}
