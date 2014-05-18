@@ -8,6 +8,7 @@ import (
 	"message"
 	"node"
 	"partitioner"
+	"topology"
 )
 
 
@@ -60,7 +61,7 @@ func (t *RemoteNodeTest) TestStartingConnectsToPeer(c *gocheck.C) {
 	c.Check(conn.completedHandshake, gocheck.Equals, false)
 	c.Check(n.name, gocheck.Equals, "")
 	c.Check(n.id, gocheck.Equals, node.NodeId{})
-	c.Check(n.status, gocheck.Equals, NODE_INITIALIZING)
+	c.Check(n.status, gocheck.Equals, topology.NODE_INITIALIZING)
 	c.Check(len(n.token), gocheck.DeepEquals, 0)
 
 	// start the node
@@ -71,7 +72,7 @@ func (t *RemoteNodeTest) TestStartingConnectsToPeer(c *gocheck.C) {
 	c.Check(conn.completedHandshake, gocheck.Equals, true)
 	c.Check(n.name, gocheck.Equals, response.Name)
 	c.Check(n.id, gocheck.Equals, response.NodeId)
-	c.Check(n.status, gocheck.Equals, NODE_UP)
+	c.Check(n.status, gocheck.Equals, topology.NODE_UP)
 	c.Check(n.token, gocheck.DeepEquals, response.Token)
 }
 
@@ -85,7 +86,7 @@ func (t *RemoteNodeTest) TestMessageSendingSuccessCase(c *gocheck.C) {
 
 	cluster := setupCluster()
 	n := NewRemoteNode("127.0.0.2:9998", cluster)
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	conn := &Connection{socket:sock}
 	conn.SetHandshakeCompleted()
 	n.pool.Put(conn)
@@ -96,7 +97,7 @@ func (t *RemoteNodeTest) TestMessageSendingSuccessCase(c *gocheck.C) {
 
 	response := rawResponse.(*DiscoverPeerResponse)
 	c.Check(len(response.Peers), gocheck.Equals, 0)
-	c.Check(n.status, gocheck.Equals, NODE_UP)
+	c.Check(n.status, gocheck.Equals, topology.NODE_UP)
 }
 
 // tests that a node is marked as down if sending
@@ -104,7 +105,7 @@ func (t *RemoteNodeTest) TestMessageSendingSuccessCase(c *gocheck.C) {
 func (t *RemoteNodeTest) TestMessageSendingFailureCase(c *gocheck.C) {
 	cluster := setupCluster()
 	n := NewRemoteNode("127.0.0.2:9998", cluster)
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	conn := &Connection{socket:&readTimeoutConn{}}
 	conn.SetHandshakeCompleted()
 	n.pool.Put(conn)
@@ -113,7 +114,7 @@ func (t *RemoteNodeTest) TestMessageSendingFailureCase(c *gocheck.C) {
 	response, err := n.SendMessage(request)
 	c.Assert(err, gocheck.NotNil)
 	c.Assert(response, gocheck.IsNil)
-	c.Assert(n.status, gocheck.Equals, NODE_DOWN)
+	c.Assert(n.status, gocheck.Equals, topology.NODE_DOWN)
 }
 
 // tests calling execute query sends correct message

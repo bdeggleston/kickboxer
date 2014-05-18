@@ -303,7 +303,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceDependentConnectedDependencyOrd
 
 // tests that the dependency ordering is the same, regardless of the 'target' instance
 func (s *ExecuteDependencyChainTest) TestInstanceDependentDependencyOrdering(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	instances := make([]*Instance, 50)
 	for i := range instances {
 		instance := s.manager.makeInstance(s.getInstruction(1))
@@ -372,7 +372,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 	c.Check(4, gocheck.Equals, val.(*intVal).value)
 
 	// check the number of instructions
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, len(s.expectedOrder) - 1)
+	c.Assert(len(s.manager.store.(*mockStore).instructions), gocheck.Equals, len(s.expectedOrder) - 1)
 
 	// check all the instances, instructions, etc
 	for i:=0; i<len(s.expectedOrder); i++ {
@@ -385,7 +385,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 		} else {
 			// executed instances
 			c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
-			instruction := s.cluster.instructions[i]
+			instruction := s.manager.store.(*mockStore).instructions[i]
 			c.Check(instruction.Args[0], gocheck.Equals, fmt.Sprint(i))
 		}
 	}
@@ -393,7 +393,7 @@ func (s *ExecuteDependencyChainTest) TestExternalDependencySuccess(c *gocheck.C)
 
 // tests that getting the execution order saves the strongly connected component ids on the instances
 func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInExOrder(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	component := make([]InstanceID, 0)
@@ -428,7 +428,7 @@ func (s *ExecuteDependencyChainTest) TestInstanceStrongComponentsAreIncludedInEx
 // tests that components of 1 are not recorded
 func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *gocheck.C) {
 	var err error
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	instance := s.manager.makeInstance(getBasicInstruction())
 	err = s.manager.commitInstance(instance, true)
 	c.Assert(err, gocheck.IsNil)
@@ -442,7 +442,7 @@ func (s *ExecuteDependencyChainTest) TestSingleStrongComponentsAreSkipped(c *goc
 // tests that, as large strongly connected components are executed, their execution ordering
 // is not affected by the dependency graph excluding some executed instances
 func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponentOrdering(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	for i:=0; i<10; i++ {
@@ -486,7 +486,7 @@ func (s *ExecuteDependencyChainTest) TestExecutingLongStronglyConnectedComponent
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSuccess(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)
@@ -522,7 +522,7 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsSucces
 }
 
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedComponent(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)
@@ -563,7 +563,7 @@ func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncomm
 
 // tests that strongly connected components are not recorded if the component has an uncommitted dep
 func (s *ExecuteDependencyChainTest) TestRecordStronglyConnectedComponentsUncommittedDep(c *gocheck.C) {
-	s.manager = NewManager(s.manager.cluster)
+	s.manager = setupEmptyManager()
 	var prevInstance *Instance
 	instances := make([]*Instance, 0)
 	depMap := make(map[InstanceID]*Instance)
@@ -624,7 +624,7 @@ func (s *ExecuteDependencyChainTest) TestRejectedInstanceSkip(c *gocheck.C) {
 	c.Check(result.val.(*intVal).value, gocheck.Equals, 1)
 
 	// check the number of instructions
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
+	c.Assert(len(s.manager.store.(*mockStore).instructions), gocheck.Equals, 1)
 }
 
 // tests that instances are not executed twice
@@ -650,8 +650,8 @@ func (s *ExecuteDependencyChainTest) TestSkipExecuted(c *gocheck.C) {
 	c.Check(targetInst.Status, gocheck.Equals, INSTANCE_EXECUTED)
 
 	// and the cluster should have received only one instruction
-	c.Assert(len(s.cluster.instructions), gocheck.Equals, 1)
-	c.Check(s.cluster.instructions[0].Args[0], gocheck.Equals, fmt.Sprint(s.maxIdx))
+	c.Assert(len(s.manager.store.(*mockStore).instructions), gocheck.Equals, 1)
+	c.Check(s.manager.store.(*mockStore).instructions[0].Args[0], gocheck.Equals, fmt.Sprint(s.maxIdx))
 }
 
 // tests that an error is returned if an uncommitted instance id is provided
@@ -689,8 +689,8 @@ func (s *ExecuteApplyInstanceTest) TestSuccess(c *gocheck.C) {
 	c.Assert(val, gocheck.FitsTypeOf, &intVal{})
 	c.Assert(val.(*intVal).value, gocheck.Equals, 5)
 	c.Check(instance.Status, gocheck.Equals, INSTANCE_EXECUTED)
-	c.Check(len(s.cluster.instructions), gocheck.Equals, 1)
-	c.Check(s.cluster.values["a"].value, gocheck.Equals, 5)
+	c.Check(len(s.manager.store.(*mockStore).instructions), gocheck.Equals, 1)
+	c.Check(s.manager.store.(*mockStore).values["a"].value, gocheck.Equals, 5)
 }
 
 // tests that noop instances aren't applied to the store
@@ -702,7 +702,7 @@ func (s *ExecuteApplyInstanceTest) TestSkipRejectedInstance(c *gocheck.C) {
 	c.Assert(err, gocheck.IsNil)
 	c.Assert(val, gocheck.IsNil)
 	c.Check(instance.Noop, gocheck.Equals, true)
-	c.Check(len(s.cluster.instructions), gocheck.Equals, 0)
+	c.Check(len(s.manager.store.(*mockStore).instructions), gocheck.Equals, 0)
 }
 
 // tests that goroutines listening on an instance are

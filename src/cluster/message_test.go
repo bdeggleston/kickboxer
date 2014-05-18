@@ -13,6 +13,7 @@ import (
 	"message"
 	"node"
 	"partitioner"
+	"topology"
 	"types"
 )
 
@@ -73,14 +74,14 @@ func (t *ClusterMessageTest) TestDiscoverPeersResponse(c *gocheck.C) {
 		Peers: []*PeerData{
 			&PeerData{
 				NodeId:node.NewNodeId(),
-				DCId:DatacenterId("DC5000"),
+				DCId:topology.DatacenterID("DC5000"),
 				Addr:"127.0.0.1:9998",
 				Name:"Test Node1",
 				Token:partitioner.Token([]byte{0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7}),
 			},
 			&PeerData{
 				NodeId:node.NewNodeId(),
-				DCId:DatacenterId("DC2000"),
+				DCId:topology.DatacenterID("DC2000"),
 				Addr:"127.0.0.1:9999",
 				Name:"Test Node2",
 				Token:partitioner.Token([]byte{1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0}),

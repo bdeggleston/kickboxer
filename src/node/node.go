@@ -36,4 +36,8 @@ type Node interface {
 
 	ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error)
 	SendMessage(message.Message) (message.Message, error)
+
+	Start() error
+	Stop() error
+	IsStarted() bool
 }

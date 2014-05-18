@@ -12,7 +12,9 @@ import (
 
 import (
 	"node"
+	"partitioner"
 	"store"
+	"topology"
 )
 
 func setBreakpoint() {
@@ -49,8 +51,19 @@ func setupDeps(manager *Manager) {
 	}
 }
 
+func setupEmptyManager() *Manager {
+	return NewManager(
+		topology.NewTopology(
+			node.NewNodeId(),
+			topology.DatacenterID("DC1"),
+			partitioner.NewMD5Partitioner(),
+			3,
+		),
+		newMockStore(),
+	)
+}
 func setupManager() *Manager {
-	manager := NewManager(newMockCluster())
+	manager := setupEmptyManager()
 	setupDeps(manager)
 	return manager
 }
@@ -66,17 +79,19 @@ func setupReplicaSet(size int) []*mockNode {
 		nodes[i] = replicas[i]
 	}
 
-	for _, replica := range replicas {
-		replica.cluster.nodes = make([]node.Node, size)
-//		for i, node := range replicas {
-//			rnode := newMockNode()
-//			rnode.id = node.id
-//			rnode.cluster = node.cluster
-//			rnode.manager = node.manager
-//			replica.cluster.nodes[i] = node
-//		}
-		copy(replica.cluster.nodes, nodes)
+	for _, n1 := range replicas {
+		// TODO: make the replication factor a mock node constructor param?
+		n1.manager.topology = topology.NewTopology(
+			n1.id,
+			n1.dcID,
+			partitioner.NewMD5Partitioner(),
+			uint(size),
+		)
+		for _, n2 := range replicas {
+			n1.manager.topology.AddNode(n2)
+		}
 	}
+
 	return replicas
 }
 
@@ -111,7 +126,6 @@ func makeInstance(nid node.NodeId, deps []InstanceID) *Instance {
 }
 
 type baseManagerTest struct {
-	cluster *mockCluster
 	manager *Manager
 }
 
@@ -120,8 +134,15 @@ func (s *baseManagerTest) getInstruction(val int) store.Instruction {
 }
 
 func (s *baseManagerTest) SetUpTest(c *gocheck.C) {
-	s.cluster = newMockCluster()
-	s.manager = NewManager(s.cluster)
+	s.manager = NewManager(
+		topology.NewTopology(
+			node.NewNodeId(),
+			topology.DatacenterID("DC1"),
+			partitioner.NewMD5Partitioner(),
+			3,
+		),
+		newMockStore(),
+	)
 	s.manager.stats = newMockStatter()
 }
 
@@ -161,7 +182,6 @@ func (s *baseReplicaTest) SetUpTest(c *gocheck.C) {
 
 	s.manager = s.leader.manager
 	s.manager.stats = newMockStatter()
-	s.cluster = s.manager.cluster.(*mockCluster)
 	for i, n := range s.nodes {
 		s.managers[i] = n.manager
 	}

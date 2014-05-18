@@ -218,12 +218,7 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 		var val store.Value
 		var err error
 		if !instance.Noop {
-			val, err = m.cluster.ApplyQuery(
-				instance.Command.Cmd,
-				instance.Command.Key,
-				instance.Command.Args,
-				instance.Command.Timestamp,
-			)
+			val, err = m.store.ExecuteInstruction(instance.Command)
 			if err != nil {
 				return nil, err
 			}
@@ -261,7 +256,7 @@ func (m *Manager) applyInstance(instance *Instance) (store.Value, error) {
 		return nil, err
 	}
 
-	logger.Debug("Execute: success: %v on %v", instance.InstanceID, m.GetLocalID())
+	logger.Debug("Execute: success: %v on %v", instance.InstanceID, m.topology.GetLocalNodeID())
 	return val, nil
 }
 

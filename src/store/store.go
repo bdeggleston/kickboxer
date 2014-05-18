@@ -28,7 +28,7 @@ type Store interface {
 	// ----------- queries -----------
 
 	// executes a query instruction against the node's store
-	ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (Value, error)
+	ExecuteInstruction(Instruction) (Value, error)
 
 	// reconciles multiple values and returns instructions for correcting
 	// the values on inaccurate nodes

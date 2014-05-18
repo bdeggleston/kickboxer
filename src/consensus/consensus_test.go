@@ -124,8 +124,8 @@ func (s *ConsensusQueryBenchmarks) SetUpTest(c *gocheck.C) {
 	// setup message handler
 	for _, n := range s.nodes {
 		n.messageHandler = s.messageHandler
-		for _, r := range n.cluster.nodes {
-			r.(*mockNode).messageHandler = s.messageHandler
+		for _, r := range s.nodes {
+			r.messageHandler = s.messageHandler
 		}
 	}
 
@@ -143,15 +143,15 @@ func (s *ConsensusQueryBenchmarks) SetUpTest(c *gocheck.C) {
 				panic(err)
 			}
 			n.stats = nodeStats
-			for _, r := range n.cluster.nodes {
-				r.(*mockNode).stats = nodeStats
+			for _, r := range s.nodes {
+				r.stats = nodeStats
 			}
 		}
 	} else {
 		for _, n := range s.nodes {
 			n.manager.stats, _ = statsd.NewNoop()
-			for _, r := range n.cluster.nodes {
-				r.(*mockNode).stats, _ = statsd.NewNoop()
+			for _, r := range s.nodes {
+				r.stats, _ = statsd.NewNoop()
 			}
 		}
 	}
@@ -173,11 +173,11 @@ func (s *ConsensusQueryBenchmarks) checkConsistency(c *gocheck.C) {
 	exportPath := fmt.Sprintf("%v/debug/%v", os.Getenv("GOPATH"), time.Now().Format(time.RFC3339))
 	exported := false
 	for _, n := range s.nodes {
-		n.cluster.lock.Lock()
+		n.manager.store.(*mockStore).lock.Lock()
 	}
 	defer func() {
 		for _, n := range s.nodes {
-			n.cluster.lock.Unlock()
+			n.manager.store.(*mockStore).lock.Unlock()
 		}
 	}()
 	nodeInstructions := make([]map[string][]*Instance, s.numNodes)

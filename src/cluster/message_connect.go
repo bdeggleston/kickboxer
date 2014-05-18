@@ -11,6 +11,7 @@ import (
 	"node"
 	"partitioner"
 	"serializer"
+	"topology"
 	"types"
 )
 
@@ -29,7 +30,7 @@ type PeerData struct {
 	// the id of the peer
 	NodeId node.NodeId
 	// the name of the datacenter the peer belongs to
-	DCId DatacenterId
+	DCId topology.DatacenterID
 	// the address of the requesting node
 	Addr string
 	// the name of the requesting node
@@ -64,7 +65,7 @@ func (m *PeerData) Deserialize(buf *bufio.Reader) error {
 	// DCId
 	b, err = serializer.ReadFieldBytes(buf)
 	if err != nil { return err }
-	m.DCId = DatacenterId(b)
+	m.DCId = topology.DatacenterID(b)
 
 	// Addr
 	b, err = serializer.ReadFieldBytes(buf)
@@ -123,7 +124,7 @@ type ConnectionAcceptedResponse struct {
 	// the id of the requesting node
 	NodeId node.NodeId
 	// the name of the datacenter the peer belongs to
-	DCId DatacenterId
+	DCId topology.DatacenterID
 	// the name of the requesting node
 	Name string
 	// the token of the requesting node
@@ -150,7 +151,7 @@ func (m *ConnectionAcceptedResponse) Deserialize(buf *bufio.Reader) error {
 
 	b, err = serializer.ReadFieldBytes(buf)
 	if err != nil { return nil }
-	m.DCId = DatacenterId(b)
+	m.DCId = topology.DatacenterID(b)
 
 	b, err = serializer.ReadFieldBytes(buf)
 	if err != nil { return nil }

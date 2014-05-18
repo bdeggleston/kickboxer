@@ -17,8 +17,9 @@ import (
 import (
 	"message"
 	"node"
+	"partitioner"
 	"store"
-	cluster "clusterproto"
+	"topology"
 )
 
 type intVal struct {
@@ -43,92 +44,57 @@ func (v *intVal) Equal(value store.Value) bool {
 func (v *intVal) Serialize(_ *bufio.Writer) error { return nil }
 func (v *intVal) Deserialize(_ *bufio.Reader) error { return nil }
 
-type mockCluster struct {
-	id node.NodeId
-	nodes []node.Node
-	lock sync.Mutex
-	instructions []store.Instruction
-	values map[string]*intVal
-}
-
-var _  cluster.Cluster = &mockCluster{}
-
-func newMockCluster() *mockCluster {
-	return &mockCluster{
-		id: node.NewNodeId(),
-		nodes: make([]node.Node, 0, 10),
-		instructions: make([]store.Instruction, 0),
-		values: make(map[string]*intVal),
-	}
-}
-
-func (c *mockCluster) addNodes(n ...node.Node) {
-	c.nodes = append(c.nodes, n...)
-}
-
-func (c *mockCluster) GetID() node.NodeId    { return c.id }
-func (c *mockCluster) GetStore() store.Store { return nil }
-func (c *mockCluster) GetNodesForKey(key string) []node.Node {
-	return c.nodes
-}
-
-func (c *mockCluster) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	panic("mockCluster doesn't implement Execute Query")
-}
-
-// executes a query against the local store
-func (c *mockCluster) ApplyQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	intVal, err := strconv.Atoi(args[0])
-	if err != nil { return nil, err }
-	val := newIntVal(intVal, timestamp)
-	c.values[key] = val
-	c.instructions = append(c.instructions, store.NewInstruction(cmd, key, args, timestamp))
-	return val, nil
-}
-
-func mockClusterDefaultInterferingKeys(c *mockCluster, instruction store.Instruction) []string {
-	return strings.Split(instruction.Key, ":")
-}
-
-func (c *mockCluster) InterferingKeys(instruction store.Instruction) []string {
-	return mockClusterDefaultInterferingKeys(c, instruction)
-}
-
 func mockNodeDefaultMessageHandler(mn *mockNode, msg message.Message) (message.Message, error) {
 	return mn.manager.HandleMessage(msg)
 }
 
 type mockNode struct {
 	id node.NodeId
+	dcID topology.DatacenterID
+	token partitioner.Token
+	name string
 
 	// tracks the queries executed
 	// against this node
 	queries []*store.Instruction
 
-	cluster        *mockCluster
 	manager        *Manager
 	messageHandler func(*mockNode, message.Message) (message.Message, error)
 	sentMessages   []message.Message
 	lock		   sync.Mutex
-	partition     bool
+	partition     	bool
 	stats			statsd.Statter
+	started		bool
+	status topology.NodeStatus
 }
 
-var _ node.Node = &mockNode{}
+var _ topology.Node = &mockNode{}
 
+// creates a simple node
+// don't use for tests that depend on
+// complex topology
 func newMockNode() *mockNode {
-	clstr := newMockCluster()
-	return &mockNode{
-		id:             clstr.GetID(),
+	nid := node.NewNodeId()
+	dcid := topology.DatacenterID("DC1")
+	n := &mockNode{
+		// TODO: generate random id
+		id:             nid,
 		queries:        []*store.Instruction{},
-		cluster:        clstr,
-		manager:        NewManager(clstr),
 		messageHandler: mockNodeDefaultMessageHandler,
 		sentMessages:   make([]message.Message, 0),
 		stats:			newMockStatter(),
+
+		started: true,
+
+		dcID: dcid,
+		token: partitioner.Token([]byte{0,0,0,0}),
+		status: topology.NODE_UP,
+		name: "node",
 	}
+	t := topology.NewTopology(nid, dcid, partitioner.NewMD5Partitioner(), 3)
+	n.manager = NewManager(t, newMockStore())
+
+	return n
 }
 
 func (n *mockNode) GetId() node.NodeId { return n.id }
@@ -224,6 +190,23 @@ func (n *mockNode) SendMessage(srcRequest message.Message) (message.Message, err
 	return dstResponse, nil
 }
 
+func (n *mockNode) Name() string { return n.name }
+func (n *mockNode) GetAddr() string { return "" }
+func (n *mockNode) IsStarted() bool { return n.started }
+func (n *mockNode) GetToken() partitioner.Token { return n.token }
+func (n *mockNode) GetDatacenterId() topology.DatacenterID { return n.dcID }
+func (n *mockNode) GetStatus() topology.NodeStatus { return n.status }
+
+func (n *mockNode) Start() error {
+	n.started = true
+	return nil
+}
+
+func (n *mockNode) Stop() error {
+	n.started = false;
+	return nil
+}
+
 func transformMockNodeArray(src []*mockNode) []node.Node {
 	dst := make([]node.Node, len(src))
 	for i := range src {
@@ -293,3 +276,65 @@ func (s *mockStatter) SetPrefix(prefix string) {
 func (s *mockStatter) Close() error {
 	return nil
 }
+
+type mockStore struct {
+	lock sync.Mutex
+	instructions []store.Instruction
+	values map[string]*intVal
+}
+
+func newMockStore() *mockStore {
+	return &mockStore{
+		instructions: make([]store.Instruction, 0),
+		values: make(map[string]*intVal),
+	}
+}
+
+var _ store.Store = &mockStore{}
+
+func (s *mockStore) Start() error { return nil }
+func (s *mockStore) Stop() error { return nil }
+
+func (s *mockStore) ExecuteInstruction(instruction store.Instruction) (store.Value, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	intVal, err := strconv.Atoi(instruction.Args[0])
+	if err != nil { return nil, err }
+	val := newIntVal(intVal, instruction.Timestamp)
+	s.values[instruction.Key] = val
+	s.instructions = append(s.instructions, instruction)
+	return val, nil
+}
+
+func mockStoreDefaultInterferingKeys(c *mockStore, instruction store.Instruction) []string {
+	return strings.Split(instruction.Key, ":")
+}
+
+func (s *mockStore) InterferingKeys(instruction store.Instruction) []string {
+	return mockStoreDefaultInterferingKeys(s, instruction)
+}
+
+func mockStoreDefaultIsReadOnly(s *mockStore, instruction store.Instruction) bool {
+	return false
+}
+
+func (s *mockStore) IsReadOnly(instruction store.Instruction) bool {
+	return mockStoreDefaultIsReadOnly(s, instruction)
+}
+
+func mockStoreDefaultIsWriteOnly(s *mockStore, instruction store.Instruction) bool {
+	return false
+}
+
+func (s *mockStore) IsWriteOnly(instruction store.Instruction) bool {
+	return mockStoreDefaultIsWriteOnly(s, instruction)
+}
+
+// not implemented
+func (s *mockStore) Reconcile(key string, values []store.Value) (store.Value, [][]store.Instruction, error) { panic("not implemented") }
+func (s *mockStore) SerializeValue(v store.Value) ([]byte, error) { panic("not implemented") }
+func (s *mockStore) DeserializeValue(b []byte) (store.Value, store.ValueType, error) { panic("not implemented") }
+func (s *mockStore) GetRawKey(key string) (store.Value, error) { panic("not implemented") }
+func (s *mockStore) SetRawKey(key string, val store.Value) error { panic("not implemented") }
+func (s *mockStore) GetKeys() []string { panic("not implemented") }
+func (s *mockStore) KeyExists(key string) bool { panic("not implemented") }

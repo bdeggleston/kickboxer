@@ -11,6 +11,7 @@ import (
 	"node"
 	"partitioner"
 	"store"
+	"topology"
 )
 
 type queryCall struct {
@@ -35,13 +36,13 @@ type mockNode struct {
 	testPtr *testing.T
 }
 
-func newMockNode(id node.NodeId, dcid DatacenterId, token partitioner.Token, name string) (*mockNode) {
+func newMockNode(id node.NodeId, dcid topology.DatacenterID, token partitioner.Token, name string) (*mockNode) {
 	n := &mockNode{}
 	n.id = id
 	n.dcId = dcid
 	n.token = token
 	n.name = name
-	n.status = NODE_UP
+	n.status = topology.NODE_UP
 	n.requests = make([]queryCall, 0, 5)
 	n.responses = make(chan *mockQueryResponse, 100)
 	return n

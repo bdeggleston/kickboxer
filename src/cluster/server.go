@@ -7,6 +7,7 @@ import (
 
 import (
 	"message"
+	"topology"
 )
 
 type PeerServer struct {
@@ -27,7 +28,7 @@ func NewPeerServer(cluster *Cluster, listenAddr string) *PeerServer {
 }
 
 // executes a request and returns a response message
-func (s *PeerServer) executeRequest(node ClusterNode, request message.Message) (message.Message, error) {
+func (s *PeerServer) executeRequest(node topology.Node, request message.Message) (message.Message, error) {
 	switch request.GetType() {
 	case DISCOVER_PEERS_REQUEST:
 		peerData := s.cluster.getPeerData()

@@ -59,8 +59,13 @@ func (s *mockStore) addReconcileResponse(val store.Value, instructions [][]store
 }
 
 // executes a write instruction against the node's store
-func (s *mockStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
-	rc := &queryCall{cmd:cmd, key:key, args:args, timestamp:timestamp}
+func (s *mockStore) ExecuteInstruction(instruction store.Instruction) (store.Value, error) {
+	rc := &queryCall{
+		cmd:instruction.Cmd,
+		key:instruction.Key,
+		args:instruction.Args,
+		timestamp:instruction.Timestamp,
+	}
 	s.requests = append(s.requests, rc)
 	rr := s.responses[0]
 	s.responses = s.responses[1:]

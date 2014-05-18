@@ -1,4 +1,4 @@
-package cluster
+package topology
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func (t *RingTest) SetUpTest(c *gocheck.C) {
 	for i:=0; i<10; i++ {
 		n := newMockNode(
 			node.NewNodeId(),
-			DatacenterId("DC5000"),
+			DatacenterID("DC5000"),
 			partitioner.Token([]byte{0,0,byte(i),0}),
 			fmt.Sprintf("N%v", i),
 		)
@@ -68,8 +68,6 @@ func (t *RingTest) TestAddingNewNodeToRing(c *gocheck.C) {
 
 	c.Check(len(t.ring.nodeMap), gocheck.Equals, 11)
 	c.Check(len(t.ring.tokenRing), gocheck.Equals, 11)
-	c.Check(newNode.isStarted, gocheck.Equals, false)
-	c.Check(len(newNode.requests), gocheck.Equals, 0)
 }
 
 // tests that nothing is changed if a node is already
@@ -154,7 +152,7 @@ func (t *RingTest) TestRingIsRefreshedAfterNodeAddition(c *gocheck.C) {
 // tests that the proper nodes are returned for the given keys
 func (t *RingTest) TestKeyRouting(c *gocheck.C) {
 	var token partitioner.Token
-	var nodes []ClusterNode
+	var nodes []Node
 
 	// test the upper bound
 	token = partitioner.Token([]byte{0,0,9,5})

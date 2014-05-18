@@ -12,10 +12,10 @@ import (
 )
 
 import (
-	cluster "clusterproto"
 	"message"
 	"node"
 	"store"
+	"topology"
 )
 
 var (
@@ -155,7 +155,10 @@ func getTimeoutEvent(d time.Duration) <-chan time.Time {
 // replica level manager for consensus operations
 type Manager struct {
 	lock     sync.RWMutex
-	cluster  cluster.Cluster
+	nodeID   node.NodeId
+	dcID     topology.DatacenterID
+	store	 store.Store
+	topology *topology.Topology
 	stats    statsd.Statter
 
 	instances    *InstanceMap
@@ -166,10 +169,16 @@ type Manager struct {
 	depsMngr  *dependencyManager
 }
 
-func NewManager(cluster cluster.Cluster) *Manager {
+func NewManager(
+		t *topology.Topology,
+		s store.Store,
+	) *Manager {
 	stats, _ := statsd.NewNoop()
 	mngr := &Manager{
-		cluster:  cluster,
+		nodeID: t.GetLocalNodeID(),
+		dcID: t.GetLocalDatacenterID(),
+		store: s,
+		topology: t,
 		stats:    stats,
 		instances:  NewInstanceMap(),
 		executed:   make([]InstanceID, 0, 16),
@@ -187,19 +196,14 @@ func (m *Manager) setStatter(s statsd.Statter) {
 }
 
 // returns the replicas for the manager's key, at the given  consistency level
-func (m *Manager) getInstanceNodes(instance *Instance) []node.Node {
-	return m.cluster.GetNodesForKey(instance.Command.Key)
+func (m *Manager) getInstanceNodes(instance *Instance) []topology.Node {
+	tk := m.topology.GetToken(instance.Command.Key)
+	return m.topology.GetLocalNodesForToken(tk)
 }
 
 func (m *Manager) checkLocalKeyEligibility(key string) bool {
-	nodes := m.cluster.GetNodesForKey(key)
-	localID := m.GetLocalID()
-	for _, n := range nodes {
-		if n.GetId() == localID {
-			return true
-		}
-	}
-	return false
+	tk := m.topology.GetToken(key)
+	return m.topology.TokenLocallyReplicated(tk)
 }
 
 func (m *Manager) checkLocalInstanceEligibility(instance *Instance) bool {
@@ -208,17 +212,18 @@ func (m *Manager) checkLocalInstanceEligibility(instance *Instance) bool {
 
 // returns the replicas for the given instance's key, excluding the local node
 func (m *Manager) getInstanceReplicas(instance *Instance) []node.Node {
-	nodes := m.cluster.GetNodesForKey(instance.Command.Key)
+	tk := m.topology.GetToken(instance.Command.Key)
+	nodes := m.topology.GetLocalNodesForToken(tk)
 	replicas := make([]node.Node, 0, len(nodes))
 	for _, n := range nodes {
-		if n.GetId() == m.GetLocalID() { continue }
+		if n.GetId() == m.nodeID { continue }
 		replicas = append(replicas, n)
 	}
 	return replicas
 }
 
 func (m *Manager) GetLocalID() node.NodeId {
-	return m.cluster.GetID()
+	return m.topology.GetLocalNodeID()
 }
 
 func (m *Manager) HandleMessage(msg message.Message) (message.Message, error) {
@@ -294,7 +299,7 @@ func (m *Manager) getInstanceDeps(instance *Instance) ([]InstanceID, error) {
 func (m *Manager) makeInstance(instruction store.Instruction) *Instance {
 	instance := &Instance{
 		InstanceID:   NewInstanceID(),
-		LeaderID:     m.GetLocalID(),
+		LeaderID:     m.nodeID,
 		Command:      instruction,
 		manager:	  m,
 	}

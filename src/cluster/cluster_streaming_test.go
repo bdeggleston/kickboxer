@@ -10,6 +10,7 @@ import (
 import (
 	"kvstore"
 	"message"
+	"store"
 )
 
 // TODO: values need to be reconciled on cluster join
@@ -22,17 +23,17 @@ func TestStreamFromNodeMethod(t *testing.T) {
 
 	// get target node
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
 	// setup mock socket
 	sock := newPgmConn()
 	sock.outputFactory = func(_ *pgmConn) message.Message {
 		return &StreamResponse{}
 	}
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
-	if err := cluster.streamFromNode(node); err != nil {
+	if err := cluster.streamFromNode(n); err != nil {
 		t.Errorf("Unexpected error requesting stream: %v", err)
 	}
 
@@ -65,12 +66,12 @@ func TestStreamToNode(t *testing.T) {
 
 	interval := 50
 	numKeys := 10000 / interval
-	store := cluster.localNode.store.(*kvstore.KVStore)
+	str := cluster.localNode.store.(*kvstore.KVStore)
 	expected := make(map[string] bool)
 	for i:=0; i<numKeys; i++ {
 		keyNum := i * interval
 		key := fmt.Sprintf("%04d", keyNum)
-		if val, err := store.ExecuteQuery("SET", key, []string{key}, time.Now()); err != nil {
+		if val, err := str.ExecuteInstruction(store.NewInstruction("SET", key, []string{key}, time.Now())); err != nil {
 			t.Fatalf("Error while writing to store: %v", err)
 			_ = val
 		}
@@ -79,7 +80,7 @@ func TestStreamToNode(t *testing.T) {
 			expected[key] = false
 		}
 	}
-	testing_helpers.AssertEqual(t, "store size", numKeys, len(store.GetKeys()))
+	testing_helpers.AssertEqual(t, "store size", numKeys, len(str.GetKeys()))
 
 	// setup mock socket for node
 	sock := newPgmConn()
@@ -90,13 +91,13 @@ func TestStreamToNode(t *testing.T) {
 		return &StreamDataResponse{}
 	}
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
-	testing_helpers.AssertEqual(t, "pool size", uint(0), node.pool.size)
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	testing_helpers.AssertEqual(t, "pool size", uint(0), n.pool.size)
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
-	if err := cluster.streamToNode(node); err != nil {
+	if err := cluster.streamToNode(n); err != nil {
 		t.Errorf("Unexpected error while streaming: %v", err)
 	}
 
@@ -176,17 +177,17 @@ func TestServerStreamRequest(t *testing.T) {
 
 	// get target node
 	targetToken := literalPartitioner{}.GetToken("5000")
-	node := cluster.ring.GetNodesForToken(targetToken, 1)[0].(*RemoteNode)
-	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, node.GetToken())
+	n := cluster.topology.GetLocalNodesForToken(targetToken)[0].(*RemoteNode)
+	testing_helpers.AssertSliceEqual(t, "target node token", targetToken, n.GetToken())
 
 	// setup mock socket
 	sock := newPgmConn()
 	sock.outputFactory = func(_ *pgmConn) message.Message { return &StreamCompleteResponse{} }
-	node.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
+	n.pool.Put(&Connection{socket:sock, completedHandshake:true, isClosed:false})
 
 	// process message and check response
 	server := &PeerServer{cluster:cluster}
-	resp, err := server.executeRequest(node, &StreamRequest{})
+	resp, err := server.executeRequest(n, &StreamRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected error executing StreamRequest: %v", err)
 	}

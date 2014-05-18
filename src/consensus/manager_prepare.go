@@ -585,7 +585,7 @@ func (m *Manager) HandlePrepareSuccessor(request *PrepareSuccessorRequest) (*Pre
 				successors := instance.getSuccessors()
 				successorNum := len(successors)
 				for i, nid := range successors {
-					if nid == m.GetLocalID() {
+					if nid == m.topology.GetLocalNodeID() {
 						successorNum = i
 					}
 				}

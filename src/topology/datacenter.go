@@ -1,4 +1,4 @@
-package cluster
+package topology
 
 import (
 	"fmt"
@@ -24,21 +24,21 @@ import (
  * datacenters pick a random coordinator on each request (why?)
  */
 
-type DatacenterId string
+type DatacenterID string
 
 type DatacenterContainer struct {
-	rings map[DatacenterId] *Ring
+	rings map[DatacenterID] *Ring
 	lock sync.RWMutex
 }
 
 func NewDatacenterContainer() *DatacenterContainer {
 	dc := &DatacenterContainer{
-		rings: make(map[DatacenterId]*Ring),
+		rings: make(map[DatacenterID]*Ring),
 	}
 	return dc
 }
 
-func (dc *DatacenterContainer) AddNode(node ClusterNode) error {
+func (dc *DatacenterContainer) AddNode(node Node) error {
 	dc.lock.Lock()
 	defer dc.lock.Unlock()
 
@@ -57,18 +57,18 @@ func (dc *DatacenterContainer) Size() int {
 	return num
 }
 
-func (dc *DatacenterContainer) AllNodes() []ClusterNode {
+func (dc *DatacenterContainer) AllNodes() []Node {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
-	nodes := make([]ClusterNode, 0, dc.Size())
+	nodes := make([]Node, 0, dc.Size())
 	for _, ring := range dc.rings {
 		nodes = append(nodes, ring.AllNodes()...)
 	}
 	return nodes
 }
 
-func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
+func (dc *DatacenterContainer) GetRing(dcId DatacenterID) (*Ring, error) {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
@@ -80,16 +80,15 @@ func (dc *DatacenterContainer) GetRing(dcId DatacenterId) (*Ring, error) {
 }
 
 // returns a map of datacenter ids -> replica nodes
-func (dc *DatacenterContainer) GetNodesForToken(t partitioner.Token, replicationFactor uint32) map[DatacenterId][]ClusterNode {
+func (dc *DatacenterContainer) GetNodesForToken(t partitioner.Token, replicationFactor uint32) map[DatacenterID][]Node {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 
 	// allocate an additional space for the local node when this is used in queries
-	nodes := make(map[DatacenterId][]ClusterNode, len(dc.rings) + 1)
+	nodes := make(map[DatacenterID][]Node, len(dc.rings) + 1)
 	for dcid, ring := range dc.rings {
 		nodes[dcid] = ring.GetNodesForToken(t, replicationFactor)
 	}
 
 	return nodes
 }
-
