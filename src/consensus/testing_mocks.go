@@ -295,14 +295,14 @@ var _ store.Store = &mockStore{}
 func (s *mockStore) Start() error { return nil }
 func (s *mockStore) Stop() error { return nil }
 
-func (s *mockStore) ExecuteQuery(cmd string, key string, args []string, timestamp time.Time) (store.Value, error) {
+func (s *mockStore) ExecuteInstruction(instruction store.Instruction) (store.Value, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	intVal, err := strconv.Atoi(args[0])
+	intVal, err := strconv.Atoi(instruction.Args[0])
 	if err != nil { return nil, err }
-	val := newIntVal(intVal, timestamp)
-	s.values[key] = val
-	s.instructions = append(s.instructions, store.NewInstruction(cmd, key, args, timestamp))
+	val := newIntVal(intVal, instruction.Timestamp)
+	s.values[instruction.Key] = val
+	s.instructions = append(s.instructions, instruction)
 	return val, nil
 }
 
